@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: octy-staging-cert
+  namespace: octy-development # must be same ns as application
+spec:
+  commonName: sandbox.api.octy.ai
+  secretName: octy-staging-cert
+  dnsNames:
+    - sandbox.api.octy.ai
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer

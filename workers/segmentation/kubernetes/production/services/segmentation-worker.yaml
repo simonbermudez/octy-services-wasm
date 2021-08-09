@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: segmentation-worker
+  namespace: octy-production
+  labels:
+    app: segmentation-worker-app
+spec:
+  type: ClusterIP
+  selector:
+    app: segmentation-worker-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1038
+      targetPort: 8080

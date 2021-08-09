@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-worker-deploy
+  namespace: octy-production
+  labels:
+    app: recommendation-worker-app
+spec:
+  selector:
+    matchLabels:
+      app: recommendation-worker-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: recommendation-worker-app
+    spec:
+      containers:
+      - name: recommendation-worker-app
+        image: benpayflic/octy-recommendation-worker:latest
+        imagePullPolicy: Always
+        env:
+          - name: RECOMMENDATION_WORKER_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: recommendation-worker-config  # The ConfigMap this value comes from.
+                key: recommendation_worker_config # The key to fetch.
+          - name: RECOMMENDATION_WORKER_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: recommendation-worker-secrets # The Secret this value comes from.
+                key: recommendation_worker_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "192Mi"
+            cpu: "300m"
+          limits:
+            memory: "384Mi"
+            cpu: "600m"
+      imagePullSecrets:
+      - name: docker-hub-key

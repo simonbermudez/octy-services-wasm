@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation-worker
+  namespace: octy-production
+  labels:
+    app: recommendation-worker-app
+spec:
+  type: ClusterIP
+  selector:
+    app: recommendation-worker-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1036
+      targetPort: 8080

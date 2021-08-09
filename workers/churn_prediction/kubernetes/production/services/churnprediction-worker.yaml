@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: churnprediction-worker
+  namespace: octy-production
+  labels:
+    app: churn-prediction-worker-app
+spec:
+  type: ClusterIP
+  selector:
+    app: churn-prediction-worker-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1035
+      targetPort: 8080

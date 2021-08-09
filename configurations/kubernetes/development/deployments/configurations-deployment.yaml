@@ -1,0 +1,51 @@
+# kubectl -n octy-development rollout restart deployment configurations-deploy [update all pods after code changes]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: configurations-deploy
+  namespace: octy-development
+  labels:
+    app: configurations-app
+spec:
+  selector:
+    matchLabels:
+      app: configurations-app
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: configurations-app
+    spec:
+      containers:
+      - name: configurations-app
+        image: benpayflic/octy-configurations-service:latest
+        imagePullPolicy: Always
+        # env:
+        #   - name: ACCOUNT_CONFIG # name that can be refefenced in app
+        #     valueFrom:
+        #       configMapKeyRef:
+        #         name: account-config  # The ConfigMap this value comes from.
+        #         key: account_config # The key to fetch.
+        #   - name: ACCOUNT_SECRETS # name that can be refefenced in app
+        #     valueFrom:
+        #       secretKeyRef:
+        #         name: account-secrets # The Secret this value comes from.
+        #         key: account_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+      imagePullSecrets:
+      - name: docker-hub-key
+

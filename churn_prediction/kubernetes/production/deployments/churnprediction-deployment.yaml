@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: churn-prediction-deploy
+  namespace: octy-production
+  labels:
+    app: churn-prediction-app
+spec:
+  selector:
+    matchLabels:
+      app: churn-prediction-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: churn-prediction-app
+    spec:
+      containers:
+      - name: churn-prediction-app
+        image: benpayflic/octy-churn-prediction-service:latest
+        imagePullPolicy: Always
+        env:
+          - name: CHURN_PREDICTION_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: churn-prediction-config  # The ConfigMap this value comes from.
+                key: churn_prediction_config # The key to fetch.
+          - name: CHURN_PREDICTION_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: churn-prediction-secrets # The Secret this value comes from.
+                key: churn_prediction_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+      imagePullSecrets:
+      - name: docker-hub-key

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: items-service
+  labels:
+    app: items-app
+spec:
+  type: ClusterIP
+  selector:
+    app: items-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1028
+      targetPort: 8080

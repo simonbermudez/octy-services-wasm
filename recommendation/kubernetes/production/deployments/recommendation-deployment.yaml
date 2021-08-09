@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendations-deploy
+  namespace: octy-production
+  labels:
+    app: recommendations-app
+spec:
+  selector:
+    matchLabels:
+      app: recommendations-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: recommendations-app
+    spec:
+      containers:
+      - name: recommendations-app
+        image: benpayflic/octy-recommendations-service:latest
+        imagePullPolicy: Always
+        env:
+          - name: RECOMMENDATION_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: recommendations-config  # The ConfigMap this value comes from.
+                key: recommendations_config # The key to fetch.
+          - name: RECOMMENDATION_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: recommendations-secrets # The Secret this value comes from.
+                key: recommendations_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+      imagePullSecrets:
+      - name: docker-hub-key

@@ -1,0 +1,41 @@
+{
+    
+    "ENV" : "segmentation.worker.production",
+    "SENTRY_URL" : "https://e4b80290888a4267a2224efc6dbed258@o324132.ingest.sentry.io/1826169",
+
+    "EVENT_SERVICE_CLUSTER_IP" : "http://10.245.237.27:1029",
+    "PROFILE_SERVICE_CLUSTER_IP" : "http://10.245.84.145:1027",
+    "SEGMENTATION_SERVICE_CLUSTER_IP" : "http://10.245.130.220:1030",
+    "OCTY_JOB_SERVICE_CLUSTER_IP" : "http://10.245.179.248:1034",
+
+    "AMQP_URL" : "amqps://kcditigk:jckigtvlFqNxH652hdYIqRPQH7kPuS0n@brilliant-grey-impala.rmq2.cloudamqp.com/kcditigk",
+    "EXCHANGE" : "octy-services",
+
+    "AMQP_PUBLISHERS" : [
+
+        {
+            "QUEUE" : "octy-job-delete-queue",
+            "ROUTING_KEY" : "octy.job.cmd.delete"
+        },
+        {
+            "QUEUE" : "octy-job-create-queue",
+            "ROUTING_KEY" : "octy.job.cmd.create"
+        },
+        {
+            "QUEUE" : "grouped-segmentation-operations-queue",
+            "ROUTING_KEY" : "grouped.segmentation.operations.cmd"
+        }
+    ],
+    "AMQP_CONSUMERS" : [
+
+        {
+            "QUEUE" : "past-segmentation-run-queue",
+            "ROUTING_KEY" : "past.segmentation.cmd.run"
+        },
+        {
+            "QUEUE" : "live-segmentation-run-queue",
+            "ROUTING_KEY" : "live.segmentation.cmd.run"
+        }
+    ]
+    
+}

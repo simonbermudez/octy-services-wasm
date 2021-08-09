@@ -1,0 +1,119 @@
+# module imports
+from data.repositories.Imessaging_repository import MessagingContentInterface
+from utils.utils import *
+from api.routers.error_handlers import *
+
+
+# python imports
+from typing import *
+import json
+import time
+
+# external imports
+
+
+class _MessagingContentRepository(MessagingContentInterface):
+    """
+        _MessagingContentRepository
+        Handles:
+        - Retrieving item recommendations for message content
+        - Retrieving items
+
+        ...
+
+        Attributes
+        ----------
+        none
+    """
+    def __init__(self): pass
+
+    async def get_item_recommendations(self, account_id : str, profile_ids : list) -> list:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        profile_ids : list
+
+        Returns
+        ----------
+        recommendations : list
+        """
+        url = f"{Config['REC_SERVICE_CLUSTER_IP']}/v1/internal/recommendations"
+        session = requests_retry_session()
+
+        payload = {
+            'account_id' : account_id,
+            'profile_ids' : profile_ids
+        }
+
+        t0 = time.time()
+        try:
+            response = session.post(
+                url,
+                data=json.dumps(payload),
+                timeout=10,
+                headers={'Content-Type': 'application/json'}
+            )
+        except Exception as x:
+            raise Exception(x) from None
+        else:
+            print(f'{response.request.method} Request: "{url}" returned response with valid status code: {response.status_code}')
+        finally:
+            t1 = time.time()
+            print('Took', t1 - t0, 'seconds')
+
+        if response.status_code == 400:
+            return []
+            
+        body = json.loads(response.text)
+        return body['recommendations']
+
+    async def get_items(self, account_id : str) -> list:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        :rtype: list
+        """
+        url = f"{Config['ITEM_SERVICE_CLUSTER_IP']}/v1/internal/items?account_id={account_id}&ids=false&status=active"
+        items = []
+        exhausted_items = False
+
+        cursor : int = 0
+        session = requests_retry_session()
+        while not exhausted_items:
+            t0 = time.time()
+            try:
+                response = session.get(
+                    url,
+                    headers={'cursor': str(cursor)},
+                    timeout=5
+                )
+            except Exception as x:
+                raise Exception(x) from None
+            else:
+                print(f'{response.request.method} Request: "{url}" returned response with valid status code: {response.status_code}')
+            finally:
+                t1 = time.time()
+                print('Took', t1 - t0, 'seconds')
+
+
+            if response.status_code != 200:
+                exhausted_items = True
+                continue
+
+            body = json.loads(response.text)
+            for item in body['items']:
+                items.append(
+                    item
+                )
+            cursor +=body['request_meta']['count']
+
+        return items
+
+messagingContentRepository = _MessagingContentRepository()

@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: profiles-deploy
+  namespace: octy-production
+  labels:
+    app: profiles-app
+spec:
+  selector:
+    matchLabels:
+      app: profiles-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: profiles-app
+    spec:
+      containers:
+      - name: profiles-app
+        image: benpayflic/octy-profiles-service:latest
+        imagePullPolicy: Always
+        env:
+          - name: PROFILES_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: profiles-config  # The ConfigMap this value comes from.
+                key: profiles_config # The key to fetch.
+          - name: PROFILES_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: profiles-secrets # The Secret this value comes from.
+                key: profiles_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+      imagePullSecrets:
+      - name: docker-hub-key

@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: messaging-deploy
+  namespace: octy-production
+  labels:
+    app: messaging-app
+spec:
+  selector:
+    matchLabels:
+      app: messaging-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: messaging-app
+    spec:
+      containers:
+      - name: messaging-app
+        image: benpayflic/octy-messaging-service:latest
+        imagePullPolicy: Always
+        env:
+          - name: MESSAGING_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: messaging-config  # The ConfigMap this value comes from.
+                key: messaging_config # The key to fetch.
+          - name: MESSAGING_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: messaging-secrets # The Secret this value comes from.
+                key: messaging_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+      imagePullSecrets:
+      - name: docker-hub-key

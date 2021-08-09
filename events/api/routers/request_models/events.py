@@ -1,0 +1,29 @@
+from fastapi import Query
+from pydantic import BaseModel, ValidationError, validator
+from typing import Optional, Dict, List, Any
+from config import Config
+
+
+### Create event Input Schema
+class CreateEvent(BaseModel):
+    event_type : str
+    event_properties : dict
+    profile_id : str
+    created_at : Optional[str] # only acknoloedged if batch create
+
+### Delete event types Input Schema
+class BatchCreateEvents(BaseModel):
+    events : List[CreateEvent]
+    @validator('events')
+    def length(cls, v):
+        if len(v) > Config['MAX_CREATE_EVENTS']:
+            raise ValueError('You can only create up to 100 events per request.')
+        return v
+
+
+class GetEventsInternal(BaseModel):
+    timeframe : int
+    account_id : str
+    event_sequence_event : Optional[Dict]
+    profile_ids : Optional[List[str]]
+    event_type : Optional[str]

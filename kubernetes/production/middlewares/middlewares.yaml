@@ -1,0 +1,46 @@
+# ForwardAuth Middleware
+# Forward authentication to https://sandbox.api.octy.ai/v1/account/authenticate
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: forward-auth
+  namespace: octy-production
+spec:
+  forwardAuth:
+    address: https://api.octy.ai/v1/account/authenticate
+    trustForwardHeader: true
+    authResponseHeaders:
+      - X-AUTH-JWT-TOKEN
+
+---
+# ADMIN AUTH MIDDLEWARE
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: admin-auth
+  namespace: octy-production
+spec:
+  basicAuth:
+    secret: admin-authsecret
+
+---
+# TRUSTED APP AUTH MIDDLEWARE
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: trusted-app-auth
+  namespace: octy-production
+spec:
+  basicAuth:
+    secret: trusted-app-authsecret
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: https-only
+  namespace: octy-production
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true

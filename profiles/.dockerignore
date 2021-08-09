@@ -1,0 +1,5 @@
+.git
+.cache
+kubernetes/
+env/
+config.dev.py

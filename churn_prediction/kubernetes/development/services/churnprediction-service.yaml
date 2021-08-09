@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: churn_prediction-service
+  labels:
+    app: churn_prediction-app
+spec:
+  type: ClusterIP
+  selector:
+    app: churn_prediction-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1031
+      targetPort: 8080

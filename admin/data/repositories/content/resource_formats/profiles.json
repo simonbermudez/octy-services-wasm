@@ -1,0 +1,6 @@
+{
+    "customer_id**0" : "string",
+    "has_charged**1": true,
+    "profile_data**2" : "nested",
+    "platform_info**3" : "nested"
+}

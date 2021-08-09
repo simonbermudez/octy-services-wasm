@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+  namespace: octy-development
+  labels:
+    app: account-app
+spec:
+  type: ClusterIP
+  selector:
+    app: account-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1024
+      targetPort: 8080

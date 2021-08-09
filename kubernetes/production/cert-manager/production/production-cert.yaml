@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: octy-production-cert
+  namespace: octy-production # must be same ns as application
+spec:
+  commonName: api.octy.ai
+  secretName: octy-production-cert
+  dnsNames:
+    - api.octy.ai
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer

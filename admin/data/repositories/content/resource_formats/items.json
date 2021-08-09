@@ -1,0 +1,9 @@
+{
+
+    "item_id**0" : "string",
+    "item_category**1" : "string",
+    "item_name**2" : "string",
+    "item_description**3" : "string",
+    "item_price**4" : 1
+
+}

@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-deploy
+  namespace: octy-production
+  labels:
+    app: events-app
+spec:
+  selector:
+    matchLabels:
+      app: events-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: events-app
+    spec:
+      containers:
+      - name: events-app
+        image: benpayflic/octy-events-service:latest
+        imagePullPolicy: Always
+        env:
+          - name: EVENTS_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: events-config  # The ConfigMap this value comes from.
+                key: events_config # The key to fetch.
+          - name: EVENTS_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: events-secrets # The Secret this value comes from.
+                key: events_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+      imagePullSecrets:
+      - name: docker-hub-key

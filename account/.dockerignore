@@ -1,0 +1,4 @@
+.git
+.cache
+kubernetes/
+env/

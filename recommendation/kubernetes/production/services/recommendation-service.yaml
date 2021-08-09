@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendations-service
+  namespace: octy-production
+  labels:
+    app: recommendations-app
+spec:
+  type: ClusterIP
+  selector:
+    app: recommendations-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1032
+      targetPort: 8080

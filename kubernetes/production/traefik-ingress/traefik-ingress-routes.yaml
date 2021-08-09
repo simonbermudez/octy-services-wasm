@@ -1,0 +1,349 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: octy-production-ingress-https
+  namespace: octy-production
+spec:
+  entryPoints:
+    - websecure
+  routes:
+
+    ##### INTERNAL ROUTES **DELETE** ######
+    - match: Path(`/v1/internal/items`)
+      kind: Rule
+      services:
+        - name: items-service
+          port: 1028
+    - match: Path(`/v1/internal/profiles`)
+      kind: Rule
+      services:
+        - name: profiles-service
+          port: 1027
+
+    - match: Path(`/v1/internal/events`)
+      kind: Rule
+      services:
+        - name: events-service
+          port: 1029
+    
+    - match: Path(`/v1/internal/segments`)
+      kind: Rule
+      services:
+        - name: segmentation-service
+          port: 1030
+
+    - match: Path(`/v1/internal/jobs/callback`)
+      kind: Rule
+      services:
+        - name: octy-jobs-service
+          port: 1034
+    ############## **DELETE** ##############
+
+
+    - match: Path(`/v1/admin/account/create`)
+      middlewares:
+        - name: admin-auth
+      kind: Rule
+      services:
+        - name: account-service
+          port: 1024
+    - match: Path(`/v1/account/authenticate`)
+      kind: Rule
+      services:
+        - name: account-service
+          port: 1024
+    - match: Path(`/v1/admin/application/resources/format`)
+      middlewares:
+        - name: trusted-app-auth
+      kind: Rule
+      services:
+        - name: admin-service
+          port: 1025
+    - match: Path(`/v1/admin/application/versioning`)
+      middlewares:
+        - name: trusted-app-auth
+      kind: Rule
+      services:
+        - name: admin-service
+          port: 1025
+    - match: PathPrefix(`/v1/configurations/`)
+      middlewares:
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: configurations-service
+          port: 1026
+    - match: PathPrefix(`/v1/retention/profiles`)
+      middlewares:
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: profiles-service
+          port: 1027
+    - match: PathPrefix(`/v1/retention/items`)
+      middlewares:
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: items-service
+          port: 1028
+    - match: PathPrefix(`/v1/retention/events`)
+      middlewares:
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: events-service
+          port: 1029
+    - match: PathPrefix(`/v1/retention/segments`)
+      middlewares:
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: segmentation-service
+          port: 1030
+    - match: PathPrefix(`/v1/retention/messaging`)
+      middlewares:
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: messaging-service
+          port: 1033
+    - match: PathPrefix(`/v1/retention/recommendations`)
+      middlewares:
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: recommendations-service
+          port: 1032
+    - match: PathPrefix(`/v1/retention/churn_prediction`)
+      middlewares:
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: churn-prediction-service
+          port: 1031
+  tls:
+    secretName: octy-production-cert
+
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: octy-production-ingress-http
+  namespace: octy-production
+spec:
+  entryPoints:
+    - web
+  routes:
+    
+    ##### INTERNAL ROUTES **DELETE** ######
+    - match: Path(`/v1/internal/items`)
+      middlewares:
+        - name: https-only
+      kind: Rule
+      services:
+        - name: items-service
+          port: 1028
+    - match: Path(`/v1/internal/profiles`)
+      middlewares:
+        - name: https-only
+      kind: Rule
+      services:
+        - name: profiles-service
+          port: 1027
+
+    - match: Path(`/v1/internal/events`)
+      middlewares:
+        - name: https-only
+      kind: Rule
+      services:
+        - name: events-service
+          port: 1029
+    
+    - match: Path(`/v1/internal/segments`)
+      middlewares:
+        - name: https-only
+      kind: Rule
+      services:
+        - name: segmentation-service
+          port: 1030
+
+    - match: Path(`/v1/internal/jobs/callback`)
+      middlewares:
+        - name: https-only
+      kind: Rule
+      services:
+        - name: octy-jobs-service
+          port: 1034
+    ############## **DELETE** ##############
+
+    - match: Path(`/v1/admin/account/create`)
+      middlewares:
+        - name: admin-auth
+        - name: https-only
+      kind: Rule
+      services:
+        - name: account-service
+          port: 1024
+    - match: Path(`/v1/account/authenticate`)
+      middlewares:
+        - name: https-only
+      kind: Rule
+      services:
+        - name: account-service
+          port: 1024
+    - match: Path(`/v1/admin/application/resources/format`)
+      middlewares:
+        - name: trusted-app-auth
+        - name: https-only
+      kind: Rule
+      services:
+        - name: admin-service
+          port: 1025
+    - match: Path(`/v1/admin/application/versioning`)
+      middlewares:
+        - name: https-only
+        - name: trusted-app-auth
+      kind: Rule
+      services:
+        - name: admin-service
+          port: 1025
+    - match: PathPrefix(`/v1/configurations/`)
+      middlewares:
+        - name: https-only
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: configurations-service
+          port: 1026
+    - match: PathPrefix(`/v1/retention/profiles`)
+      middlewares:
+        - name: https-only
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: profiles-service
+          port: 1027
+    - match: PathPrefix(`/v1/retention/items`)
+      middlewares:
+        - name: https-only
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: items-service
+          port: 1028
+    - match: PathPrefix(`/v1/retention/events`)
+      middlewares:
+        - name: https-only
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: events-service
+          port: 1029
+    - match: PathPrefix(`/v1/retention/segments`)
+      middlewares:
+        - name: https-only
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: segmentation-service
+          port: 1030
+    - match: PathPrefix(`/v1/retention/messaging`)
+      middlewares:
+        - name: https-only
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: messaging-service
+          port: 1033
+    - match: PathPrefix(`/v1/retention/recommendations`)
+      middlewares:
+        - name: https-only
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: recommendations-service
+          port: 1032
+    - match: PathPrefix(`/v1/retention/churn_prediction`)
+      middlewares:
+        - name: https-only
+        - name : forward-auth
+      kind: Rule
+      services:
+        - name: churn-prediction-service
+          port: 1031
+
+
+    ##### INTERNAL ROUTES **DELETE** ######
+    # - match: Path(`/v1/internal/items`)
+    #   kind: Rule
+    #   services:
+    #     - name: items-service
+    #       port: 1028
+    # - match: Path(`/v1/internal/profiles`)
+    #   kind: Rule
+    #   services:
+    #     - name: profiles-service
+    #       port: 1027
+
+    # - match: Path(`/v1/internal/events`)
+    #   kind: Rule
+    #   services:
+    #     - name: events-service
+    #       port: 1029
+    
+    # - match: Path(`/v1/internal/segments`)
+    #   kind: Rule
+    #   services:
+    #     - name: segmentation-service
+    #       port: 1030
+
+    # - match: Path(`/v1/internal/jobs/callback`)
+    #   kind: Rule
+    #   services:
+    #     - name: octy-jobs-service
+    #       port: 1034
+    ############## **DELETE** ##############
+
+      ##### INTERNAL ROUTES **DELETE** ######
+    # - match: Path(`/v1/internal/items`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: items-service
+    #       port: 1028
+    # - match: Path(`/v1/internal/profiles`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: profiles-service
+    #       port: 1027
+
+    # - match: Path(`/v1/internal/events`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: events-service
+    #       port: 1029
+    
+    # - match: Path(`/v1/internal/segments`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: segmentation-service
+    #       port: 1030
+
+    # - match: Path(`/v1/internal/jobs/callback`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: octy-jobs-service
+    #       port: 1034
+    ############## **DELETE** ##############

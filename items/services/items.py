@@ -1,0 +1,193 @@
+# module imports
+from data.repositories.implementation.items_repository import itemsRepository
+from api.routers.request_models.items import *
+from api.routers.request_models.account import Account
+from api.routers.error_handlers import *
+from utils.utils import *
+from config import Config
+
+# python imports
+from typing import *
+import json
+
+# external imports
+from fastapi import Request
+
+
+class ItemsService():
+    """
+        ItemsService
+        Handles:
+        - Get Items
+        - Items creation
+        - Update Items
+        - Delete Items
+        ...
+
+        Attributes
+        ----------
+        account : Octy account
+    """
+    def __init__(self, account : Account): 
+        self.account = account
+
+    def get_items(self,
+                  id_ : str = None, 
+                  cursor : int = None) -> Union[dict, int]:
+        """
+        Parameters
+        ----------
+        id_ : str
+            item_id
+        cursor : int
+            Pagination cursor
+
+        Returns
+        ----------
+        items : dict
+        total : int
+        """
+        if id_ != None and cursor == 0:
+            item = itemsRepository.get_item_by_id(item_id=id_,account_id=self.account.account_id)
+            if not item:
+                raise OctyException(400, 'Invalid item identifier provided', 
+                [{'message' : 'No items were found with the provided identifier', 
+                'extended_help': Config['ITEMS_EXTENDED_HELP']}])
+            
+            return [item], 1
+            
+
+        elif id_ == None and cursor != None:
+            
+            items,total = itemsRepository.get_items(account_id=self.account.account_id, 
+                                                cursor=cursor)
+            if len(items)<1:
+                raise OctyException(400, 'No items found', 
+                [{'message' : 'No items found with the provided item identifier or pagination cursor exhausted', 
+                'extended_help': Config['ITEMS_EXTENDED_HELP']}])
+            return items, total
+
+    def create_items(self, items : CreateItems) -> Union[list, list]:
+        """
+        Parameters
+        ----------
+        items : CreateItems
+            CreateItems request model instance
+
+        Returns
+        ----------
+        Created and failed to create items : Union[list, list]
+        """
+
+        # assess allowed limits
+        res, counts = assess_resource_limit(self.account.account_configurations['li'],
+                              itemsRepository.get_item_count(self.account.account_id),
+                              len(items.items))
+        if not res:
+            raise OctyException(400,'Resource limit exceeded', 
+            [{'message' : f'This request could not be completed as the number of items sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} items.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+
+        items_batch = []
+        for item in items.items:
+            items_batch.append(
+                {
+                    'item_id' : item.item_id,
+                    'account_id' : self.account.account_id,
+                    'item_category' : item.item_category,
+                    'item_name' : item.item_name,
+                    'item_description' : item.item_description,
+                    'item_price' : item.item_price,
+                    'event_type' : 'charged'
+                }
+            )
+
+        created, failed = itemsRepository.create_items(items_batch)
+
+        if len(created) < 1:
+            raise OctyException(400, 'No items created!', failed)
+
+        return created, failed
+    
+    def update_items(self, items : UpdateItems) -> Union[list, list]:
+        """
+        Parameters
+        ----------
+        items : UpdateItems
+            UpdateItems request model instance
+
+        Returns
+        ----------
+        Updated and failed to update items : Union[list, list]
+        """
+        items_batch = []
+        for item in items.items:
+            items_batch.append(
+                {
+                    'item_id' : item.item_id,
+                    'account_id' : self.account.account_id,
+                    'item_category' : item.item_category,
+                    'item_name' : item.item_name,
+                    'item_description' : item.item_description,
+                    'item_price' : item.item_price,
+                    'status' : item.status,
+                    'event_type' : 'charged'
+                }
+            )
+
+        updated, failed = itemsRepository.update_items(items_batch, self.account.account_id)
+
+        if len(updated) < 1:
+            raise OctyException(400, 'No items updated!', failed)
+
+        return updated, failed
+
+    async def delete_items(self, items : DeleteItems) -> Union[list, list]:
+        """
+        Parameters
+        ----------
+        items : DeleteItems
+            DeleteItems request model instance
+    
+        Returns
+        ----------
+        Deleted and failed to delete item ids : Union[list, list]
+        """
+        items_batch = []
+        for item in items.items:
+            items_batch.append({
+                "item_id" : item,
+                "account_id" : self.account.account_id
+            })
+
+        deleted , failed = await itemsRepository.delete_items(items_batch, self.account)
+
+        if len(deleted) < 1:
+            raise OctyException(400, 'No items deleted!', failed)
+        return deleted, failed
+
+
+    #INTERNAL
+
+    def get_items_internal(self, account_id : str, cursor : int, ids : bool, status : str) -> Union[dict, int]:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        cursor : int
+            Pagination cursor
+        ids : bool
+            Only get item id(s)
+        status : str
+
+        Returns
+        ----------
+        items : dict
+        total : int
+        """
+        items,total = itemsRepository.get_items(account_id=account_id, cursor=cursor, ids=ids, status=status)
+        if len(items)<1:
+            raise OctyException(400, 'No items found', 
+            [{'message' : 'No items found or pagination cursor exhausted', 
+            'extended_help': Config['ITEMS_EXTENDED_HELP']}])
+        return items, total

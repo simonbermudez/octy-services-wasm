@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: segmentation-service
+  namespace: octy-development
+  labels:
+    app: segmentation-app
+spec:
+  type: ClusterIP
+  selector:
+    app: segmentation-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1030
+      targetPort: 8080

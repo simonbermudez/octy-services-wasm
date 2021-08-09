@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rfm-worker-deploy
+  namespace: octy-production
+  labels:
+    app: rfm-worker-app
+spec:
+  selector:
+    matchLabels:
+      app: rfm-worker-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: rfm-worker-app
+    spec:
+      containers:
+      - name: rfm-worker-app
+        image: benpayflic/octy-rfm-worker:latest
+        imagePullPolicy: Always
+        env:
+          - name: RFM_WORKER_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: rfm-worker-config  # The ConfigMap this value comes from.
+                key: rfm_worker_config # The key to fetch.
+          - name: RFM_WORKER_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: rfm-worker-secrets # The Secret this value comes from.
+                key: rfm_worker_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "192Mi"
+            cpu: "300m"
+          limits:
+            memory: "384Mi"
+            cpu: "600m"
+      imagePullSecrets:
+      - name: docker-hub-key
+
+        # resources:
+        #   requests:
+        #     memory: "64Mi"
+        #     cpu: "100m"
+        #   limits:
+        #     memory: "256Mi"
+        #     cpu: "300m"

@@ -1,0 +1,60 @@
+from fastapi.responses import JSONResponse
+
+
+### Create Account DTO
+class CreateAccountDTO():
+    def __init__(self, account_name, contact_email_address, pk, notification_sent):
+        self.account_name = account_name
+        self.contact_email_address = contact_email_address
+        self.pk = pk
+        self.notification_sent = notification_sent
+
+    def dto(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=201,
+            content={
+                    'request_meta' : { 'request_status' : 'Success' , 'message' : 'Account created!'},
+                    'account_name' : self.account_name,
+                    'pk' : self.pk,
+                    'notification_sent' : self.notification_sent,
+                    'sent_to' : self.contact_email_address
+            }
+        )
+
+
+### Update Account DTO
+class UpdateAccountDTO():
+    def __init__(self, contact_email_address, contact_name, contact_surname, webhook_url):
+        self.contact_email_address = contact_email_address
+        self.contact_name = contact_name
+        self.contact_surname = contact_surname
+        self.webhook_url = webhook_url
+
+    def dto(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=200,
+            content={
+                    'request_meta' : { 'request_status' : 'Success' , 'message' : 'Account updated!'},
+                    'contact_email_address' : self.contact_email_address,
+                    'contact_name' : self.contact_name,
+                    'contact_surname' : self.contact_surname,
+                    'webhook_url' : self.webhook_url
+            }
+        )
+
+
+### Get Accounts Internal DTO
+class GetAccountsInternalDTO():
+    def __init__(self, accounts, total):
+        self.accounts = accounts
+        self.total = total
+
+    def dto(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=200,
+            content={
+                    'request_meta' : { 'request_status' : 'Success' , 'message' : 'Found Accounts', 'count' : len(self.accounts), 'total' : self.total},
+                    'accounts' : self.accounts
+            }
+        )
+

@@ -1,0 +1,55 @@
+# module imports
+from data.repositories.Ichurn_repository import ChurnPredInterface
+from utils.utils import *
+from data.models.db_schemas import *
+from config import Config
+from secrets import Secrets
+
+# python imports
+from typing import *
+import json
+from datetime import datetime as dt
+from datetime import timedelta as td
+import time
+
+# external imports
+from mongoengine.errors import BulkWriteError
+from mongoengine.queryset.visitor import Q
+from bson.json_util import dumps
+from sentry_sdk import capture_exception
+
+
+class _ChurnPredictionRepository(ChurnPredInterface):
+    """
+        _ChurnPredictionRepository
+        Handles:
+        - Get latest training job
+
+        ...
+
+        Attributes
+        ----------
+        none
+    """
+    def __init__(self): pass
+
+    async def get_latest_training_job(self, account_id : str) -> dict:
+        """
+        Parameters
+        ----------
+        account_id : str
+
+        Returns
+        ----------
+        training_job : dict
+        """
+        query = {'$and' : [
+            {"account_id" : { "$eq" : account_id}},
+            {"status" : { "$eq" : 'Completed'}},
+        ]}
+        results_cursor = tbl_training_jobs._get_collection().find(query).sort('updated_at', -1).limit(1)
+        training_job = json.loads(dumps(list(results_cursor), indent = 2))
+        return training_job
+    
+
+churnPredictionRepository = _ChurnPredictionRepository()

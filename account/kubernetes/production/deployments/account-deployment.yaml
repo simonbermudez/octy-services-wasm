@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-deploy
+  namespace: octy-production
+  labels:
+    app: account-app
+spec:
+  selector:
+    matchLabels:
+      app: account-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: account-app
+    spec:
+      containers:
+      - name: account-app
+        image: benpayflic/octy-account-service:latest
+        imagePullPolicy: Always
+        env:
+          - name: ACCOUNT_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: account-config  # The ConfigMap this value comes from.
+                key: account_config # The key to fetch.
+          - name: ACCOUNT_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: account-secrets # The Secret this value comes from.
+                key: account_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+      imagePullSecrets:
+      - name: docker-hub-key
