@@ -74,6 +74,7 @@ async def create_new_account(request: Request, account: CreateAccount):
 
 @router.post('/v1/internal/accounts') 
 async def get_accounts_internal(request: Request,  a : GetAccountsInternal):
+    
     # Validate pagination headers set
     cursor, pag_message = await validate_pagination_request(request, None)
     if cursor == None:
