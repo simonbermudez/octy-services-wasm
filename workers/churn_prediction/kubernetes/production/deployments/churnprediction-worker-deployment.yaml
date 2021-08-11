@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: churn-prediction-worker-app
-        image: benpayflic/octy-churn-prediction-worker:latest
+        image: benpayflic/octy-churn-prediction-worker:$COMMIT_SHA1
         imagePullPolicy: Always
         env:
           - name: CHURN_PREDICTION_WORKER_CONFIG # name that can be refefenced in app

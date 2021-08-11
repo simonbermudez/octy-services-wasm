@@ -1,0 +1,127 @@
+{
+
+    "deployments" : [
+        {
+            "service_name" : "account",
+            "service_directory" : "./account",
+            "docker_image_name" : "benpayflic/octy-account-service",
+            "dockerfile_path" : "./account/Dockerfile",
+            "k8_deployment_yaml" : "./account/kubernetes/production/deployments/account-deployment.yaml"
+
+        },
+        {
+            "service_name" : "admin",
+            "service_directory" : "./admin",
+            "docker_image_name" : "benpayflic/octy-admin-service",
+            "dockerfile_path" : "./admin/Dockerfile",
+            "k8_deployment_yaml" : "./admin/kubernetes/production/deployments/admin-deployment.yaml"
+
+        },
+        {
+            "service_name" : "churn_prediction",
+            "service_directory" : "./churn_prediction",
+            "docker_image_name" : "benpayflic/octy-churn-prediction-service",
+            "dockerfile_path" : "./churn_prediction/Dockerfile",
+            "k8_deployment_yaml" : "./churn_prediction/kubernetes/production/deployments/churnprediction-deployment.yaml"
+
+        },
+        {
+            "service_name" : "configurations",
+            "service_directory" : "./configurations",
+            "docker_image_name" : "benpayflic/octy-configurations-service",
+            "dockerfile_path" : "./configurations/Dockerfile",
+            "k8_deployment_yaml" : "./configurations/kubernetes/production/deployments/configurations-deployment.yaml"
+
+        },
+        {
+            "service_name" : "events",
+            "service_directory" : "./events",
+            "docker_image_name" : "benpayflic/octy-events-service",
+            "dockerfile_path" : "./events/Dockerfile",
+            "k8_deployment_yaml" : "./events/kubernetes/production/deployments/events-deployment.yaml"
+
+        },
+        {
+            "service_name" : "items",
+            "service_directory" : "./items",
+            "docker_image_name" : "benpayflic/octy-items-service",
+            "dockerfile_path" : "./items/Dockerfile",
+            "k8_deployment_yaml" : "./items/kubernetes/production/deployments/items-deployment.yaml"
+
+        },
+        {
+            "service_name" : "messaging",
+            "service_directory" : "./messaging",
+            "docker_image_name" : "benpayflic/octy-messaging-service",
+            "dockerfile_path" : "./messaging/Dockerfile",
+            "k8_deployment_yaml" : "./messaging/kubernetes/production/deployments/messaging-deployment.yaml"
+
+        },
+        {
+            "service_name" : "octy_jobs",
+            "service_directory" : "./octy_jobs",
+            "docker_image_name" : "benpayflic/octy-jobs-service",
+            "dockerfile_path" : "./octy_jobs/Dockerfile",
+            "k8_deployment_yaml" : "./octy_jobs/kubernetes/production/deployments/octyjobs-deployment.yaml"
+
+        },
+        {
+            "service_name" : "profiles",
+            "service_directory" : "./profiles",
+            "docker_image_name" : "benpayflic/octy-profiles-service",
+            "dockerfile_path" : "./profiles/Dockerfile",
+            "k8_deployment_yaml" : "./profiles/kubernetes/production/deployments/profiles-deployment.yaml"
+
+        },
+        {
+            "service_name" : "recommendations",
+            "service_directory" : "./recommendation",
+            "docker_image_name" : "benpayflic/octy-recommendations-service",
+            "dockerfile_path" : "./recommendation/Dockerfile",
+            "k8_deployment_yaml" : "./recommendation/kubernetes/production/deployments/recommendation-deployment.yaml"
+
+        },
+        {
+            "service_name" : "segmentation",
+            "service_directory" : "./segmentation",
+            "docker_image_name" : "benpayflic/octy-segmentation-service",
+            "dockerfile_path" : "./segmentation/Dockerfile",
+            "k8_deployment_yaml" : "./segmentation/kubernetes/production/deployments/segmentation-deployment.yaml"
+
+        },
+        {
+            "service_name" : "churn prediction worker",
+            "service_directory" : "./workers/churn_prediction",
+            "docker_image_name" : "benpayflic/octy-churn-prediction-worker",
+            "dockerfile_path" : "./workers/churn_prediction/Dockerfile",
+            "k8_deployment_yaml" : "./workers/churn_prediction/kubernetes/production/deployments/churnprediction-worker-deployment.yaml"
+
+        },
+        {
+            "service_name" : "recommendations worker",
+            "service_directory" : "./workers/recommendation",
+            "docker_image_name" : "benpayflic/octy-recommendation-worker",
+            "dockerfile_path" : "./workers/recommendation/Dockerfile",
+            "k8_deployment_yaml" : "./workers/recommendation/kubernetes/production/deployments/recommendation-worker-deployment.yaml"
+
+        },
+        {
+            "service_name" : "rfm worker",
+            "service_directory" : "./workers/rfm",
+            "docker_image_name" : "benpayflic/octy-rfm-worker",
+            "dockerfile_path" : "./workers/rfm/Dockerfile",
+            "k8_deployment_yaml" : "./workers/rfm/kubernetes/production/deployments/recommendation-deployment.yaml"
+
+        },
+        {
+            "service_name" : "segmentation worker",
+            "service_directory" : "./workers/segmentation",
+            "docker_image_name" : "benpayflic/octy-segmentation-worker",
+            "dockerfile_path" : "./workers/segmentation/Dockerfile",
+            "k8_deployment_yaml" : "./workers/segmentation/kubernetes/production/deployments/segmentation-worker-deployment.yaml"
+
+        }
+
+    ]
+
+}

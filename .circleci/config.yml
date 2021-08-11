@@ -1,0 +1,45 @@
+version: 2.1
+
+orbs:
+  python: circleci/python@1.2
+
+jobs:
+  build-deploy:
+    docker:
+      - image: circleci/buildpack-deps:stretch
+    environment:
+        CIRCLE_COMPARE_URL: << pipeline.project.git_url >>/compare/<< pipeline.git.base_revision >>..<<pipeline.git.revision>>
+    working_directory: ~/app
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install envsubst
+          command: |
+            sudo apt-get update && sudo apt-get -y install gettext-base
+      - run:
+          name: Install kubectl
+          command: |
+            curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+            chmod u+x ./kubectl
+      - run:
+          name: Install JQ
+          command: | 
+            sudo apt-get update && sudo apt-get install jq
+      - run:
+          name: Authenticate Docker
+          # $CIRCLE_SHA1 is the hash of the commit
+          command: |
+            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Deploy Code
+          command : ./scripts/ci-deploy.sh
+
+workflows:
+  version: 2
+  build-master:
+    jobs:
+      - build-deploy:
+          filters:
+            branches:
+              only: master
