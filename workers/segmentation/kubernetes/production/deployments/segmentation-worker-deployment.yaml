@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: segmentation-worker-app
-        image: benpayflic/octy-segmentation-worker:latest
+        image: benpayflic/octy-segmentation-worker:$COMMIT_SHA1
         imagePullPolicy: Always
         env:
           - name: SEGMENTATION_WORKER_CONFIG # name that can be refefenced in app

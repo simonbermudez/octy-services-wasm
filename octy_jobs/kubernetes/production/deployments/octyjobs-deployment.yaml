@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: octy-jobs-app
-        image: benpayflic/octy-jobs-service:latest
+        image: benpayflic/octy-jobs-service:$COMMIT_SHA1
         imagePullPolicy: Always
         env:
           - name: OCTY_JOB_CONFIG # name that can be refefenced in app

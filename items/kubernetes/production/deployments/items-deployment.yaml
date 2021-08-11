@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: items-app
-        image: benpayflic/octy-items-service:latest
+        image: benpayflic/octy-items-service:$COMMIT_SHA1
         imagePullPolicy: Always
         env:
           - name: ITEMS_CONFIG # name that can be refefenced in app
