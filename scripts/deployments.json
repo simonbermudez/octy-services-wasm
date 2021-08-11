@@ -90,7 +90,7 @@
 
         },
         {
-            "service_name" : "churn prediction worker",
+            "service_name" : "churn_prediction_worker",
             "service_directory" : "./workers/churn_prediction",
             "docker_image_name" : "benpayflic/octy-churn-prediction-worker",
             "dockerfile_path" : "./workers/churn_prediction/Dockerfile",
@@ -98,7 +98,7 @@
 
         },
         {
-            "service_name" : "recommendations worker",
+            "service_name" : "recommendations_worker",
             "service_directory" : "./workers/recommendation",
             "docker_image_name" : "benpayflic/octy-recommendation-worker",
             "dockerfile_path" : "./workers/recommendation/Dockerfile",
@@ -106,7 +106,7 @@
 
         },
         {
-            "service_name" : "rfm worker",
+            "service_name" : "rfm_worker",
             "service_directory" : "./workers/rfm",
             "docker_image_name" : "benpayflic/octy-rfm-worker",
             "dockerfile_path" : "./workers/rfm/Dockerfile",
@@ -114,7 +114,7 @@
 
         },
         {
-            "service_name" : "segmentation worker",
+            "service_name" : "segmentation_worker",
             "service_directory" : "./workers/segmentation",
             "docker_image_name" : "benpayflic/octy-segmentation-worker",
             "dockerfile_path" : "./workers/segmentation/Dockerfile",
