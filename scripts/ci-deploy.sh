@@ -14,7 +14,7 @@ echo "$KUBERNETES_CLUSTER_CERTIFICATE" | base64 --decode > cert.crt
 
 echo "Checking for changes on master ..."
 
-for deploy in $(jq -rc '.deployments[]' ./deployments.json ); do
+for deploy in $(jq -rc '.deployments[]' ./scripts/deployments.json ); do
         SERVICE_NAME=$(echo "$deploy" | jq .service_name | sed -e 's/^"//' -e 's/"$//')
         SERVICE_DIR=$(echo "$deploy" | jq .service_directory | sed -e 's/^"//' -e 's/"$//')
         DOCKER_IMAGE_NAME=$(echo "$deploy" | jq .docker_image_name | sed -e 's/^"//' -e 's/"$//')
