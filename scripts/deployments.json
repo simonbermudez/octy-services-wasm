@@ -110,7 +110,7 @@
             "service_directory" : "./workers/rfm",
             "docker_image_name" : "benpayflic/octy-rfm-worker",
             "dockerfile_path" : "./workers/rfm/Dockerfile",
-            "k8_deployment_yaml" : "./workers/rfm/kubernetes/production/deployments/recommendation-deployment.yaml"
+            "k8_deployment_yaml" : "./workers/rfm/kubernetes/production/deployments/rfm-worker-deployment.yaml"
 
         },
         {
