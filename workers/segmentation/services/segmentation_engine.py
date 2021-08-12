@@ -324,7 +324,6 @@ class PastSegmentation():
                 found_past_events.extend(events)
             
             profiles = await self._get_profiles(found_past_events)
-
             for profile in profiles: 
                 # Determine if active segment tag exists. If no events are found, 
                 # its assumed that this profile no longer meets this segments criteria.

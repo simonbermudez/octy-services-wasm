@@ -115,7 +115,6 @@ class RFMAnalysis():
         self.training_df = pd.DataFrame(self.event_item_map)
         zero_indicies = self.training_df[ self.training_df['item_price'] == 0 ].index
         self.training_df.drop(zero_indicies, inplace = True)
-
         self.logger.info('Created RFM analysis dataset!')
 
 
