@@ -136,7 +136,6 @@ class AMQPConsumer():
     async def connect(self, amqp_url : str)-> None:
         
         self.logger.info(f"Consumer >> Opening conenction to: {amqp_url}")
-
         recon_wait = 3
         while self._connection_state == 'is_closed':
             try:

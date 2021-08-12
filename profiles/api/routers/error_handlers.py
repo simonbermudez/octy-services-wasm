@@ -61,7 +61,6 @@ If you entered the URL manually please check your spelling and try again.'
 
     @app.exception_handler(413)
     async def entity_too_large_error_handler(request: Request, exc: HTTPException):
-
         err_template = deepcopy(Config['ERROR_TEMPLATE'])
         err_template['request_meta']['message'] = exc.detail
         err_template['error']['code'] = exc.status_code
