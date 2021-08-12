@@ -33,7 +33,6 @@ def add_exception_handlers(app: FastAPI) -> None:
     # Default HTTP Exceptions
     @app.exception_handler(404)
     async def not_found_error_handler(request: Request, exc: HTTPException):
-
         err_template = deepcopy(Config['ERROR_TEMPLATE'])
         err_template['request_meta']['message'] = exc.detail
         err_template['error']['code'] = exc.status_code

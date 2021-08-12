@@ -135,7 +135,6 @@ number of allowed requests to this endpoint: {exc.detail}'
 
         for error in exc.reasons:
             err_template['error']['errors'].append(error)
-
         return JSONResponse(
             status_code=exc.code,
             content=err_template,
