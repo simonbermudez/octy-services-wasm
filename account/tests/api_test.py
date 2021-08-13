@@ -1,5 +1,6 @@
 # module imports
 from api import *
+from data.context.db_context import contextManager
 
 # python imports
 import json
@@ -7,7 +8,10 @@ import json
 # external imports
 from fastapi.testclient import TestClient
 
+
 client = TestClient(app)
+# Connect to mongoDB
+contextManager.db_connect()
 
 ######################################
 # Account API TESTS:
@@ -15,10 +19,12 @@ client = TestClient(app)
 
 def test_get_accounts_internal():
     response = client.post("/v1/internal/accounts",
-        json={"account_ids" : [
-            "account_8adf8159-5f82-4af1-9b76-9cb71ded17"
+        headers={"cursor": "0"},
+        json={'account_ids' : [
+            'account_8adf8159-5f82-4af1-9b76-9cb71ded17'
         ]}
     )
+    print(response.text)
     assert response.status_code == 200
 
 ######################################
@@ -32,8 +38,8 @@ def test_authenticate_account():
     assert response.status_code == 200
 
     # Assert keys in response
-    assert "auth" in json.loads(response.json())
-    assert "jwt_token" in json.loads(response.json())['auth']
+    assert "auth" in response.json()
+    assert "jwt_token" in response.json()['auth']
 
     # Assert data type
-    assert type(json.loads(response.json())['auth']['jwt_token']) is str
+    assert type(response.json()['auth']['jwt_token']) is str
