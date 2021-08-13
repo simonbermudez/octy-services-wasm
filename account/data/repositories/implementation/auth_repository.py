@@ -2,7 +2,7 @@
 from data.repositories.Iauth_repository import AuthInterface
 from data.models.db_schemas import tbl_accounts, tbl_failed_auth_attempts
 from secrets import Secrets
-from utils.utils import dt_to_int
+from utils.utils import dt_to_int, base64_decode
 
 # python imports
 from datetime import datetime as dt
@@ -10,6 +10,7 @@ from datetime import timezone as tz
 from datetime import timedelta as td
 import json
 from typing import *
+import os
 
 # external imports
 import jwt
@@ -85,8 +86,9 @@ class _AuthRepository(AuthInterface):
         account = json.loads(tbl_accounts.objects
                              .get(keys__public_key__exact=pk).to_json())
 
-        with open('keys/octy-private-key', 'rb') as f:
-            private_key = f.read()
+        # with open('./account/keys/octy-private-key', 'rb') as f:
+        #     private_key = f.read()
+        private_key = base64_decode(os.environ.get('OCTY_PRIVATE_KEY'), is_json=False)
 
         #Abbreviate keys to reduce the size of JWT tokens
         payload = {

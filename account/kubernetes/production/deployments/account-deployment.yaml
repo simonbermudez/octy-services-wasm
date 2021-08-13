@@ -36,6 +36,11 @@ spec:
               secretKeyRef:
                 name: account-secrets # The Secret this value comes from.
                 key: account_secrets # The key to fetch.
+          - name: OCTY_PRIVATE_KEY # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: octy-private-key # The Secret this value comes from.
+                key: octy_private_key # The key to fetch.
         ports:
         - containerPort: 8080
         resources:

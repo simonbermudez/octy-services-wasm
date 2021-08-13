@@ -123,26 +123,32 @@ def base64_encode_json(json_obj : object) -> str:
     separators=(',', ":")).encode('ascii')).decode('ascii')
 
 
-def base64_decode(b64_str : str) -> object:
-  """
-      A utility function used to decode Base64 string
+def base64_decode(b64_str : str, is_json=True) -> object:
+    """
+        A utility function used to decode Base64 string
 
-      Parameters
-      ----------
-      b64_str : str
-          base64 encoded string
+        Parameters
+        ----------
+        b64_str : str
+            base64 encoded string
+        
+        is_json : bool
+            is the encoded data a dict or json?
 
-      Returns
-      ----------
-      Decoded Base64 object
-  """
-  try:
-    val = json.loads(base64.b64decode(b64_str.encode('ascii')).decode('ascii'))
-  except Exception:
-    print("Not Base64 string.")
-    val = json.loads(b64_str)
+        Returns
+        ----------
+        Decoded Base64 object
+    """
+    if is_json:
+        try:
+            val = json.loads(base64.b64decode(b64_str.encode('ascii')).decode('ascii'))
+        except Exception:
+            print("Not Base64 string.")
+            val = json.loads(b64_str)
+        return val
 
-  return val
+    val = base64.b64decode(b64_str.encode('ascii')).decode('ascii')
+    return val
 
 
 class f_:
