@@ -66,9 +66,9 @@ async def create_new_account(request: Request, account: CreateAccount):
 ######################################
 # Route : /v1/internal/accounts
 # Request type : POST
-# Required parameters : POST body : {"profile_ids" : ["profile_id-123", ...], "segment_timeframe" : 4 (days), "account_id" : ""}
-# Description : Internal service used to get event instances
-# Returns : Events found within specified timeframe
+# Required parameters : POST body : {"account_ids" : ["account_123","account_456",...]}
+# Description : Internal service used to get accounts
+# Returns : Found account ids
 # NOTE : Do not expose route in ingress
 ######################################
 
