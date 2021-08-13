@@ -5,8 +5,8 @@ env/
 */.vscode/
 *.pem
 */__pycache__/*
-secrets.py
-keys/
+*/keys/octy-private-key
+*/keys/octy-private-key.base64
 *run.py
 run.py
 run_admin.py
