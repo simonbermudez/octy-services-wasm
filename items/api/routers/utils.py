@@ -88,8 +88,8 @@ async def validate_pagination_request(request : Request, identifier):
     if identifier == None:
         try:
             if type(int(request.headers['cursor'])) != int:
-                return None, "Pagination header (-H cursor: int) must be of type int"
+                return None, "The value provided for the pagination header (-H cursor: str) could not be casted to type int."
         except Exception:
-            return None, "Please provide a valid object identifier within the query string eg: (?id=) or set a pagination header (-H cursor: int)"
+            return None, "Please provide a valid object identifier within the query string eg: (?id=) or set a pagination header (-H cursor: str)"
         return int(request.headers['cursor']), None
     return None, None
