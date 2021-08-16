@@ -14,6 +14,20 @@ echo "$KUBERNETES_CLUSTER_CERTIFICATE" | base64 --decode > cert.crt
 
 echo "Checking for changes on master ..."
 
+echo "Services that are going to be updated: "
+
+for deploy in $(jq -rc '.deployments[]' ./scripts/deployments.json ); do
+        SERVICE_NAME=$(echo "$deploy" | jq .service_name | sed -e 's/^"//' -e 's/"$//')
+        SERVICE_DIR=$(echo "$deploy" | jq .service_directory | sed -e 's/^"//' -e 's/"$//')
+        DOCKER_IMAGE_NAME=$(echo "$deploy" | jq .docker_image_name | sed -e 's/^"//' -e 's/"$//')
+        DOCKERFILE_PATH=$(echo "$deploy" | jq .dockerfile_path | sed -e 's/^"//' -e 's/"$//')
+        K8_DEPLOY_YAML=$(echo "$deploy" | jq .k8_deployment_yaml | sed -e 's/^"//' -e 's/"$//')
+
+        if [[ `python3 ${CHANGE_CHECKER} ${SERVICE_DIR}` == "True" ]]; then
+                echo "${SERVICE_NAME} service"
+        fi
+done
+
 for deploy in $(jq -rc '.deployments[]' ./scripts/deployments.json ); do
         SERVICE_NAME=$(echo "$deploy" | jq .service_name | sed -e 's/^"//' -e 's/"$//')
         SERVICE_DIR=$(echo "$deploy" | jq .service_directory | sed -e 's/^"//' -e 's/"$//')
