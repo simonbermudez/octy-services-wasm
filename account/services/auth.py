@@ -159,6 +159,5 @@ def _log_failed_auth(request : Request, valid_pk : bool) -> None:
                 }
         )
 
-
 #public initalized instance of AuthService object
 authService = AuthService()
