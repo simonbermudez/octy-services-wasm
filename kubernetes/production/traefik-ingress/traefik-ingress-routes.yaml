@@ -60,6 +60,11 @@ spec:
       services:
         - name: admin-service
           port: 1025
+    - match: Path(`/v1/admin/application/versioning/hook`)
+      kind: Rule
+      services:
+        - name: admin-service
+          port: 1025
     - match: Path(`/v1/admin/application/versioning`)
       middlewares:
         - name: trusted-app-auth
@@ -197,6 +202,13 @@ spec:
     - match: Path(`/v1/admin/application/resources/format`)
       middlewares:
         - name: trusted-app-auth
+        - name: https-only
+      kind: Rule
+      services:
+        - name: admin-service
+          port: 1025
+    - match: Path(`/v1/admin/application/versioning/hook`)
+      middlewares:
         - name: https-only
       kind: Rule
       services:
