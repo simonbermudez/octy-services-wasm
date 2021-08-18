@@ -1,9 +1,11 @@
 #module imports 
 from .routers import admin
 from .routers.error_handlers import add_exception_handlers
+from data.context.db_context import contextManager
 from config import Config
 
 #python imports
+import logging
 
 #external imports
 from fastapi import FastAPI, Request
@@ -11,8 +13,11 @@ import sentry_sdk
 
 
 app = FastAPI()
+logger = logging.getLogger('uvicorn')
+
 @app.on_event('startup')
 async def startup():
+    await contextManager.db_connect(logger)
     sentry_sdk.init(
     Config['SENTRY_URL'],
     traces_sample_rate=1.0,

@@ -30,6 +30,11 @@ spec:
               configMapKeyRef:
                 name: admin-config  # The ConfigMap this value comes from.
                 key: admin_config # The key to fetch.
+          - name: ADMIN_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: admin-secrets # The Secret this value comes from.
+                key: admin_secrets # The key to fetch.
         ports:
         - containerPort: 8080
         resources:
