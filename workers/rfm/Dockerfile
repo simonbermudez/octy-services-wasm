@@ -6,7 +6,7 @@ RUN mkdir -p /rfm
 WORKDIR /rfm
 COPY "./workers/rfm" .
 RUN pip install -r ./requirements.txt
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+CMD ["uvicorn", "worker:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
 
 # Development > local
 #LWhen CD to this directory
@@ -17,4 +17,4 @@ CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
 # WORKDIR /rfm
 # COPY . /rfm
 # RUN pip install -r /rfm/requirements.txt
-# CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+# CMD ["uvicorn", "worker:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
