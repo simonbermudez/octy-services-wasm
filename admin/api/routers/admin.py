@@ -13,6 +13,7 @@ import urllib.parse
 import hmac
 import hashlib
 import operator
+import logging 
 
 #external imports
 from fastapi import APIRouter, Request, Depends
@@ -23,6 +24,7 @@ from slowapi.util import get_remote_address
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger('uvicorn')
 
 
 ######################################
@@ -95,12 +97,15 @@ async def version_info_hook(request : Request):
                 return 200
         except KeyError:
             pass
-
+    else:
+        # If other than a cli repo, only cache release on 'created' or 'edited' event.
+        if wh_payload['action'] != 'edited' or wh_payload['action'] != 'created':
+            return 200
 
     # Determine release event repo
     if wh_payload['repository']['name'] in Config['REPOSITORIES']:
 
-        print(wh_payload['repository']['name'])
+        logger(f'Caching release for repository {wh_payload["repository"]["name"]}')
         await versioningRepository.cache_version_data(
             data=wh_payload['release'], 
             repository_name=wh_payload['repository']['name']
