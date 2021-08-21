@@ -105,7 +105,7 @@ async def version_info_hook(request : Request):
     # Determine release event repo
     if wh_payload['repository']['name'] in Config['REPOSITORIES']:
 
-        logger(f'Caching release for repository {wh_payload["repository"]["name"]}')
+        logger.info(f'Caching release for repository {wh_payload["repository"]["name"]}')
         await versioningRepository.cache_version_data(
             data=wh_payload['release'], 
             repository_name=wh_payload['repository']['name']
