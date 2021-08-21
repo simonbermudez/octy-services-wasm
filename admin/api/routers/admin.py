@@ -99,7 +99,7 @@ async def version_info_hook(request : Request):
             pass
     else:
         # If other than a cli repo, only cache release on 'created' or 'edited' event.
-        if wh_payload['action'] != 'edited' or wh_payload['action'] != 'created':
+        if wh_payload['action'] not in ["created", "edited"]:
             return 200
 
     # Determine release event repo
