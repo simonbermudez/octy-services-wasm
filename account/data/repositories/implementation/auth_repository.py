@@ -88,7 +88,10 @@ class _AuthRepository(AuthInterface):
 
         # with open('./account/keys/octy-private-key', 'rb') as f:
         #     private_key = f.read()
-        private_key = base64_decode(os.environ.get('OCTY_PRIVATE_KEY'), is_json=False)
+        try:
+            private_key = base64_decode(os.environ.get('OCTY_PRIVATE_KEY'), is_json=False)
+        except:
+            private_key = os.environ.get('OCTY_PRIVATE_KEY')
 
         #Abbreviate keys to reduce the size of JWT tokens
         payload = {

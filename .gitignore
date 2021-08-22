@@ -7,6 +7,7 @@ env/
 */__pycache__/*
 */keys/octy-private-key
 */keys/octy-private-key.base64
+octy-private-key-secret.yaml
 *run.py
 run.py
 run_admin.py
