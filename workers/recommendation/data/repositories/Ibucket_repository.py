@@ -8,7 +8,7 @@ class BucketInterface(ABC):
                          chunk_data : object,
                          chunk_index : int,
                          resource_friendly_name : str,
-                         training_job_id : str,
+                         hyperparam_tuning_job_id : str,
                          bucket_name : str):
         """
         Parameters
@@ -28,8 +28,8 @@ class BucketInterface(ABC):
         resource_friendly_name : str
             Unique name of the file being uploaded.
 
-        training_job_id : str
-            Unique identifier of the relevant training job this resource is being uploaded for.
+        hyperparam_tuning_job_id : str
+            Unique identifier of the relevant hyper paramter tuning job this resource is being uploaded for.
         
         bucket_name : str
             name of aws s3 bucket instance
@@ -134,7 +134,7 @@ class BucketInterface(ABC):
     def single_upload(self,
                          file_data : object,
                          resource_friendly_name : str,
-                         training_job_id : str,
+                         hyperparam_tuning_job_id : str,
                          bucket_name : str):
         """
         Parameters
@@ -145,8 +145,8 @@ class BucketInterface(ABC):
         resource_friendly_name : str
             Unique name of the file being uploaded.
 
-        training_job_id : str
-            Unique identifier of the relevant training job this resource is being uploaded for. (optional)
+        hyperparam_tuning_job_id : str
+            Unique identifier of the relevant hyper paramter tuning job this resource is being uploaded for. (optional)
 
         bucket_name : str
             name of aws s3 bucket instance

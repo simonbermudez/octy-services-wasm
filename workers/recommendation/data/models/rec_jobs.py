@@ -11,7 +11,7 @@ class RecTrainingJobData(BaseModel):
     algorithm_configurations : Dict
 
 class RecCompleteJobData(BaseModel):
-    training_job_id : str
+    hyperparam_tuning_job_id : str
     bucket : str
     algorithm_configurations : Dict
 
