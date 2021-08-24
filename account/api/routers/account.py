@@ -45,7 +45,7 @@ async def create_new_account(request: Request, account: CreateAccount):
                 'job_type' : job,
                 'job_meta' : {
                     'desired_runs' : 0,
-                    'time_interval' : 2160, # 1.5 days
+                    'time_interval' : 2880, # 2 days
                     'fail_threshold' : 0
                 },
                 'job_data' : {

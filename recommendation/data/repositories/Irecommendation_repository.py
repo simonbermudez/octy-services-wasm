@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 class RecommendationsInterface(ABC):
 
     @abstractmethod
-    def get_latest_training_job(self, account_id : str):
+    def get_latest_hp_tuning_job(self, account_id : str):
         """
         Parameters
         ----------

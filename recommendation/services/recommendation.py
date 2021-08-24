@@ -42,14 +42,14 @@ class RecommendationsService():
         ----------
         Item recommendations, training_job meta : Union[list, dict]
         """
-        training_job = await recommendationsRepository.get_latest_training_job(account_id=self.account_id)
-        if not training_job:
+        hp_tuning_job = await recommendationsRepository.get_latest_hp_tuning_job(account_id=self.account_id)
+        if not hp_tuning_job:
             raise OctyException(400,'An error occurred when getting item recommendations', 
                 [{'message' : 'No recommendations training jobs have been completed. Recommendations training jobs are automatically run every 24 hours', 
                 'extended_help': Config['RECOMENDATIONS_EXTENDED_HELP']}])
         
         recommendations_cache = await recommendationsRepository.get_cached_recommendations(account_id=self.account_id,
-                                                                                    training_job_id=training_job[0]['_id'],
+                                                                                    training_job_id=hp_tuning_job[0]['best_model_training_job_id'],
                                                                                     profile_ids=profile_ids)
         recommendations = list()
         for profile_id in profile_ids:
@@ -72,7 +72,7 @@ class RecommendationsService():
                 }
                 
             )
-        meta = training_job[0]['model_meta_data']
-        meta['training_job_id'] = training_job[0]['_id']
-        meta['model_created_at'] = int_to_dt(training_job[0]['updated_at']['$date'], as_str=True)
+        meta = hp_tuning_job[0]['best_model_meta_data']
+        meta['training_job_id'] = hp_tuning_job[0]['best_model_training_job_id']
+        meta['model_created_at'] = int_to_dt(hp_tuning_job[0]['updated_at']['$date'], as_str=True)
         return recommendations, meta

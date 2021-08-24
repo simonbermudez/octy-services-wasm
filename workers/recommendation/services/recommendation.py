@@ -20,6 +20,7 @@ import copy
 from sentry_sdk import capture_exception
 import pandas as pd
 import joblib
+import numpy as np
 
 
 class RecommenderTraining():
@@ -30,7 +31,7 @@ class RecommenderTraining():
         self.bucket = bucket
         self.algorithm_configurations = algorithm_configurations
         self.logger = logging.getLogger('uvicorn')
-        self.training_job_id = generate_uid('training-job')
+        self.hyperparam_tuning_job_id = generate_uid('hp-t-job')
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
         self.profiles_ids = []
         self.features=[{'item_feature_list' : Config['ITEM_FEATURE_COLS']},{'profile_feature_list' : ['rfm_score', 'has_charged']}]
@@ -43,11 +44,6 @@ class RecommenderTraining():
         self.mpu_upload_id = None
         self.key = None
         self.parts = None
-
-    # async def _clean_dataframe(self, df : object) -> object:
-    #     df.dropna(how='any', axis=0, inplace=True)
-    #     df.drop_duplicates(keep="first", inplace=True)
-    #     return df
 
     async def _clean_dataframes(self) -> None:
 
@@ -297,7 +293,7 @@ class RecommenderTraining():
             if file_size  < int(Config['MIN_FILE_SIZE']):
                 self.key = await bucketRepository.single_upload(file_data=csv_object['data'],
                                                     resource_friendly_name=csv_object['type'],
-                                                    training_job_id=self.training_job_id,
+                                                    hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
                                                     bucket_name=self.bucket)
 
             elif file_size  > int(Config['MIN_FILE_SIZE']) and file_size  < int(Config['MAX_FILE_SIZE']):
@@ -318,7 +314,7 @@ class RecommenderTraining():
                             await bucketRepository.multipart_upload(chunk_data=chunk['data'],
                                                                     chunk_index=chunk['chunk_idx'],
                                                                     resource_friendly_name=csv_object['type'],
-                                                                    training_job_id=self.training_job_id,
+                                                                    hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
                                                                     bucket_name=self.bucket)
 
                     else:
@@ -348,24 +344,32 @@ class RecommenderTraining():
             self.total_bytes += file_size
         self.logger.info('Uploaded training job resources!')
 
-    async def _create_training_job_ref(self) -> None:
+    async def _create_hparam_tuning_job_ref(self) -> None:
         meta_data = {'event_type' : self.algorithm_configurations['event_type'], 'features' : self.features}
-        await recommendationsRepository.create_training_job_ref(items_df=self.items_df, 
+        await recommendationsRepository.create_hparam_tuning_job_ref(items_df=self.items_df, 
                                                                 profiles_df=self.profiles_df,
-                                                                training_job_id=self.training_job_id,
+                                                                hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
                                                                 account_id=self.account_id,
                                                                 meta_data=meta_data)
 
-    async def _start_cloud_training_job(self) -> None:
-        self.logger.info('Starting cloud training...')
+    async def _start_cloud_hparam_tuning_job(self) -> None:
+        self.logger.info('Starting cloud hyper parameter tuning job...')
+        # get parent hyper parameter tuning job for warm start
+        parent_job = await recommendationsRepository\
+            .get_parent_hparam_tuning_job_ref(account_id=self.account_id)
+        parent_job_id = None
+        if parent_job:
+            parent_job_id = parent_job['_id']
+
         #calculate required volume size
         volume_size = await self._required_gb(self.total_bytes)
-        await recommendationsRepository.start_cloud_training(account_id=self.account_id, 
-                                                            training_job_id=self.training_job_id, 
+        await recommendationsRepository.start_hparam_tuning_job(account_id=self.account_id, 
+                                                            hyperparam_tuning_job_id=self.hyperparam_tuning_job_id, 
+                                                            parent_hyperparam_tuning_job_id=parent_job_id,
                                                             volume_size=volume_size, 
                                                             training_resources=self.training_resources,
                                                             bucket_name=self.bucket)
-        self.logger.info('Cloud training started!')
+        self.logger.info('Cloud hyper parameter tuning job started!')
 
     async def _send_http_request(self, url : str, payload : dict) -> None:
         session = requests_retry_session()
@@ -388,8 +392,8 @@ class RecommenderTraining():
     async def _dispose_job(self, ex : str) -> None:
         try:
             # Delete training job ref, if we have one
-            await recommendationsRepository.delete_training_job_ref(account_id=self.account_id, 
-                                                                    training_job_id=self.training_job_id)
+            await recommendationsRepository.delete_hparam_tuning_job_ref(account_id=self.account_id, 
+                                                                    hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
             # abort_multipart_upload if self.mpu_upload_id != None
             await bucketRepository.abort_multipart_upload(key=self.key,
                                                         upload_id=self.mpu_upload_id, 
@@ -398,7 +402,7 @@ class RecommenderTraining():
             await self._send_http_request(Config['OCTY_JOB_SERVICE_CLUSTER_IP']+'/v1/internal/jobs/callback', {
                 'account_id' : self.account_id,
                 'octy_job_id' : self.octy_job_id,
-                'message' : f'Recommender training Job failed. EX :: {ex}',
+                'message' : f'Recommender hyper parameter tuning Job failed. EX :: {ex}',
                 'status' : 'failed'
             })
         except Exception as err:
@@ -406,12 +410,12 @@ class RecommenderTraining():
             self.logger.critical(f'Error occurred when attempting to dispose of job. {err}')
 
     async def _complete_job(self) -> None:
-        self.logger.info('Successfully initated training job!')
+        self.logger.info('Successfully initated hyper parameter tuning job!')
         # HTTP call to confirm job completion with status
         await self._send_http_request(Config['OCTY_JOB_SERVICE_CLUSTER_IP']+'/v1/internal/jobs/callback', {
             'account_id' : self.account_id,
             'octy_job_id' : self.octy_job_id,
-            'message' : 'Recommender training Job suceeded',
+            'message' : 'Recommender hyper parameter tuning Job successfully initated',
             'status' : 'success'
         })
 
@@ -423,12 +427,12 @@ class RecommenderTraining():
                 'job_type' : 'rec',
                 'job_meta' : {
                     'desired_runs' : 1,
-                    'time_interval' : 30,
+                    'time_interval' : 60,
                     'fail_threshold' : 3
                 },
                 'job_data' : {
                     'job_sub_type' : 'complete',
-                    'training_job_id' : self.training_job_id
+                    'hyperparam_tuning_job_id' : self.hyperparam_tuning_job_id
                 }
         })
 
@@ -449,34 +453,39 @@ class RecommenderTraining():
             await self._upload_resources()
 
             # begin cloud training
-            await self._start_cloud_training_job()
+            await self._start_cloud_hparam_tuning_job()
 
             # create DB ref
-            await self._create_training_job_ref()
+            await self._create_hparam_tuning_job_ref()
 
             await self._complete_job()
+
+            self.logger.info('Completed Job!')
 
         except Exception as e:
             capture_exception(e)
             self.logger.critical(e)
             await self._dispose_job(ex=str(e))
 
+
 class RecommenderCompleteTrainingJob():
 
-    def __init__(self, account_id : str, algorithm_configurations : dict, octy_job_id : str, training_job_id : str, bucket : str, webhook_url : str):
+    def __init__(self, account_id : str, algorithm_configurations : dict, octy_job_id : str, hyperparam_tuning_job_id : str, bucket : str, webhook_url : str):
         self.account_id = account_id
         self.algorithm_configurations = algorithm_configurations
         self.octy_job_id = octy_job_id
-        self.training_job_id = training_job_id
+        self.hyperparam_tuning_job_id = hyperparam_tuning_job_id
         self.bucket = bucket
         self.webhook_url = webhook_url
         self.logger = logging.getLogger('uvicorn')
         self.status = 'InProgress'
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
         self.num_rec = 25 # number of recommendations per profile
-        self.training_job = None
+        self.best_training_job = None
+        self.hp_tuning_job = None
         self.lfm_idx_mappings = None
-        self.predictions = list()
+        self.predictions_df = None
+        self.predictions = None
         self.model_meta = None
         self.model = None
         self.item_features = None
@@ -484,17 +493,21 @@ class RecommenderCompleteTrainingJob():
         self.seen_items = list()
         self.profiles_features = None
         self.profiles = None
-        self.profiles_map = list()
+        self.profiles_df = None
         self.events = None
+        self.users_biases = None
+        self.users_embeddings = None
+        self.items_biases = None
+        self.items_embeddings = None
 
         item_stop_list = copy.deepcopy(self.algorithm_configurations['item_id_stop_list']) if self.algorithm_configurations['item_id_stop_list'] != None else []
         self.base_item_stop_list = []
         for i in item_stop_list:
             self.base_item_stop_list.append(i['item_id'])
 
-    async def _get_cloud_training_status(self) -> str:
+    async def _get_cloud_hp_tuning_status(self) -> str:
         self.logger.info('Getting cloud training status')
-        status = await recommendationsRepository.get_cloud_training_status(training_job_id=self.training_job_id)
+        status = await recommendationsRepository.get_hparam_tuning_job_status(hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
         return status
     
     async def _send_http_request(self, url : str, payload : dict) -> None:
@@ -544,8 +557,9 @@ class RecommenderCompleteTrainingJob():
         })
     
     async def _job_success(self) -> None:
-        await recommendationsRepository.update_training_job_ref(account_id=self.account_id,
-                                                    training_job_id=self.training_job_id,
+        await recommendationsRepository.update_hparam_tuning_job_ref(account_id=self.account_id,
+                                                    hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
+                                                    best_model_training_job_id=self.best_training_job['training_job_name'],
                                                     model_meta=self.model_meta,
                                                     status=self.status)
         await self._send_http_account_webhook_request(self.webhook_url, {
@@ -570,19 +584,20 @@ class RecommenderCompleteTrainingJob():
         await self._send_http_request(Config['OCTY_JOB_SERVICE_CLUSTER_IP']+'/v1/internal/jobs/callback', {
                 'account_id' : self.account_id,
                 'octy_job_id' : self.octy_job_id,
-                'message' : 'Recommender training Job still processing',
+                'message' : 'Recommender training Job and or Recommender hyper parameter job still processing',
                 'status' : 'failed' # send failed so next octy job tick can re-run it.
         })
         
     async def _destroy_job(self) -> None:
         try:
             self.logger.warning('Destroying job due to error')
-            # delete training job artefacts 
+            # delete tuning job artefacts 
             await bucketRepository.delete_directory(bucket_name=self.bucket, 
-                                                    directory_path=f"{Config['REC_DATA_DIR']}/{self.training_job_id}")
-            # Update training job reference to 'failed'
-            await recommendationsRepository.update_training_job_ref(account_id=self.account_id,
-                                                                training_job_id=self.training_job_id,
+                                                    directory_path=f"{Config['REC_DATA_DIR']}/{self.hyperparam_tuning_job_id}")
+            # Update tuning job reference to 'failed'
+            await recommendationsRepository.update_hparam_tuning_job_ref(account_id=self.account_id,
+                                                                hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
+                                                                best_model_training_job_id='--',
                                                                 status='Failed')
             # Delete Octy job
             await amqpInterface.publish_message(routing_key='octy.job.cmd.delete',
@@ -602,10 +617,14 @@ class RecommenderCompleteTrainingJob():
     async def _get_job_artifacts(self) -> None:
         self.logger.info('Getting job artifacts')
 
-        self.training_job = await recommendationsRepository.get_training_job(account_id=self.account_id, \
-            training_job_id=self.training_job_id, status='in_progress')
+        self.hp_tuning_job = await recommendationsRepository.get_hparam_tuning_job_ref(account_id=self.account_id, \
+            hyperparam_tuning_job_id=self.hyperparam_tuning_job_id, status='in_progress')
         
-        model_location =  f"{Config['REC_MODELS_DIR']}/{self.training_job_id}/output/model.tar.gz"
+        # get best job
+        self.best_training_job = await recommendationsRepository\
+            .get_best_training_job(hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
+        
+        model_location =  f"{Config['REC_MODELS_DIR']}/{self.best_training_job['training_job_name']}/output/model.tar.gz"
         files = await bucketRepository.download_resource(bucket_name=self.bucket,
                                                         key=model_location,
                                                         is_compressed=True)
@@ -619,26 +638,27 @@ class RecommenderCompleteTrainingJob():
             elif file_bytes['file_name'] == 'lfm_profile_features.pkl':
                 self.profiles_features = joblib.load(BytesIO(file_bytes['file_data'].read()))
 
-    async def _filter_lfm_idx_mappings(self, lfm_idx_mappings : dict, type_ : str = None, id_ : str = None) -> list:
+    def _filter_lfm_idx_mappings(self, lfm_idx_mappings : dict, type_ : str = None, id_ : str = None) -> list:
         if id_!=None:
             return list(filter(lambda x : x['res_id'] == id_, lfm_idx_mappings))
         return list(filter(lambda x : x['type_'] == type_, lfm_idx_mappings))
 
     async def _get_lfm_idx_mappings(self) -> None: 
-        self.lfm_idx_mappings = self.training_job['lfm_idxs']
+        self.lfm_idx_mappings = self.hp_tuning_job['lfm_idxs']
 
     async def _get_items(self) -> None: 
         self.logger.info('Getting items')
         self.all_items = await recommendationsRepository.get_items(account_id=self.account_id, ids='true', status='active')
         if len(self.all_items) < 1:
             raise Exception('There are currently no active items associated with this account.')
-        self.seen_items = await self._filter_lfm_idx_mappings(lfm_idx_mappings=self.lfm_idx_mappings, type_='items')
+        self.seen_items = self._filter_lfm_idx_mappings(lfm_idx_mappings=self.lfm_idx_mappings, type_='items')
 
     async def _get_profiles(self) -> None: 
         self.logger.info('Getting profiles')
         self.profiles = await recommendationsRepository.get_profiles(account_id=self.account_id, ids='true')
         if len(self.profiles) < 1:
-            raise Exception('There are currently no active profiles associated with this account.')  
+            raise Exception('There are currently no active profiles associated with this account.')
+        self.profiles_df = pd.DataFrame(self.profiles)
 
     async def _get_profile_events(self) -> None: 
         self.logger.info('Getting charged events')
@@ -649,112 +669,118 @@ class RecommenderCompleteTrainingJob():
         if len(self.events) < 1:
             raise Exception('There are currently no events associated with the provided profile ids.') 
 
-    async def _filter_events(self, profile_id : str, events : list) -> None:
+    def _build_profile_lfm_idx_map_object(self, profile : object) -> dict:
+        profile_lfm_idx = self._filter_lfm_idx_mappings(lfm_idx_mappings=self.lfm_idx_mappings, id_=profile.item())
+        if len(profile_lfm_idx)>=1:
+            return profile_lfm_idx[0]['lfm_idx']
+        else:
+            return np.NaN
+
+    async def _apply_profile_lfm_idx_map(self) -> None:
+        self.logger.info('Building profile map')
+        t = time.time()
+        self.profiles_df['profile_LFM_IDX'] = self.profiles_df.apply(lambda row: self._build_profile_lfm_idx_map_object(row), axis=1)
+        self.profiles_df.columns = ['profile_id', 'profile_LFM_IDX']
+        self.profiles_df.dropna(how='any', axis=0, inplace=True)
+        self.profiles_df['profile_LFM_IDX'] = self.profiles_df['profile_LFM_IDX'].astype(int)
+        #profiles_map = list((self._build_profile_map_object(profile) for profile in self.profiles))
+        if len(self.profiles_df) < 1:
+            raise Exception('Error occurred when attempting to make item recommendations. No active profiles found.')
+        t1 = time.time()
+        self.logger.info(f'Time to build profiles map: {t1-t}')
+        self.predictions_df = self.profiles_df.copy(deep=True)
+
+    def _filter_events(self, profile_id : str, events : list) -> None:
         return list(filter(lambda x : x['profile_id'] == profile_id, events))
 
-    async def _build_profile_map(self) -> None:
-        self.logger.info('Building profile map')
-        # iterate over profiles and determine if profile exists in lfm idx mappings. 
-        # Predictions can only be performed on 'seen' profiles
-        for profile in self.profiles:
-            profile_lfm_idx = await self._filter_lfm_idx_mappings(lfm_idx_mappings=self.lfm_idx_mappings, id_=profile)
-            if len(profile_lfm_idx)>=1:
-                self.profiles_map.append(
-                    {
-                        'profile_id' : profile,
-                        'profile_LFM_IDX' : profile_lfm_idx[0]['lfm_idx']
-                    }
-                )
-        # ensure there is at least one singular valid profile.
-        if len(self.profiles_map) < 1:
-            raise Exception('Error occurred when attempting to make item recommendations. No active profiles found.')
-
-    async def _build_stop_list(self, profile_id : str) -> list:
-        self.logger.info(f'Building stop list for profile: {profile_id}')
+    def _build_stop_list(self, profile_id : str) -> list:
+        # self.logger.info(f'Building stop list for profile: {profile_id}')
         profile_stop_list = copy.deepcopy(self.base_item_stop_list)
         if self.algorithm_configurations['recommend_interacted_items']:
             return profile_stop_list
-        events = await self._filter_events(profile_id=profile_id, events=self.events)
+        events = self._filter_events(profile_id=profile_id, events=self.events)
         if len(events) <1:
             return profile_stop_list
 
-        for event in events:
-            #deserialize event_properties and update event dict variable_value
+        def event_item_id(event):
             item_id=None
             if event['event_properties'] == "" or event['event_properties'] == None or event['event_properties'] == '""':
-                continue
+                return
             for k,v in event['event_properties'].items():
                 if k == self.algorithm_configurations['rec_item_identifier']:
                     item_id=v
             if not item_id:
-                continue
-            profile_stop_list.append(
-                item_id
-            )
-        return profile_stop_list
+                return
+            return item_id
 
-    async def _sort_filter_item_profile_scores(self, item_scores : list, profile_stop_list : list) -> list:
+        events_item_ids = list((event_item_id(event) for event in events))
+        sl = []
+        sl.extend(events_item_ids)
+        sl.extend(profile_stop_list)
+        return sl
+
+    def _sort_filter_item_profile_scores(self, item_scores : list, profile_stop_list : list) -> list:
         sorted_scores = sorted(item_scores, key=lambda k: k['score'], reverse=True)
         filtered_scores = [x for x in sorted_scores if x['item_id'] not \
             in profile_stop_list and x['item_id'] in self.all_items][:self.num_rec]
         return filtered_scores
 
-    async def _calculate_dot_products(self) -> None:
+    def _calculate_scores(self, profile : object) -> dict:
+        item_scores = []
+        profile_stop_list = self._build_stop_list(profile_id=profile['profile_id'])
+
+        user = self.users_embeddings[profile['profile_LFM_IDX']]
+        user_biases = self.users_biases[profile['profile_LFM_IDX']]
+
+        def item_dot_products(item):
+            item_e = self.items_embeddings[item['lfm_idx']]
+            item_biases = self.items_biases[item['lfm_idx']]
+            result = user.dot(item_e.T)
+            score = result + user_biases + item_biases
+            return {
+                'item_id' : item['res_id'],
+                'score' : float(str(score))
+            }
+
+        item_scores = list((item_dot_products(item) for item in self.seen_items))
+        filtered_scores = self._sort_filter_item_profile_scores(item_scores=item_scores, 
+                                                                    profile_stop_list=profile_stop_list)
+
+        return filtered_scores
+
+    async def _apply_prediction_scores(self) -> None:
+        t = time.time()
         #init required objects for dot product calculations 
-        users_biases = self.model.get_user_representations()[0]
-        users_embeddings = self.model.get_user_representations()[1]
-        items_biases = self.model.get_item_representations()[0]
-        items_embeddings = self.model.get_item_representations()[1]
+        self.users_biases = self.model.get_user_representations()[0]
+        self.users_embeddings = self.model.get_user_representations()[1]
+        self.items_biases = self.model.get_item_representations()[0]
+        self.items_embeddings = self.model.get_item_representations()[1]
 
-        for profile in self.profiles_map:
-            self.logger.info(f'Calculating Dot Product for profile: {profile["profile_id"]}')
-            item_scores = []
-            profile_stop_list = await self._build_stop_list(profile_id=profile['profile_id'])
-
-            user = users_embeddings[profile['profile_LFM_IDX']]
-            user_biases = users_biases[profile['profile_LFM_IDX']]
-
-            # iterate over items & calculate dot product for each
-            for item in self.seen_items:
-                item_e = items_embeddings[item['lfm_idx']]
-                item_biases = items_biases[item['lfm_idx']]
-                result = user.dot(item_e.T)
-                score = result + user_biases + item_biases
-
-                item_scores.append(
-                    {
-                        'item_id' : item['res_id'],
-                        'score' : float(str(score))
-                    }
-                )
-
-            filtered_scores = await self._sort_filter_item_profile_scores(item_scores=item_scores, 
-                                                                        profile_stop_list=profile_stop_list)
-            if len(filtered_scores) < 1:
-                continue
-            
-            self.predictions.append(
-                {
-                    'profile_id' : profile['profile_id'],
-                    'item_scores' : filtered_scores
-                }
-            )
+        self.logger.info("Calculating prediction scores for profiles ...")
+        self.predictions_df['item_scores'] = self.predictions_df.apply(lambda row: self._calculate_scores(row), axis=1)
+        
+        #self.predictions = list((self._calculate_scores(profile) for profile in self.profiles_map))
+        t1 = time.time()
+        self.logger.info("Calculated prediction scores for profiles!")
+        self.logger.info(f'Time to apply and filter item predictions: {t1-t}')
+        self.predictions = self.predictions_df.to_dict('records')
 
     async def _cache_item_recommendations(self) -> None:
-        self.logger.info(f'Caching item recommendations')
+        self.logger.info(f'Caching item recommendations ...')
         await recommendationsRepository.cache_item_recommendations(account_id=self.account_id,
-                                                                training_job_id=self.training_job_id,
+                                                                training_job_id=self.best_training_job['training_job_name'],
                                                                 predictions=self.predictions)
+        self.logger.info(f'Cached item recommendations!')
 
     async def _make_predictions(self) -> None:
         await self._get_job_artifacts()
         await self._get_lfm_idx_mappings()
         await self._get_items()
         await self._get_profiles()
-        await self._build_profile_map()
+        await self._apply_profile_lfm_idx_map()
         if not self.algorithm_configurations['recommend_interacted_items']:
             await self._get_profile_events()
-        await self._calculate_dot_products()
+        await self._apply_prediction_scores()
         await self._cache_item_recommendations()
         await self._job_success()
 
@@ -763,9 +789,9 @@ class RecommenderCompleteTrainingJob():
 
         try:
             #Switch through job status
-            self.status = await self._get_cloud_training_status()
+            self.status = await self._get_cloud_hp_tuning_status()
 
-            self.logger.info(f'Job ID : {self.training_job_id} -- Status : {self.status}')
+            self.logger.info(f'Job ID : {self.hyperparam_tuning_job_id} -- Status : {self.status}')
 
             if self.status == 'InProgress':
                 await self._re_schedule_job()
@@ -781,6 +807,8 @@ class RecommenderCompleteTrainingJob():
 
             elif self.status == 'Stopped':
                 await self._destroy_job()
+            
+            self.logger.info(f'Completed Job!')
 
         except Exception as e:
             self.logger.critical(str(e))
