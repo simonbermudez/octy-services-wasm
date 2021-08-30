@@ -23,3 +23,5 @@ secrets.json
 secrets.yaml
 secret.yaml
 start.sh
+workers/churn_prediction/.vscode/
+workers/recommendation/.vscode/

@@ -320,7 +320,7 @@ class _SegmentationRepository(SegmentationInterface):
             response = session.post(
                 url,
                 data=json.dumps(payload),
-                timeout=5
+                timeout=60
             )
         except Exception as x:
             raise Exception(x) from None

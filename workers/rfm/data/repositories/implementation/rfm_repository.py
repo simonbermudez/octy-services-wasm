@@ -74,7 +74,7 @@ class _RFMRepository(RFMInterface):
                     url,
                     data=json.dumps(payload),
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None
@@ -127,7 +127,7 @@ class _RFMRepository(RFMInterface):
                     url,
                     data=json.dumps(payload),
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None
@@ -179,7 +179,7 @@ class _RFMRepository(RFMInterface):
                 response = session.get(
                     url,
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None

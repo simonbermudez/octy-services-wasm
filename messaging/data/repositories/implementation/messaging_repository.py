@@ -52,7 +52,7 @@ class _MessagingContentRepository(MessagingContentInterface):
             response = session.post(
                 url,
                 data=json.dumps(payload),
-                timeout=10,
+                timeout=60,
                 headers={'Content-Type': 'application/json'}
             )
         except Exception as x:
@@ -92,7 +92,7 @@ class _MessagingContentRepository(MessagingContentInterface):
                 response = session.get(
                     url,
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None
