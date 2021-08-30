@@ -10,6 +10,11 @@ spec:
   routes:
 
     ##### INTERNAL ROUTES **DELETE** ######
+    - match: Path(`/v1/internal/accounts`)
+      kind: Rule
+      services:
+        - name: account-service
+          port: 1024
     - match: Path(`/v1/internal/items`)
       kind: Rule
       services:
@@ -144,6 +149,13 @@ spec:
   routes:
     
     ##### INTERNAL ROUTES **DELETE** ######
+    - match: Path(`/v1/internal/accounts`)
+      middlewares:
+        - name: https-only
+      kind: Rule
+      services:
+        - name: account-service
+          port: 1024
     - match: Path(`/v1/internal/items`)
       middlewares:
         - name: https-only
