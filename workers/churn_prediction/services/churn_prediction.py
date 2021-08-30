@@ -872,6 +872,7 @@ class ChurnPredictionCompleteTrainingJob():
                 count[i] = count.get(i, 0) + 1
             return count
 
+
         for _, v in CountFrequency(feature_vals).items():
             if (v*100)/len(feature_vals) > 70.0:
                 await self._destroy_job()
