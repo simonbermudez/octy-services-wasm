@@ -360,6 +360,7 @@ class OctyJobQueue():
                                 },
                                 'octy_job_id' : job['_id']
                             })
+                            
                 
                 elif job['job_meta']['job_type'] == 'rfm' : 
                     if 'rfm' not in account['permissions']:

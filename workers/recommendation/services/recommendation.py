@@ -220,7 +220,6 @@ class RecommenderTraining():
             raise Exception('Not enough items found to conduct model training.')
             
         self.items_df=pd.DataFrame(items)
-
         #drop columns
         self.items_df=self.items_df.drop(['status', 'created_at', 'updated_at'], axis=1)
         
