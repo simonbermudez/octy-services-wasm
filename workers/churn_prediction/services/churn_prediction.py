@@ -51,7 +51,7 @@ class ChurnPredictionTraining():
         self.bucket = bucket
         self.algorithm_configurations = algorithm_configurations
         self.logger = logging.getLogger('uvicorn')
-        self.training_job_id = generate_uid('training-job')
+        self.hyperparam_tuning_job_id = generate_uid('hp-t-job')
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
         self.model_meta = {}
         self.model_meta['X_cols']="N/A"
@@ -79,7 +79,7 @@ class ChurnPredictionTraining():
         try:
             response = session.post(
                 url,
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:
@@ -92,9 +92,9 @@ class ChurnPredictionTraining():
 
     async def _dispose_job(self, ex : str) -> None:
         try:
-            # Delete training job ref, if we have one
-            await churnPredictionRepository.delete_training_job_ref(account_id=self.account_id, 
-                                                                    training_job_id=self.training_job_id)
+            # Delete tuning job ref, if we have one
+            await churnPredictionRepository.delete_hparam_tuning_job_ref(account_id=self.account_id, 
+                                                                    hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
             # abort_multipart_upload if self.mpu_upload_id != None
             await bucketRepository.abort_multipart_upload(key=self.key,
                                                         upload_id=self.mpu_upload_id, 
@@ -111,7 +111,7 @@ class ChurnPredictionTraining():
             self.logger.critical(f'Error occurred when attempting to dispose of job. {str(err)}')
 
     async def _complete_job(self) -> None:
-        self.logger.info('Training job compelte')
+        self.logger.info('Training job complete')
         # HTTP call to confirm job completion with status
         await self._send_http_request(Config['OCTY_JOB_SERVICE_CLUSTER_IP']+'/v1/internal/jobs/callback', {
             'account_id' : self.account_id,
@@ -127,12 +127,12 @@ class ChurnPredictionTraining():
                 'job_type' : 'churn',
                 'job_meta' : {
                     'desired_runs' : 1,
-                    'time_interval' : 30,
+                    'time_interval' : 60,
                     'fail_threshold' : 3
                 },
                 'job_data' : {
                     'job_sub_type' : 'complete',
-                    'training_job_id' : self.training_job_id
+                    'hyperparam_tuning_job_id' : self.hyperparam_tuning_job_id
                 }
         })
 
@@ -155,7 +155,6 @@ class ChurnPredictionTraining():
         self.profiles_df['churn'] = self.profiles_df.apply(
             lambda row: True if row.status == 'churned' else False, axis=1)
         
-        print(self.profiles_df.info())
         self.profiles_df = self.profiles_df.drop(['customer_id','rfm_score','rfm_segment_desc','churn_probability', 'status', 'created_at', 'updated_at' ], axis = 1)
         if len(self.profiles_df)< Config['MIN_NUM_PROFILES']:
             raise Exception('Not enough profiles found to conduct model training.')
@@ -245,14 +244,14 @@ class ChurnPredictionTraining():
         self.training_df = pd.merge(self.training_df, total_purchase_value_df, on='profile_id')
         self.training_df.rename(columns={"item_price": "total_purchase_value"},inplace=True)
 
-    async def _get_profile_most_frequent(self, events_df : pd.DataFrame, drop_columns : list) -> None:
+    async def _get_profile_most_frequent(self, events_df : pd.DataFrame, drop_columns : list, keep_col : str) -> None:
         """ Get the most frequent specified event instance attribute per profile and merge onto training_df """
 
         get_most_frequent = lambda values: max(Counter(values).items(), key = lambda x: x[1])[0]
         most_frequent = events_df.groupby(['profile_id']).agg(get_most_frequent)
         most_frequent = most_frequent.drop(drop_columns, axis = 1)
-
-        self.training_df = pd.merge(self.training_df, most_frequent, on='profile_id')
+        self.training_df = pd.merge(self.training_df, most_frequent, on='profile_id', how='outer')
+        self.training_df[keep_col].fillna('not_specified', inplace=True)
 
     async def _get_profile_event_count(self, events_df : pd.DataFrame, drop_columns : list, new_columns : list) -> None:
         """ Get the count of specified event instance types (in events_df) per profile and merge onto training_df """
@@ -260,8 +259,9 @@ class ChurnPredictionTraining():
         total_event_count = events_df.groupby('profile_id').count().reset_index()
         total_event_count = total_event_count.drop(drop_columns, axis=1)
         total_event_count.columns = new_columns
-
-        self.training_df = pd.merge(self.training_df, total_event_count, on='profile_id')
+        self.training_df = pd.merge(self.training_df, total_event_count, on='profile_id', how='outer')
+        self.training_df[new_columns[1]].fillna(0, inplace=True)
+        self.training_df[new_columns[1]] = self.training_df[new_columns[1]].astype(int)
 
     async def _identify_drop_invalid_numerical_columns(self) -> Union[list, list]:
         """ Identify all numerical columns in training_df. 
@@ -295,12 +295,24 @@ class ChurnPredictionTraining():
     async def _numerical_quantile_bin_encoding(self, feature_name : str, quantiles : int = 3) -> None:
         quantile_field_name = feature_name + '_quantiles'
         self.logger.info(f"Creating {quantiles} quantile bins for column {feature_name}")
-        self.training_df[quantile_field_name] = pd.qcut(self.training_df[feature_name], q=quantiles)
+        self.training_df[quantile_field_name] = \
+            pd.qcut(self.training_df[feature_name], q=quantiles) #, duplicates='drop'
         self.logger.info(f"One hot encoding {quantile_field_name}")
         self.training_df = pd.concat([self.training_df,pd.get_dummies(self.training_df[quantile_field_name], prefix=feature_name)],axis=1)
         self.training_df = self.training_df.drop([quantile_field_name, feature_name], axis = 1)
 
         self.logger.info("=============== END QUANTILE BIN FUNC ===============")
+
+    async def _numerical_bin_encoding(self, feature_name : str, bins : int = 3) -> None:
+        bin_field_name = feature_name + '_bins'
+        self.logger.info(f"Creating {bins} bins for column {feature_name}")
+        self.training_df[bin_field_name] = \
+            pd.cut(self.training_df[feature_name], bins)
+        self.logger.info(f"One hot encoding {bin_field_name}")
+        self.training_df = pd.concat([self.training_df,pd.get_dummies(self.training_df[bin_field_name], prefix=feature_name)],axis=1)
+        self.training_df = self.training_df.drop([bin_field_name, feature_name], axis = 1)
+
+        self.logger.info("=============== END BIN FUNC ===============")
 
     async def _format_column_names(self):
         self.logger.info("Formatting column names, replacing illegal characters, to meet required conventions")
@@ -390,10 +402,11 @@ class ChurnPredictionTraining():
         dummy_columns = []
         for column in self.training_df.columns:
             if self.training_df[column].dtype == object and column not in stop_list:
-                if self.training_df[column].nunique() == 2:
-                    self.training_df[column] = le.fit_transform(self.training_df[column]) 
-                else:
-                    dummy_columns.append(column)
+                # if self.training_df[column].nunique() == 2:
+                #     self.training_df[column] = le.fit_transform(self.training_df[column]) 
+                # else:
+                #     dummy_columns.append(column)
+                dummy_columns.append(column)
         self.training_df = pd.get_dummies(data=self.training_df,columns=dummy_columns)
 
 
@@ -466,22 +479,22 @@ class ChurnPredictionTraining():
 
 
     # Training Job private methods
-    async def _create_training_job_ref(self) -> None:
+    async def _create_hparam_tuning_job_ref(self) -> None:
         meta_data = {'event_type' : self.algorithm_configurations['event_type'], 'features' : self.features}
-        await churnPredictionRepository.create_training_job_ref(training_job_id=self.training_job_id,
+        await churnPredictionRepository.create_hparam_tuning_job_ref(hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
                                                                 account_id=self.account_id,
                                                                 meta_data=meta_data)
     
     async def _cache_dataset(self) -> None:
         # convert training df to json
         dataset_json = json.loads(self.training_df.to_json(orient='index'))
-        await churnPredictionRepository.cache_dataset(self.account_id,self.training_job_id, dataset_json)
+        await churnPredictionRepository.cache_dataset(self.account_id,self.hyperparam_tuning_job_id, dataset_json)
 
 
-    #Public Methods ***
+    #Hyper parameter tuning job private methods ***
 
     # Dataframe creation public methods
-    async def build_training_dataset(self) -> None:
+    async def _build_training_dataset(self) -> None:
         self.logger.info('Building training dataset ...')
 
         # Build items dataframe
@@ -508,8 +521,6 @@ class ChurnPredictionTraining():
         # Shape dataframe based on null values
         await self._dynamic_null_drop()
 
-        print(self.profiles_df.info(verbose=True))
-
         # Apply and encode sement tags
         await self._apply_segment_tags()
 
@@ -524,8 +535,6 @@ class ChurnPredictionTraining():
         self.logger.info('Building training dataframe ...')
 
         self.training_df = self.profiles_df.copy(deep=True)
-
-        print(self.training_df.info(verbose=True))
 
         await self._get_events_data()
         charged_event_properties_unique_keys = await self._get_dict_keys(self.charged_events_df, 'event_properties')
@@ -542,8 +551,8 @@ class ChurnPredictionTraining():
         await self._apply_total_purchase_value()
 
         # Payment method and complaint channel frequencies
-        await self._get_profile_most_frequent(self.charged_events_df, ['item_id','event_type' ])
-        await self._get_profile_most_frequent(self.complaints_events_df, ['channel'])
+        await self._get_profile_most_frequent(self.charged_events_df, ['item_id','event_type' ], 'payment_method')
+        await self._get_profile_most_frequent(self.complaints_events_df, ['event_type'], 'channel')
 
         # Number of charges & Number of complaints
         await self._get_profile_event_count(self.charged_events_df, ['item_id','payment_method'], ['profile_id','number_charges'])
@@ -554,7 +563,7 @@ class ChurnPredictionTraining():
         for col in num_cluster_cols:
             await self._numerical_cluster_encoding(feature_name=col, ascending=True)
         for col in num_bin_cols:
-            await self._numerical_quantile_bin_encoding(feature_name=col)
+            await self._numerical_bin_encoding(feature_name=col)
         
         await self._categorical_encoding(['profile_id'])
 
@@ -563,11 +572,13 @@ class ChurnPredictionTraining():
         
         await self._format_column_names()
         
-        print(self.training_df.info(verbose=True))
-            
+        #Update profile feature columns 
+        X = self.training_df.drop(['churn', 'profile_id'],axis=1)
+        self.features[1]['profile_feature_list'] = list(X.columns)
+
 
     # Dataset file public methods
-    async def upload_resources(self) -> None:
+    async def _upload_resources(self) -> None:
         self.logger.info('Uploading training job resources')
 
         await self._create_csv_objects()
@@ -578,7 +589,7 @@ class ChurnPredictionTraining():
             if file_size  < int(Config['MIN_FILE_SIZE']):
                 self.key = await bucketRepository.single_upload(file_data=csv_object['data'],
                                                     resource_friendly_name=csv_object['type'],
-                                                    training_job_id=self.training_job_id,
+                                                    hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
                                                     bucket_name=self.bucket)
 
             elif file_size  > int(Config['MIN_FILE_SIZE']) and file_size  < int(Config['MAX_FILE_SIZE']):
@@ -599,7 +610,7 @@ class ChurnPredictionTraining():
                             await bucketRepository.multipart_upload(chunk_data=chunk['data'],
                                                                     chunk_index=chunk['chunk_idx'],
                                                                     resource_friendly_name=csv_object['type'],
-                                                                    training_job_id=self.training_job_id,
+                                                                    hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
                                                                     bucket_name=self.bucket)
 
                     else:
@@ -629,17 +640,27 @@ class ChurnPredictionTraining():
             self.total_bytes += file_size
 
     # Training Job public methods
-    async def initialising_cloud_training_job(self) -> None:
-        self.logger.info('Initialising cloud training')
+    async def _start_cloud_hparam_tuning_job(self) -> None:
+        self.logger.info('Starting cloud hyper parameter tuning job...')
+        # get parent hyper parameter tuning job for warm start
+        parent_job = await churnPredictionRepository\
+            .get_parent_hparam_tuning_job_ref(account_id=self.account_id)
+        parent_job_id = None
+        if parent_job:
+            parent_job_id = parent_job['_id']
+
         #calculate required volume size
         volume_size = await self._required_gb(self.total_bytes)
-        await churnPredictionRepository.start_cloud_training(account_id=self.account_id, 
-                                                            training_job_id=self.training_job_id, 
+        await churnPredictionRepository.start_hparam_tuning_job(account_id=self.account_id, 
+                                                            hyperparam_tuning_job_id=self.hyperparam_tuning_job_id, 
+                                                            parent_hyperparam_tuning_job_id=parent_job_id,
                                                             volume_size=volume_size, 
                                                             training_resources=self.training_resources,
                                                             bucket_name=self.bucket)
+        self.logger.info('Cloud hyper parameter tuning job started!')
+
         # create DB ref
-        await self._create_training_job_ref()
+        await self._create_hparam_tuning_job_ref()
 
         # cache dataset
         await self._cache_dataset()
@@ -648,13 +669,13 @@ class ChurnPredictionTraining():
     async def run(self) -> None: 
         try:
             # Build training data sets
-            await self.build_training_dataset()
+            await self._build_training_dataset()
 
             #upload training data resources 
-            await self.upload_resources()
+            await self._upload_resources()
 
             # begin cloud training
-            await self.initialising_cloud_training_job()
+            await self._start_cloud_hparam_tuning_job()
   
             await self._complete_job()
 
@@ -669,7 +690,7 @@ class ChurnPredictionCompleteTrainingJob():
     def __init__(self, account_id : str, 
                 octy_job_id : str, 
                 bucket : str, 
-                training_job_id : str, 
+                hyperparam_tuning_job_id : str, 
                 previous_churn_percentage : int,
                 algorithm_configurations : dict, 
                 webhook_url : str):
@@ -678,7 +699,9 @@ class ChurnPredictionCompleteTrainingJob():
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.algorithm_configurations = algorithm_configurations
-        self.training_job_id = training_job_id
+        self.hyperparam_tuning_job_id = hyperparam_tuning_job_id
+        self.best_training_job = None
+        self.hp_tuning_job = None
         self.webhook_url = webhook_url
         self.previous_churn_percentage = previous_churn_percentage
         self.logger = logging.getLogger('uvicorn')
@@ -692,9 +715,9 @@ class ChurnPredictionCompleteTrainingJob():
         self.predictions_df = None
 
     
-    async def _get_cloud_training_status(self) -> str:
+    async def _get_cloud_hp_tuning_status(self) -> str:
         self.logger.info('Getting cloud training status')
-        status = await churnPredictionRepository.get_cloud_training_status(training_job_id=self.training_job_id)
+        status = await churnPredictionRepository.get_hparam_tuning_job_status(hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
         return status
     
     async def _send_http_request(self, url : str, payload : dict) -> None:
@@ -703,7 +726,7 @@ class ChurnPredictionCompleteTrainingJob():
         try:
             response = session.post(
                 url,
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:
@@ -720,7 +743,7 @@ class ChurnPredictionCompleteTrainingJob():
         try:
             response = session.post(
                 url,
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:
@@ -739,14 +762,15 @@ class ChurnPredictionCompleteTrainingJob():
             'body' : {
                 'algorithm' : 'churn-prediction',
                 'job_status' : 'Failed',
-                'message' : 'An unknown server error occurred when attempting to train a model using this algorithm. You do have to do anything, we are aware of this issue and will resolve it shortly. Octy support team'
+                'message' : 'An issue occurred when attempting to train a churn prediction model. You do have to do anything as our systems will rectify this issue automatically. If this issue repeatedly occurs, please contact the Octy support team: support@octy.ai'
             },
             'date_time' : str(dt.now())
         })
     
     async def _job_success(self) -> None:
-        await churnPredictionRepository.update_training_job_ref(account_id=self.account_id,
-                                                    training_job_id=self.training_job_id,
+        await churnPredictionRepository.update_hparam_tuning_job_ref(account_id=self.account_id,
+                                                    hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
+                                                    best_model_training_job_id=self.best_training_job['training_job_name'],
                                                     model_meta=self.model_meta,
                                                     status=self.status)
         await self._send_http_account_webhook_request(self.webhook_url, {
@@ -754,7 +778,7 @@ class ChurnPredictionCompleteTrainingJob():
             'body' : {
                 'algorithm' : 'churn-prediction',
                 'job_status' : 'Completed',
-                'message' : 'This means a new, up to date churn predictions have been applied to each profile. Octy support team.'
+                'message' : 'This means a new, up to date churn prediction analysis report is avilable and updated churn predictions have been applied to each profile. Octy support team.'
             },
             'date_time' : str(dt.now())
         })
@@ -780,10 +804,11 @@ class ChurnPredictionCompleteTrainingJob():
             self.logger.warning('Destroying job due to error')
             # delete training job artefacts 
             await bucketRepository.delete_directory(bucket_name=self.bucket, 
-                                                    directory_path=f"{Config['CHURN_PRED_MODELS_DIR']}/{self.training_job_id}")
-            # Update training job reference to 'failed'
-            await churnPredictionRepository.update_training_job_ref(account_id=self.account_id,
-                                                                training_job_id=self.training_job_id,
+                                                    directory_path=f"{Config['CHURN_PRED_MODELS_DIR']}/{self.hyperparam_tuning_job_id}")
+            # Update tuning job reference to 'failed'
+            await churnPredictionRepository.update_hparam_tuning_job_ref(account_id=self.account_id,
+                                                                hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
+                                                                best_model_training_job_id='--',
                                                                 status='Failed')
             # Delete Octy job
             await amqpInterface.publish_message(routing_key='octy.job.cmd.delete',
@@ -802,10 +827,15 @@ class ChurnPredictionCompleteTrainingJob():
     async def _get_job_artifacts(self) -> None:
         self.logger.info('Getting job artifacts')
 
-        self.training_job = await churnPredictionRepository.get_training_job(account_id=self.account_id, \
-            training_job_id=self.training_job_id, status='in_progress')
+        self.hp_tuning_job = await churnPredictionRepository.get_hparam_tuning_job_ref(account_id=self.account_id, \
+            hyperparam_tuning_job_id=self.hyperparam_tuning_job_id, status='in_progress')
         
-        model_location =  f"{Config['CHURN_PRED_MODELS_DIR']}/{self.training_job_id}/output/model.tar.gz"
+        # get best job
+        self.best_training_job = await churnPredictionRepository\
+            .get_best_training_job(hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
+
+        
+        model_location =  f"{Config['CHURN_PRED_MODELS_DIR']}/{self.best_training_job['training_job_name']}/output/model.tar.gz"
         files = await bucketRepository.download_resource(bucket_name=self.bucket,
                                                         key=model_location,
                                                         is_compressed=True)
@@ -827,7 +857,25 @@ class ChurnPredictionCompleteTrainingJob():
             churn_indicator='negative'
         elif churn_diff == 0.0:
             churn_indicator='stalled'
-        
+
+        # NOTE: Destroy job if features contains NaN values,
+        # this signifies that the model is overfitted.
+        feature_vals = [d['feature_importance'] for d in self.features]
+        if 'NaN' in feature_vals or np.NaN in feature_vals:
+            await self._destroy_job()
+
+        # NOTE: Destroy job if features is > 70% dominant in features list,
+        # this signifies that the model is overfitted.
+        def CountFrequency(l):
+            count = {}
+            for i in l:
+                count[i] = count.get(i, 0) + 1
+            return count
+
+        for _, v in CountFrequency(feature_vals).items():
+            if (v*100)/len(feature_vals) > 70.0:
+                await self._destroy_job()
+
         # update account churn report information
         await amqpInterface.publish_message(routing_key='churn.info.cmd.update',
             message_payload={
@@ -843,13 +891,13 @@ class ChurnPredictionCompleteTrainingJob():
     async def _get_cached_dataset(self) -> None:
         self.logger.info('Loading cached dataset...')
         cached_dicts = await churnPredictionRepository.get_cached_dataset(account_id=self.account_id, \
-            training_job_id=self.training_job_id)
+            hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
         self.cached_df = pd.DataFrame(cached_dicts)
         self.logger.info('Cached dataset loaded!')
 
     async def _destroy_dataset_cache(self) -> None:
         self.prediction_df = await churnPredictionRepository.delete_cached_dataset(account_id=self.account_id, \
-            training_job_id=self.training_job_id)
+            hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
         self.logger.info('Cached dataset Deleted!')
 
     async def _get_feature_columns(self) -> None:
@@ -867,7 +915,7 @@ class ChurnPredictionCompleteTrainingJob():
         
         #Get number of unique values in feature column 
         len_unique=len(self.predictions_df[feature_name].unique())
-        print("Number of unique values in column {c} : {n}".format(c=feature_name,n=len_unique))
+        self.logger.info("Number of unique values in column {c} : {n}".format(c=feature_name,n=len_unique))
         if len_unique < 10:
             cluster_range = range(1, len_unique)
         else:
@@ -881,12 +929,11 @@ class ChurnPredictionCompleteTrainingJob():
         
         elbow = KneeLocator(clusters_df.num_clusters.values, clusters_df.cluster_errors.values, S=1.0, curve='convex', direction='decreasing')
         knee = elbow.knee
-        print("OG knee: {}".format(str(knee)))
+        self.logger.info("OG knee: {}".format(str(knee)))
         if knee > 5:
-            print("Limited knee to : 5")
             knee = 5 #limit knee to 5 max
-        print(feature_name+':')
-        print('creating a K-means cluster with ' + str(knee) + ' clusters')
+        self.logger.info(feature_name+':')
+        self.logger.info('creating a K-means cluster with ' + str(knee) + ' clusters')
         
         #cluster feature_name data
         cluster_field_name = feature_name + '_cluster'
@@ -895,7 +942,7 @@ class ChurnPredictionCompleteTrainingJob():
         #create feature_name_cluster column in dataframe
         with ChainedAssignment():
             self.predictions_df[cluster_field_name] = kmeans.predict(self.predictions_df[[feature_name]])
-        print('CREATED a K-means cluster with ' + str(knee) + ' clusters')
+        self.logger.info('CREATED a K-means cluster with ' + str(knee) + ' clusters')
 
 
         #convert cluster number to categorical label
@@ -919,7 +966,7 @@ class ChurnPredictionCompleteTrainingJob():
         #add categorical labels to cluster numbers
         self.predictions_df[cluster_field_name] = self.predictions_df[cluster_field_name].replace(label_map)
 
-        print("=============== END CLUSTER FUNC ===============")
+        self.logger.info("=============== END CLUSTER FUNC ===============")
 
     async def _predict_churn_scores(self) -> None:
         self.logger.info('Generating churn prediction scores')
@@ -929,8 +976,14 @@ class ChurnPredictionCompleteTrainingJob():
             self.cached_df['churn_prob'] = self.trained_model.predict_proba(self.cached_df[self.X_pred_cols])[:,1]
 
         self.predictions_df = self.cached_df[['profile_id', 'churn_prob']]
+        
+        if self.predictions_df['churn_prob'].nunique() < 5:
+            # NOTE: Do not apply predictions where predictions are identical across all profiles,
+            # this indicates that the model is overfitted.
+            # In this case, send callback to octy job service to destroy job.
+            await self._destroy_job()
+
         await self._numerical_clustering_encoding('churn_prob', True)
-        print(self.predictions_df.info())
 
     async def _assign_churn_scores(self) -> None:
         self.logger.info('Assigning churn prediction scores to profiles')
@@ -970,9 +1023,9 @@ class ChurnPredictionCompleteTrainingJob():
 
         try:
             #Switch through job status
-            self.status = await self._get_cloud_training_status()
+            self.status = await self._get_cloud_hp_tuning_status()
 
-            self.logger.info(f'Job ID : {self.training_job_id} -- Status : {self.status}')
+            self.logger.info(f'Job ID : {self.hyperparam_tuning_job_id} -- Status : {self.status}')
 
             if self.status == 'InProgress':
                 await self._re_schedule_job()
@@ -994,6 +1047,8 @@ class ChurnPredictionCompleteTrainingJob():
 
             elif self.status == 'Stopped':
                 await self._destroy_job()
+            
+            self.logger.info(f'Completed Job!')
 
         except Exception as e:
             self.logger.critical(str(e))

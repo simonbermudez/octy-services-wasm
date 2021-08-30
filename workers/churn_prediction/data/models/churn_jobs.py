@@ -11,7 +11,7 @@ class ChurnTrainingJobData(BaseModel):
     algorithm_configurations : Dict
 
 class ChurnCompleteJobData(BaseModel):
-    training_job_id : str
+    hyperparam_tuning_job_id : str
     previous_churn_percentage : Any # int or float
     bucket : str
     algorithm_configurations : Dict

@@ -316,7 +316,7 @@ class _RecommendationsRepository(RecommendationsInterface):
         try:
             parent_job = tbl_hparam_tuning_jobs.objects(account_id__exact=account_id, status__exact='Completed').order_by('-updated_at').first()
             return json.loads(parent_job.to_json())
-        except DoesNotExist:
+        except:
             return None
 
 

@@ -353,7 +353,7 @@ class OctyJobQueue():
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
                                 },
                                 'churn_job_data' : {
-                                    'training_job_id' : job['job_data']['data']['training_job_id'],
+                                    'hyperparam_tuning_job_id' : job['job_data']['data']['hyperparam_tuning_job_id'],
                                     'previous_churn_percentage' : account['churn_info']['churn_precentage'],
                                     'bucket' : account['bucket'],
                                     'algorithm_configurations' : account['algorithm_configurations'][1]['config_json']

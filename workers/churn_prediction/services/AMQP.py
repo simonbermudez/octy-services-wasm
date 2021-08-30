@@ -68,7 +68,7 @@ class AMQPInterface():
                 await ChurnPredictionCompleteTrainingJob(account_id=job_data.account_data.account_id,
                                                     octy_job_id=job_data.octy_job_id,
                                                     bucket=job_data.churn_job_data.bucket,
-                                                    training_job_id=job_data.churn_job_data.training_job_id,
+                                                    hyperparam_tuning_job_id=job_data.churn_job_data.hyperparam_tuning_job_id,
                                                     previous_churn_percentage=job_data.churn_job_data.previous_churn_percentage,
                                                     algorithm_configurations=job_data.churn_job_data.algorithm_configurations,
                                                     webhook_url=job_data.account_data.webhook_url).run()
@@ -389,22 +389,7 @@ class AMQPStateManager():
             await c.close_connection()
         if p:
             await p.close_connection()
-
-        try:
-            Config['AMQP_CONSUMERS']
-        except KeyError:
-            logger.warning("No consumer instances configured for this service")
-        else:
-            # CONSUMERS
-            await consumer_conn.connect(Config['AMQP_URL'])
-            await _get_set_connection_state('set__consumer_connection', consumer_connection=consumer_conn)
-
-            # Open channels for each consumer
-            for consumer in Config['AMQP_CONSUMERS']:
-                consumer_conn.queue_name = consumer['QUEUE']
-                consumer_conn.routing_key = consumer['ROUTING_KEY']
-                await consumer_conn.open_channel()
-
+            
         try:
             Config['AMQP_PUBLISHERS']
         except KeyError:
@@ -420,17 +405,32 @@ class AMQPStateManager():
                 publisher_conn.queue_name = publisher['QUEUE']
                 publisher_conn.routing_key = publisher['ROUTING_KEY']
                 await asyncio.create_task(publisher_conn.open_channel())
+
+        try:
+            Config['AMQP_CONSUMERS']
+        except KeyError:
+            logger.warning("No consumer instances configured for this service")
+        else:
+            # CONSUMERS
+            await consumer_conn.connect(Config['AMQP_URL'])
+            await _get_set_connection_state('set__consumer_connection', consumer_connection=consumer_conn)
+
+            # Open channels for each consumer
+            for consumer in Config['AMQP_CONSUMERS']:
+                consumer_conn.queue_name = consumer['QUEUE']
+                consumer_conn.routing_key = consumer['ROUTING_KEY']
+                await consumer_conn.open_channel()
     
 
         logger.info("RESET RABBIT STATE")
 
     def _reconnect_rabbit(self, logger, callback):
         logger.warning("Resetting Rabbit state")
+        publisher_conn = AMQPPublisher(exchange_name=Config['EXCHANGE'],logger=logger)
         #Open single long lived connection for all consumers
         consumer_conn = AMQPConsumer(exchange_name=Config['EXCHANGE'], 
                                         callback=callback, 
                                         logger=logger)
-        publisher_conn = AMQPPublisher(exchange_name=Config['EXCHANGE'],logger=logger)
 
         try:
             loop = asyncio.get_running_loop()

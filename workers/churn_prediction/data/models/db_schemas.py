@@ -8,7 +8,7 @@ from mongoengine import Document, StringField, DateTimeField, DynamicField
 
 class tbl_training_dataset_cache(Document):
     account_id = StringField(required=True)
-    training_job_id = StringField(required=True)
+    hyperparam_tuning_job_id = StringField(required=True)
     row_data = DynamicField()
 
 class tbl_training_jobs(Document):
@@ -16,6 +16,16 @@ class tbl_training_jobs(Document):
     account_id = StringField(required=True)
     meta_data = DynamicField(required=False)
     model_meta_data = DynamicField(required=False)
+    status = StringField(default='in_progress')
+    created_at = DateTimeField(default=dt.now)
+    updated_at = DateTimeField(default=dt.now)
+
+class tbl_hparam_tuning_jobs(Document):
+    hyperparam_tuning_job_id = StringField(primary_key=True)
+    account_id = StringField(required=True)
+    meta_data = DynamicField(required=False)
+    best_model_meta_data = DynamicField(required=False)
+    best_model_training_job_id = StringField(required=False)
     status = StringField(default='in_progress')
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(default=dt.now)

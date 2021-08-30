@@ -53,7 +53,7 @@ class _BucketRepository(BucketInterface):
                          chunk_data : object,
                          chunk_index : int,
                          resource_friendly_name : str,
-                         training_job_id : str,
+                         hyperparam_tuning_job_id : str,
                          bucket_name : str):
         """
         Parameters
@@ -73,8 +73,8 @@ class _BucketRepository(BucketInterface):
         resource_friendly_name : str
             Unique name of the file being uploaded.
 
-        training_job_id : str
-            Unique identifier of the relevant training job this resource is being uploaded for.
+        hyperparam_tuning_job_id : str
+            Unique identifier of the relevant hyper paramter tuning job this resource is being uploaded for.
         
         bucket_name : str
             name of aws s3 bucket instance
@@ -83,7 +83,7 @@ class _BucketRepository(BucketInterface):
         ----------
         value of upload_part method
         """
-        mpu_key = await _generate_file_key(resource_friendly_name, training_job_id)
+        mpu_key = await _generate_file_key(resource_friendly_name, hyperparam_tuning_job_id)
         mpu = self.s3_client.create_multipart_upload(Bucket=bucket_name, Key=mpu_key, ServerSideEncryption=Config['AWS_SERVER_SIDE_ENCRYPTION'])
         parts = []
         return await self.upload_part(chunk_data=chunk_data,
@@ -158,7 +158,7 @@ class _BucketRepository(BucketInterface):
 
         Returns
         ----------
-        :rtype: None
+        None
         """
         self.s3_client.complete_multipart_upload(
             Bucket=bucket_name,
@@ -198,7 +198,7 @@ class _BucketRepository(BucketInterface):
     async def single_upload(self,
                          file_data : object,
                          resource_friendly_name : str,
-                         training_job_id : str,
+                         hyperparam_tuning_job_id : str,
                          bucket_name : str) -> str:
         """
         Parameters
@@ -209,8 +209,8 @@ class _BucketRepository(BucketInterface):
         resource_friendly_name : str
             Unique name of the file being uploaded.
 
-        training_job_id : str
-            Unique identifier of the relevant training job this resource is being uploaded for. (optional)
+        hyperparam_tuning_job_id : str
+            Unique identifier of the relevant hyper paramter tuning job this resource is being uploaded for. (optional)
 
         bucket_name : str
             name of aws s3 bucket instance
@@ -219,7 +219,7 @@ class _BucketRepository(BucketInterface):
         ----------
         key : str
         """
-        key = await _generate_file_key(resource_friendly_name, training_job_id)
+        key = await _generate_file_key(resource_friendly_name, hyperparam_tuning_job_id)
         fo = io.BytesIO(file_data.encode())
         self.s3_client.upload_fileobj(Fileobj=fo,Bucket=bucket_name, Key=key)
         return key
@@ -289,12 +289,12 @@ class _BucketRepository(BucketInterface):
             self.s3_resource.Object(bucket.name,obj.key).delete()
 
 
-async def _generate_file_key(resource_friendly_name : str, training_job_id : str = None) -> str:
+async def _generate_file_key(resource_friendly_name : str, hyperparam_tuning_job_id : str = None) -> str:
 
     # Generate file name (mpu key)
     key = generate_uid('key')
     if 'meta_data' in resource_friendly_name:
-        return Config['CHURN_DATA_DIR'] + '/'+training_job_id+'/' + key+ '.json'
-    return Config['CHURN_DATA_DIR'] + '/'+training_job_id+'/' + key+ '.csv'
+        return Config['CHURN_DATA_DIR'] + '/'+hyperparam_tuning_job_id+'/' + key+ '.json'
+    return Config['CHURN_DATA_DIR'] + '/'+hyperparam_tuning_job_id+'/' + key+ '.csv'
 
 bucketRepository = _BucketRepository()

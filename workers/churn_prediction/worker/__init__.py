@@ -23,8 +23,8 @@ async def startup():
     
     # Connect to mongoDB
     await contextManager.db_connect(logger=logger)
-    await AMQPStateManager().init_consumers(logger=logger)
     await AMQPStateManager().init_publishers(logger=logger)
+    await AMQPStateManager().init_consumers(logger=logger)
 
 
 @app.on_event("shutdown")

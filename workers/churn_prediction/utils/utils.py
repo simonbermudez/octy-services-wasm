@@ -42,6 +42,10 @@ def generate_uid(prefix : str) -> str:
           'len' : 22,
           'seperator' : '-'
         },
+        'hp-t-job' :{
+          'len' : 22,
+          'seperator' : '-'
+        },
         'notification' : {
           'len' : 20,
           'seperator' : '-'
