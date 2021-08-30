@@ -78,7 +78,7 @@ class _RecommendationsRepository(RecommendationsInterface):
                     url,
                     data=json.dumps(payload),
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None
@@ -134,7 +134,7 @@ class _RecommendationsRepository(RecommendationsInterface):
                     url,
                     data=json.dumps(payload),
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None
@@ -187,7 +187,7 @@ class _RecommendationsRepository(RecommendationsInterface):
                 response = session.get(
                     url,
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None
@@ -233,7 +233,7 @@ class _RecommendationsRepository(RecommendationsInterface):
         try:
             response = session.get(
                 url,
-                timeout=5
+                timeout=60
             )
         except Exception as x:
             raise Exception(x) from None

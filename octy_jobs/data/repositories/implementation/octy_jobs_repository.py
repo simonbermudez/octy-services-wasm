@@ -191,7 +191,7 @@ class _OctyJobsRepository(OctyJobsInterface):
                     url,
                     data=json.dumps(payload),
                     headers={'cursor': str(cursor)},
-                    timeout=10
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None

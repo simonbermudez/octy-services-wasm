@@ -60,7 +60,7 @@ class _SegmentationRepository(SegmentationInterface):
                     url,
                     data=json.dumps(payload),
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None
@@ -116,7 +116,7 @@ class _SegmentationRepository(SegmentationInterface):
                     url,
                     data=json.dumps(payload),
                     headers={'cursor': str(0)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None
@@ -179,7 +179,7 @@ class _SegmentationRepository(SegmentationInterface):
                     url,
                     data=json.dumps(payload),
                     headers={'cursor': str(cursor)},
-                    timeout=5
+                    timeout=60
                 )
             except Exception as x:
                 raise Exception(x) from None

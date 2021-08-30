@@ -85,7 +85,7 @@ class PastSegmentation():
             response = session.post(
                 url,
                 headers={'cursor': str(0)},
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:
@@ -450,7 +450,7 @@ class LiveSegmentation():
         try:
             response = session.post(
                 url,
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:
@@ -467,7 +467,7 @@ class LiveSegmentation():
         try:
             response = session.post(
                 url,
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:
@@ -911,7 +911,7 @@ class PendingLiveSegmentation():
         try:
             response = session.post(
                 url,
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:
@@ -928,7 +928,7 @@ class PendingLiveSegmentation():
         try:
             response = session.post(
                 url,
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:

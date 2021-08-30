@@ -283,7 +283,7 @@ class RFMAnalysis():
             try:
                 response = session.post(
                     url,
-                    timeout=5, 
+                    timeout=60, 
                     data=json.dumps(payload)
                 )
             except Exception as x:
@@ -392,7 +392,7 @@ class RFMCompleteAnalysis():
             response = session.post(
                 url,
                 headers={'cursor': str(0)},
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:
@@ -409,7 +409,7 @@ class RFMCompleteAnalysis():
         try:
             response = session.post(
                 url,
-                timeout=5, 
+                timeout=60, 
                 data=json.dumps(payload)
             )
         except Exception as x:

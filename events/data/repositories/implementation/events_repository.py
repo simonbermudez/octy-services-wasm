@@ -334,7 +334,7 @@ class _EventsRepository(EventsInterface):
             response = session.post(
                 url,
                 data=json.dumps(payload),
-                timeout=5
+                timeout=60
             )
         except Exception as x:
             raise Exception(x) from None
@@ -379,7 +379,7 @@ class _EventsRepository(EventsInterface):
         try:
             response = session.get(
                 url,
-                timeout=5
+                timeout=60
             )
         except Exception as x:
             raise Exception(x) from None
