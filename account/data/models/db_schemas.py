@@ -58,7 +58,15 @@ class tbl_accounts(Document):
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
     last_updated_action = StringField(null=True)
-
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id'],
+                'name': 'account_id'
+            }
+        ]
+    }
 
 ### tbl_segments [one to many]
 class tbl_segments(Document):

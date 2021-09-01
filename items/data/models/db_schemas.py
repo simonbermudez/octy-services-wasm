@@ -18,3 +18,12 @@ class tbl_items(Document):
     status = StringField(default='active') # active, inactive
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id'],
+                'name': 'account_id'
+            }
+        ]
+    }

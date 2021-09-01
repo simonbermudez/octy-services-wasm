@@ -10,6 +10,15 @@ class tbl_training_dataset_cache(Document):
     account_id = StringField(required=True)
     hyperparam_tuning_job_id = StringField(required=True)
     row_data = DynamicField()
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id', 'hyperparam_tuning_job_id'],
+                'name': 'account_id_job_id'
+            }
+        ]
+    }
 
 class tbl_training_jobs(Document):
     training_job_id = StringField(primary_key=True)
@@ -29,3 +38,16 @@ class tbl_hparam_tuning_jobs(Document):
     status = StringField(default='in_progress')
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(default=dt.now)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id', 'status', 'hyperparam_tuning_job_id'],
+                'name': 'account_id_status_job_id'
+            },
+            {
+                'fields': ['account_id', 'status'],
+                'name': 'account_id_status'
+            }
+        ]
+    }

@@ -34,3 +34,20 @@ class tbl_profiles(Document):
     status = StringField(default='active') # set to 'churned' if event type of churn occurs for this user.
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id', 'status', 'profile_id'],
+                'name': 'account_id_status_profile_id'
+            },
+            {
+                'fields': ['account_id', 'status'],
+                'name': 'account_id_status'
+            },
+            {
+                'fields': ['account_id'],
+                'name': 'account_id'
+            }
+        ]
+    }
