@@ -21,3 +21,12 @@ class tbl_templates(Document):
     status = StringField(default='active')
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id', 'status'],
+                'name': 'account_id_status'
+            }
+        ]
+    }

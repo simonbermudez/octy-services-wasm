@@ -14,3 +14,16 @@ class tbl_training_jobs(Document):
     status = StringField(default='in_progress')
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(default=dt.now)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id', 'status', 'training_job_id'],
+                'name': 'account_id_status_job_id'
+            },
+            {
+                'fields': ['account_id', 'status'],
+                'name': 'account_id_status'
+            }
+        ]
+    }

@@ -59,7 +59,6 @@ class tbl_accounts(Document):
     updated_at = DateTimeField(null=True)
     last_updated_action = StringField(null=True)
 
-
 ### tbl_segments [one to many]
 class tbl_segments(Document):
     segment_id = StringField(primary_key=True)

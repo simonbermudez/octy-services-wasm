@@ -13,7 +13,19 @@ class tbl_custom_event_types(Document):
     event_type = StringField(required=True, unique_with=['account_id'])
     event_properties = ListField(default=[])
     created_at = DateTimeField(default=dt.now)
-
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id'],
+                'name': 'account_id'
+            },
+            {
+                'fields': ['account_id', 'event_type_id'],
+                'name': 'account_id_event_type_id'
+            }
+        ]
+    }
 
 ### tbl_event_instances schema ---
 class tbl_event_instances(Document):
@@ -24,3 +36,20 @@ class tbl_event_instances(Document):
     event_type = StringField(required=True)
     event_properties = DynamicField() # client defined event properties object
     created_at = DateTimeField(default=dt.now)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id'],
+                'name': 'account_id'
+            },
+            {
+                'fields': ['account_id', 'event_type'],
+                'name': 'account_id_event_type'
+            },
+            {
+                'fields': ['account_id', 'event_type', 'profile_id'],
+                'name': 'account_id_event_type_profile_id'
+            }
+        ]
+    }

@@ -32,6 +32,19 @@ class tbl_hparam_tuning_jobs(Document):
     status = StringField(default='in_progress')
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(default=dt.now)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id', 'status'],
+                'name': 'account_id_status'
+            },
+            {
+                'fields': ['account_id', 'status', 'hyperparam_tuning_job_id'],
+                'name': 'account_id_status_hyperparam_tuning_job_id'
+            }
+        ]
+    }
 
 class Recommendations(EmbeddedDocument):
     score = FloatField(required=True)
@@ -43,3 +56,12 @@ class tbl_recommendations_cache(Document):
     profile_id = StringField(required=True)
     recommendations = ListField(EmbeddedDocumentField(Recommendations))
     created_at = DateTimeField(default=dt.now)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id','hyperparam_tuning_job_id', 'profile_id'],
+                'name': 'account_id_hyperparam_tuning_job_id_profile_id'
+            }
+        ]
+    }

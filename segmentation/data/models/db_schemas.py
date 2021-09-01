@@ -27,3 +27,16 @@ class tbl_segments(Document):
     profile_ids = ListField(required=False, default=[]) # Profile IDs that met this segments criteria on the last run. PAST SEGMENTATION
     status = StringField(default='active') #updated to 'pending_deletion' if user requests it to be deleted.
     created_at = DateTimeField(default=dt.now)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id', 'status', 'segment_name'],
+                'name': 'account_id_status_segment_name'
+            },
+            {
+                'fields': ['account_id', 'status', 'segment_id'],
+                'name': 'account_id_status_segment_id'
+            }
+        ]
+    }

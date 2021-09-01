@@ -28,3 +28,16 @@ class tbl_segments(Document):
     status = StringField(default='active') #updated to 'pending_deletion' if user requests it to be deleted.
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
+    meta = {
+        'index_background': True,
+        'indexes': [
+            {
+                'fields': ['account_id', 'status', 'segment_name'],
+                'name': 'account_id_status_segment_name'
+            },
+            {
+                'fields': ['account_id', 'status', 'segment_id'],
+                'name': 'account_id_status_segment_id'
+            }
+        ]
+    }
