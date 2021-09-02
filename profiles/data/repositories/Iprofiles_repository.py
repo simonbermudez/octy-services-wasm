@@ -79,7 +79,6 @@ class ProfilesInterface(ABC):
     @abstractmethod
     def get_all_profiles(self, 
                         account_id : str, 
-                        paginate : bool,
                         tag_statuses : list,
                         cursor : int, 
                         ids : bool, 
@@ -91,8 +90,6 @@ class ProfilesInterface(ABC):
         ----------
         account_id : str
             Octy account id
-        paginate : bool
-            should results be paginated
         tag_statuses : list
             a list of statuses indicating which segment tags should be returned
         cursor : int
@@ -105,7 +102,7 @@ class ProfilesInterface(ABC):
 
         Returns
         ----------
-        :rtype: object OR list, int
+        :rtype: list, int
         """
         raise NotImplementedError
 
@@ -219,5 +216,35 @@ class ProfilesInterface(ABC):
         Returns
         ----------
         None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_profile_key_type(self, account_id : str, profile_key_type : dict):
+        """
+        Parameters
+        ----------
+        account_id : str
+            octy account id
+        profile_key_type : dict
+            ex : {'key' : 'age', 'type_' : '<class 'int'>'}
+
+        Returns
+        ----------
+        None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_profile_key_types(self, account_id : str):
+        """
+        Parameters
+        ----------
+        account_id : str
+            octy account id
+
+        Returns
+        ----------
+        list
         """
         raise NotImplementedError
