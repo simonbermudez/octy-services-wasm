@@ -3,6 +3,7 @@ from data.repositories.Iprofiles_repository import ProfilesInterface
 from data.models.db_schemas import tbl_profiles, SegmentTags
 from utils.utils import *
 from api.routers.error_handlers import *
+import data.context.db_context as ctx
 
 
 # python imports
@@ -209,7 +210,7 @@ class _ProfilesRepository(ProfilesInterface):
 
         return raw_res, total
 
-    def get_all_profiles(self, account_id : str, paginate : bool, tag_statuses : list, cursor : int = None, ids : bool = None, status : str = 'active', limit : int = 100, internal : bool = False):
+    def get_all_profiles(self, account_id : str, tag_statuses : list, cursor : int = None, ids : bool = None, status : str = 'active', limit : int = 100, internal : bool = False) -> Union[list, int]:
         """
         A method used to return all profiles associated with specified account
 
@@ -217,8 +218,6 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         account_id : str
             Octy account id
-        paginate : bool
-            should results be paginated
         tag_statuses : list
             a list of statuses indicating which segment tags should be returned
         cursor : int
@@ -233,35 +232,31 @@ class _ProfilesRepository(ProfilesInterface):
         profiles/ profiles ids : list 
         total : int
         or
-        results : MongoDB object
+        results : list, int
         """
         found_profiles = []
-        if paginate:
-            if ids:
-                profile_ids =  tbl_profiles._get_collection().find({
-                    "account_id" : { "$eq" : account_id},
-                    "status" : { "$eq" : status}
-                },{"_id":1}).skip(cursor).limit(limit)
-                #format profiles
-                for profile in profile_ids:
-                    #profile_dict = dumps(list(profile_ids), indent = 2)
-                    profile['profile_id'] = profile['_id']
-                    _format_profile(profile, tag_statuses=tag_statuses, internal = internal)
-                    found_profiles.append(profile)
-            else:
-                profiles = tbl_profiles.objects(account_id__exact=account_id, status__exact=status).skip(cursor).limit(limit)
-                #format profiles
-                for profile in profiles:
-                    profile_dict = json.loads(profile.to_json())
-                    profile_dict['profile_id'] = profile_dict['_id']
-                    _format_profile(profile_dict, tag_statuses=tag_statuses,  internal = internal)
-                    found_profiles.append(profile_dict)
+        if ids:
+            profile_ids =  tbl_profiles._get_collection().find({
+                "account_id" : { "$eq" : account_id},
+                "status" : { "$eq" : status}
+            },{"_id":1}).skip(cursor).limit(limit)
+            #format profiles
+            for profile in profile_ids:
+                #profile_dict = dumps(list(profile_ids), indent = 2)
+                profile['profile_id'] = profile['_id']
+                _format_profile(profile, tag_statuses=tag_statuses, internal = internal)
+                found_profiles.append(profile)
+        else:
+            profiles = tbl_profiles.objects(account_id__exact=account_id, status__exact=status).skip(cursor).limit(limit)
+            #format profiles
+            for profile in profiles:
+                profile_dict = json.loads(profile.to_json())
+                profile_dict['profile_id'] = profile_dict['_id']
+                _format_profile(profile_dict, tag_statuses=tag_statuses,  internal = internal)
+                found_profiles.append(profile_dict)
 
-            total = tbl_profiles.objects(account_id__exact=account_id, status__exact=status).count()    
-            return found_profiles, total
-
-        # if no pagination, return all
-        return tbl_profiles.objects(account_id__exact=account_id)
+        total = tbl_profiles.objects(account_id__exact=account_id, status__exact=status).count()    
+        return found_profiles, total
 
     def create_profiles(self, profiles_batch : list) -> Union[list, list]:
         """
@@ -664,7 +659,35 @@ class _ProfilesRepository(ProfilesInterface):
         bulk_operation.execute()
         #, "status" :"pending_deletion"
             
+    def set_profile_key_type(self, account_id : str, profile_key_type : dict) -> None:
+        """
+        Parameters
+        ----------
+        account_id : str
+            octy account id
+        profile_key_type : dict
+            ex : {'key' : 'age', 'type_' : '<class 'int'>'}
 
+        Returns
+        ----------
+        None
+        """
+        ctx.redis_conn.sadd(f'{account_id}_profile_key_types', json.dumps(profile_key_type))
+
+    def get_profile_key_types(self, account_id : str) -> list:
+        """
+        Parameters
+        ----------
+        account_id : str
+            octy account id
+
+        Returns
+        ----------
+        list
+        """
+        profile_key_types = json.loads(json.dumps([json.loads(s) for s in 
+            list(ctx.redis_conn.smembers(f'{account_id}_profile_key_types'))]))
+        return profile_key_types
     
 def _format_profile(profile : dict, tag_statuses : list, internal : bool = False) -> dict:
     '''

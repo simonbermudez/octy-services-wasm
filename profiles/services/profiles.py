@@ -219,8 +219,8 @@ class ProfilesService():
     def _validate_profile_key_types(self,new_customer_profiles : dict) -> Union[bool, str]:
         '''
         To ensure training data created from customer profiles is not corrupted, 
-        the values in each key var value pair across all customer profiles profile_data & platform_info in an account must be valid json and of the same type. 
-        For example, if the key 'os' exists in any other customer profile and has a type 'string', all future 'os' keys must be of type 'string'
+        the values in each key value pair across all customer profiles profile_data & platform_info in an account must be valid json and of the same data type. 
+        For example, if the key 'os' exists in any other customer profile and is of data type 'string', the values for all future 'os' keys must be of type 'string'
         Returns result (bool), error message (string)
         '''
         try:
@@ -291,38 +291,24 @@ class ProfilesService():
                             map_.append(
                                     {
                                         'key' : k,
-                                        'type_': type(v)
+                                        'type_': str(type(v))
                                     }
                                 )
                         else:
                             #if key exists, check type
-                            if type(v) != x['type_']:
-                                if new_existing == 'existing':
-                                    return False, 'Corrupted profile : {p} Please delete it immediately to prevent disruption of service! Expected type : {t} for key \'{k}\', but got type {t2}'.format(p=profile['profile_id'],t=type(v), k=k, t2=x['type_']), []
-                                else :
-                                    return False, f"Invalid type provided for key \'{k}\'. Got type {x['type_']} expected type {type(v)}", [] #provided in profile with customer_id: {profile["customer_id"]}
+                            if str(type(v)) != x['type_']:
+                                return False, f"Invalid type provided for key \'{k}\'. Got type {x['type_']} expected type {type(v)} according the data type of the value for the first instance of the key: {k}.", [] #provided in profile with customer_id: {profile["customer_id"]}
 
                 return True, '', map_
                                
-
-            #build type map for all existing profiles.
-            existing_profiles_dicts=[]
-            for d in profilesRepository.get_all_profiles(self.account_id, tag_statuses=['active'], paginate=False):
-                existing_profiles_dicts.append(
-                    json.loads(d.to_json())
-                )
-
-            if len(existing_profiles_dicts) > 0 :
-                res, error, existing_types_map = build_map(existing_profiles_dicts, 'existing')
-                if not res:
-                    return False, error
+            existing_types_map = profilesRepository.get_profile_key_types(account_id=self.account_id)
 
             #build map for new profiles
             res, error, new_types_map = build_map(new_customer_profiles, 'new')
             if not res:
                 return False, error
             
-            if len(existing_profiles_dicts) > 0 :
+            if len(existing_types_map) > 0 :
                 #compare types for each key in both maps, existing_types_map being classed as the truth.
                 for k_v_pair in new_types_map:
                     #check if k_v_pair['key'] exists in existing_types_map, if not pass (this will become the truth value for this new key)
@@ -331,6 +317,12 @@ class ProfilesService():
                         #if it does exist, compare types.
                         if x['type_'] != k_v_pair['type_']:
                             return False, f"Invalid type provided for key \'{k_v_pair['key']}\'. Got type {k_v_pair['type_']} expected type {x['type_']}"
+                    else:
+                        profilesRepository.set_profile_key_type(account_id=self.account_id, profile_key_type=k_v_pair)
+            else:
+                # create new profile key types for each
+                for k_v_pair in new_types_map:
+                    profilesRepository.set_profile_key_type(account_id=self.account_id, profile_key_type=k_v_pair)
 
             return True, ''
 
@@ -386,8 +378,7 @@ class ProfilesService():
 
         if profiles.get_all:
 
-            profiles, total = profilesRepository.get_all_profiles(account_id=self.account_id, 
-                paginate=True, 
+            profiles, total = profilesRepository.get_all_profiles(account_id=self.account_id,
                 tag_statuses=profiles.tag_statuses, 
                 cursor=cursor, 
                 ids=ids,
