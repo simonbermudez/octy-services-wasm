@@ -42,8 +42,8 @@ spec:
           requests:
             memory: "64Mi"
             cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "300m"
+          # limits:
+          #   memory: "256Mi"
+          #   # cpu: "300m"
       imagePullSecrets:
       - name: docker-hub-key

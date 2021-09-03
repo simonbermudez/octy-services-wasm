@@ -241,8 +241,9 @@ class ChurnPredictionTraining():
     async def _apply_total_purchase_value(self) -> None:
         purchased_items_df = pd.merge(self.charged_events_df, self.items_df, on='item_id')
         total_purchase_value_df = purchased_items_df.groupby('profile_id').item_price.sum().reset_index()
-        self.training_df = pd.merge(self.training_df, total_purchase_value_df, on='profile_id')
+        self.training_df = pd.merge(self.training_df, total_purchase_value_df, on='profile_id', how='outer')
         self.training_df.rename(columns={"item_price": "total_purchase_value"},inplace=True)
+        self.training_df["total_purchase_value"].fillna(0, inplace=True)
 
     async def _get_profile_most_frequent(self, events_df : pd.DataFrame, drop_columns : list, keep_col : str) -> None:
         """ Get the most frequent specified event instance attribute per profile and merge onto training_df """
