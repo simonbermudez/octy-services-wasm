@@ -60,8 +60,8 @@ class tbl_recommendations_cache(Document):
         'index_background': True,
         'indexes': [
             {
-                'fields': ['account_id','hyperparam_tuning_job_id', 'profile_id'],
-                'name': 'account_id_hyperparam_tuning_job_id_profile_id'
+                'fields': ['account_id','training_job_id', 'profile_id'],
+                'name': 'account_id_training_job_id_profile_id'
             }
         ]
     }
