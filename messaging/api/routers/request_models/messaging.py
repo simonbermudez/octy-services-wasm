@@ -42,6 +42,18 @@ def _content_validation(v):
             raise ValueError(f'Template : {t.friendly_name}. Please provide default values for the following required data placeholders : {x}')
     return v
 
+def _metadata_validation(val):
+    for k, v in val.items():
+        if not isinstance(k, str):
+            raise ValueError('Metadata keys must be of type: string.')
+        
+        if len(k) > 40 or len(k) < 1:
+            raise ValueError('Metadata keys must be at least 1 character long and less than 40 characters long.')
+        
+        if len(str(v)) > 500 or len(str(v)) < 1:
+            raise ValueError('Metadata values must be at least 1 character long and less than 500 characters long.')
+    return val
+
 ### Create messaging templates Input Schema
 class CreateTemplatesChild(BaseModel):
     friendly_name : str
@@ -50,6 +62,10 @@ class CreateTemplatesChild(BaseModel):
     content : str
     required_data : List[str]
     default_values : Dict[str, str]
+    metadata : Optional[Dict[str, Any]]
+    @validator('metadata')
+    def metadata_validation(cls, v):
+        return _metadata_validation(v)
 
 class CreateTemplates(BaseModel):
     templates : List[CreateTemplatesChild]
@@ -71,6 +87,10 @@ class UpdateTemplatesChild(BaseModel):
     content : str
     required_data : List[str]
     default_values : Dict[str, str]
+    metadata : Optional[Dict[str, Any]]
+    @validator('metadata')
+    def metadata_validation(cls, v):
+        return _metadata_validation(v)
 
 class UpdateTemplates(BaseModel):
     templates : List[UpdateTemplatesChild]

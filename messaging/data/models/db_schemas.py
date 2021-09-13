@@ -18,6 +18,7 @@ class tbl_templates(Document):
     content = StringField(required=True)
     required_data = ListField(StringField(required=True), required=True)
     default_values = DynamicField(required=False)
+    metadata = DynamicField(required=False, default={})
     status = StringField(default='active')
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
