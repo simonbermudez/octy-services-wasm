@@ -124,7 +124,8 @@ class _TemplatesRepository(TemplatesInterface):
                     title=template['title'],
                     content=template['content'],
                     required_data=template['required_data'],
-                    default_values=template['default_values']
+                    default_values=template['default_values'],
+                    metadata=template['metadata']
                 )
             )
             template_friendly_names.append(template['friendly_name'])
@@ -220,6 +221,7 @@ class _TemplatesRepository(TemplatesInterface):
             set_dict['content'] = templates_batch_obj['content'] if templates_batch_obj['content'] != None else t['content']
             set_dict['required_data'] = templates_batch_obj['required_data'] if templates_batch_obj['required_data'] != None else t['required_data']
             set_dict['default_values'] = templates_batch_obj['default_values'] if templates_batch_obj['default_values'] != None else t['default_values']
+            set_dict['metadata'] = templates_batch_obj['metadata'] if templates_batch_obj['metadata'] != None else t['metadata']
             set_dict['updated_at'] = dt.now()
 
             bulk_operation.find({

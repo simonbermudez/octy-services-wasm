@@ -98,7 +98,8 @@ class MessagingService():
                     'title' : template.title,
                     'content' : template.content,
                     'required_data' : template.required_data,
-                    'default_values' : template.default_values
+                    'default_values' : template.default_values,
+                    'metadata' : template.metadata
                 }
             )
 
@@ -131,7 +132,8 @@ class MessagingService():
                     'title' : template.title,
                     'content' : template.content,
                     'required_data' : template.required_data,
-                    'default_values' : template.default_values
+                    'default_values' : template.default_values,
+                    'metadata' : template.metadata
                 }
             )
 
