@@ -285,7 +285,7 @@ class MessagingService():
                                 d['profile_id']
                             except KeyError:
                                 #dummy values are not provided with product recommendations placeholders. 
-                                failed_messages.append({'provided_data' : d, 'reason' : '\'item_recommendation\' parameter set to \'true\' on this message set. Missing required data parameter for this message. \'profile_id\''})
+                                failed_messages.append({'template_id': message.template_id, 'provided_data' : d, 'reason' : '\'item_recommendation\' parameter set to \'true\' on this message set. Missing required data parameter for this message. \'profile_id\''})
                                 continue
                         
                         #if item_recommendation, get recommendations and append to values dict.
@@ -297,12 +297,12 @@ class MessagingService():
                                     #get item_id from profile_id_template_rec_map
                                     item_id=next(key for key in profile_id_template_rec_map if key['profile_id'] == d['profile_id'])['rec_item_id']
                                     if not item_id:
-                                        failed_messages.append({'profile_id' : d['profile_id'], 'reason' : 'Failed to get recommended item for this profile'})
+                                        failed_messages.append({'template_id': message.template_id, 'profile_id' : d['profile_id'], 'reason' : 'Failed to get recommended item for this profile'})
                                         continue
                                     #filter item object
                                     rec_items = await self._filter_items(item_id, items)
                                     if len(rec_items)<1:
-                                        failed_messages.append({'profile_id' : d['profile_id'], 'reason' : 'Failed to get recommended item for this profile'})
+                                        failed_messages.append({'template_id': message.template_id, 'profile_id' : d['profile_id'], 'reason' : 'Failed to get recommended item for this profile'})
                                         continue
                                     values_dict['ITEM_REC'] = rec_items[0]['item_name']
                         
@@ -313,7 +313,7 @@ class MessagingService():
                             try:
                                 d[key]
                             except KeyError:
-                                failed_messages.append({'provided_data' : d, 'reason' : 'Missing required data parameter for this message. \'{}\''.format(key)})
+                                failed_messages.append({'template_id': message.template_id, 'provided_data' : d, 'reason' : 'Missing required data parameter for this message. \'{}\''.format(key)})
                                 message_failed=True
                                 break
                             
