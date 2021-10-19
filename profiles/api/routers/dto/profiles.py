@@ -66,6 +66,20 @@ class DeleteProfilesDTO():
             }
         )
 
+### Get Profiles Meta DTO
+class GetProfilesMetaDTO():
+    def __init__(self, profiles_meta):
+        self.profiles_meta = profiles_meta
+
+    def dto(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=200,
+            content={
+                    'request_meta' : { 'request_status' : 'Success' , 'message' : 'Profiles metadata returned.'},
+                    'profiles_meta' : self.profiles_meta
+            }
+        )
+
 
 ### Get Profiles Internal DTO
 class GetProfilesInternalDTO():

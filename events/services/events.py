@@ -445,4 +445,3 @@ class EventsService():
                 [{'message' : 'No events found with provided params or pagination cursor exhausted', 
                 'extended_help': ''}])
         return events, total
-

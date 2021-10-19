@@ -49,6 +49,22 @@ class SegmentationInterface(ABC):
         :rtype: dict
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_past_segments_by_profile_ids(self, account_id : str, profile_ids : list):
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        profile_ids : list
+            List of octy profile identifiers
+
+        Returns
+        ----------
+        :rtype: list
+        """
+        raise NotImplementedError
     
     @abstractmethod
     def get_segments(self, 
@@ -104,6 +120,24 @@ class SegmentationInterface(ABC):
         Returns
         ----------
         :rtype: List, List
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_past_segment_profile_ids(self, account_id : str, segment_id : str, profile_ids : list):
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        segment_id : str
+            segment identifier
+        profile_ids : list
+            List of octy profile identifiers
+
+        Returns
+        ----------
+        :rtype: None
         """
         raise NotImplementedError
 

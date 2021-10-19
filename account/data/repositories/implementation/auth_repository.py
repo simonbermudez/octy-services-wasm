@@ -92,6 +92,12 @@ class _AuthRepository(AuthInterface):
             private_key = base64_decode(os.environ.get('OCTY_PRIVATE_KEY'), is_json=False)
         except:
             private_key = os.environ.get('OCTY_PRIVATE_KEY')
+        
+        def _val_or_none(obj, key):
+            try:
+                return obj[key]
+            except:
+                return None
 
         #Abbreviate keys to reduce the size of JWT tokens
         payload = {
@@ -110,6 +116,7 @@ class _AuthRepository(AuthInterface):
                     "c_s": account['account_configurations']['contact_surname'],
                     "c_e": account['account_configurations']['contact_email_address'],
                     "we": account['account_configurations']['webhook_url'],
+                    "ak": _val_or_none(account['account_configurations'],'authenticated_id_key'),
                     "li": f"{account['account_configurations']['limits'][0]['MAX_TOTAL_PROFILES']}*\
 {account['account_configurations']['limits'][0]['MAX_TOTAL_ITEMS']}*\
 {account['account_configurations']['limits'][0]['MAX_TOTAL_CUSTOM_EVENT_TYPES']}*\

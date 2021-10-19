@@ -18,14 +18,14 @@ class ProfilesInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_profile_by_id(self, account_id : str, profile_customer_id : str):
+    def get_profile_by_id(self, account_id : str, identifier : str):
         """
         Parameters
         ----------
         account_id : str
             Octy account id
-        profile_customer_id : str
-            The profile_id of the profile that should be returned.
+        identifier : str
+            The profile_id or customer_id of the profile that should be returned.
 
         Returns
         ----------
@@ -34,14 +34,14 @@ class ProfilesInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_profile_by_ids(self, account_id : str, profile_ids : list, tag_statuses : list, ids : bool, internal : bool):
+    def get_profiles_by_identifiers(self, account_id : str, identifiers : list, tag_statuses : list, ids : bool, internal : bool):
         """
         Parameters
         ----------
         account_id : str
             Octy account id
-        profile_ids : str
-            A list of profile_ids of the profiles that should be returned.
+        identifiers : str
+            A list of identifiers (profile_ids | customer_ids)
         tag_statuses : list
             a list of statuses indicating which segment tags should be returned
         ids : bool
@@ -49,7 +49,7 @@ class ProfilesInterface(ABC):
 
         Returns
         ----------
-        :rtype: llist, list
+        :rtype: list, list
         """
         raise NotImplementedError
     
@@ -103,6 +103,22 @@ class ProfilesInterface(ABC):
         Returns
         ----------
         :rtype: list, int
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_merged_profiles(self, account_id : str, identifiers : list):
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        identifiers : list
+            A list of identifiers (profile_ids | customer_ids)
+
+        Returns
+        ----------
+        :rtype: list
         """
         raise NotImplementedError
 

@@ -1,6 +1,6 @@
 # module imports
 from data.repositories.Iprofiles_repository import ProfilesInterface
-from data.models.db_schemas import tbl_profiles, SegmentTags
+from data.models.db_schemas import tbl_profiles, tbl_merged_profiles
 from utils.utils import *
 from api.routers.error_handlers import *
 import data.context.db_context as ctx
@@ -21,7 +21,7 @@ class _ProfilesRepository(ProfilesInterface):
     """
         _ProfilesRepository
         Handles:
-        - Retrieving profiles
+        - Retrieving profiles & merged profiles
         - Creating profiles
         - Updating profiles
         - Deleting profiles + events and segment tags
@@ -49,7 +49,7 @@ class _ProfilesRepository(ProfilesInterface):
         
         return tbl_profiles.objects(account_id__exact=account_id).count()
 
-    def get_profile_by_id(self, account_id : str, profile_customer_id : str) -> dict:
+    def get_profile_by_id(self, account_id : str, identifier : str) -> dict:
         """
         A method used to filter and return a list of profiles based the provided profile_id or customer_id.
 
@@ -57,15 +57,15 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         account_id : str
             Octy account id
-        profile_customer_id : str
-            The profile_id of the profile that should be returned.
+        identifier : str
+            The profile_id or customer_id of the profile that should be returned.
 
         Returns
         ----------
         results : dict
         """
-        profiles = tbl_profiles.objects((Q(profile_id__exact=profile_customer_id) & Q(account_id__exact=account_id)) \
-            | (Q(customer_id__exact=profile_customer_id) & Q(account_id__exact=account_id)))
+        profiles = tbl_profiles.objects((Q(profile_id__exact=identifier) & Q(account_id__exact=account_id)) \
+            | (Q(customer_id__exact=identifier) & Q(account_id__exact=account_id)))
 
         if profiles:
             profile_dict = json.loads(profiles.to_json())
@@ -74,7 +74,7 @@ class _ProfilesRepository(ProfilesInterface):
             return profile_dict
         return None
     
-    def get_profile_by_ids(self, account_id : str, profile_ids : list, tag_statuses : list, ids : bool = None, internal : bool = False) -> Union[list, list]:
+    def get_profiles_by_identifiers(self, account_id : str, identifiers : list, tag_statuses : list, ids : bool = None, internal : bool = False) -> Union[list, list]:
         """
         A method used to filter and return a list of profiles based the provided profile_ids. multiple.
 
@@ -82,8 +82,8 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         account_id : str
             Octy account id
-        profile_ids : str
-            A list of profile_ids of the profiles that should be returned.
+        identifiers : str
+            A list of identifiers (profile_ids | customer_ids)
         tag_statuses : list
             a list of statuses indicating which segment tags should be returned
         ids : bool
@@ -97,10 +97,12 @@ class _ProfilesRepository(ProfilesInterface):
         found_profiles = []
         not_found = []
         if ids:
-            #profiles = tbl_profiles.objects((Q(profile_id__in=profile_ids) & Q(account_id__exact=account_id))).only('profile_id').select_related()
             profiles =  tbl_profiles._get_collection().find({
                     '$and' : [
-                            {"_id" : { "$in" : profile_ids}},
+                            {'$or' : [
+                                {"_id" : { "$in" : identifiers}},
+                                {"customer_id" : { "$in" : identifiers}}
+                            ]},
                             {"account_id" : { "$eq" : account_id}}
                     ]
             },{"_id":1})
@@ -110,7 +112,8 @@ class _ProfilesRepository(ProfilesInterface):
                 found_profiles.append(profile)
 
         else:
-            profiles = tbl_profiles.objects((Q(profile_id__in=profile_ids) & Q(account_id__exact=account_id)))
+            profiles = tbl_profiles.objects((Q(profile_id__in=identifiers) & Q(account_id__exact=account_id)) \
+                | (Q(customer_id__in=identifiers) & Q(account_id__exact=account_id)))
 
             for profile in profiles:
                 profile_dict = json.loads(profile.to_json())
@@ -119,7 +122,7 @@ class _ProfilesRepository(ProfilesInterface):
                 found_profiles.append(profile_dict)
         
         # get all not found ids
-        for p in profile_ids:
+        for p in identifiers:
             exists=next((key for key in found_profiles if key['profile_id'] == p), None)
             if not exists:
                 not_found.append(p)
@@ -164,7 +167,7 @@ class _ProfilesRepository(ProfilesInterface):
             query_and.append(
             {
                 "rfm_score" : {
-                "$lt" : rfm_values[0], "$gt" : rfm_values[1]
+                "$gt" : rfm_values[0], "$lt" : rfm_values[1]
             }
             })
 
@@ -258,6 +261,70 @@ class _ProfilesRepository(ProfilesInterface):
         total = tbl_profiles.objects(account_id__exact=account_id, status__exact=status).count()    
         return found_profiles, total
 
+    def get_merged_profiles(self, account_id : str, identifiers : list) -> list:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        identifiers : list
+            A list of identifiers (profile_ids | customer_ids)
+
+        Returns
+        ----------
+        merged_profiles : list
+        """
+        merged_profiles = list()
+        queries_idxs = list()
+        queries = [{
+            '$facet' : {
+
+            }
+        }]
+
+        for idx, i in enumerate(identifiers): 
+            queries[0]['$facet']['query'+str(idx)] = [
+                {'$match' : 
+                    { 
+                        '$and' : [
+                            {"account_id" : { "$eq" : account_id}},
+                            {'$or' : [
+                                    {"merged_profiles.profile_id" : { "$eq" : i}},
+                                    {"merged_profiles.customer_id" : { "$eq" : i}},
+                                    {"parent_profile_id" : { "$eq" : i}},
+                                    {"parent_customer_id" : { "$eq" : i}}
+                            ]}
+                        ] 
+                    }
+                },
+                { '$sort' : { 'created_at' : -1 } },
+                { '$limit' : 1 }
+            ]
+            queries_idxs.append('query'+str(idx))
+
+        results = tbl_merged_profiles._get_collection().aggregate(queries)
+        try:
+            results_dicts = json.loads(dumps(results))[0]
+        except KeyError:
+            return merged_profiles
+
+        for q in queries_idxs:
+            try:
+                merged_profiles.append(
+                    {
+                        'merged_profiles' : results_dicts[q][0]['merged_profiles'],
+                        'parent_profile_id' : results_dicts[q][0]['parent_profile_id'],
+                        'parent_customer_id' : results_dicts[q][0]['parent_customer_id'], 
+                        'authenticated_id_key' : results_dicts[q][0]['authenticated_id_key'], 
+                        'authenticated_id_value' : results_dicts[q][0]['authenticated_id_value'],
+                        'merged_at' : int_to_dt(results_dicts[q][0]['created_at']['$date'] , as_str=True)
+                    }
+                )
+            except IndexError:
+                continue
+
+        return merged_profiles
+        
     def create_profiles(self, profiles_batch : list) -> Union[list, list]:
         """
         Parameters

@@ -33,3 +33,19 @@ class RecommendationsInterface(ABC):
         :rtype: dict
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def delete_cached_recommendations(self,
+                                account_id : str,
+                                profiles : list):
+        """
+        Parameters
+        ----------
+        account_id : str
+        profiles : list
+
+        Returns
+        ----------
+        :rtype: None
+        """
+        raise NotImplementedError

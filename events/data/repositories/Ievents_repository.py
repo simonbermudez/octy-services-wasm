@@ -79,6 +79,22 @@ class EventsInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def update_events_owner(self, account_id  :str, profiles : list):
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        profiles : list
+            list of parent and children octy profile identifiers
+
+        Returns
+        ----------
+        None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def delete_profile_events(self, account_id : str, profile_id : str):
         """
         Parameters

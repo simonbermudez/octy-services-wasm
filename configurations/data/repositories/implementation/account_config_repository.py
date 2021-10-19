@@ -42,7 +42,8 @@ class _AccountConfigRepository(AccountConfigInterface):
             "contact_email_address" : account.contact_email_address,
             "contact_name" : account.contact_name,
             "contact_surname" : account.contact_surname,
-            "webhook_url" : account.webhook_url
+            "webhook_url" : account.webhook_url,
+            "authenticated_id_key" : account.authenticated_id_key
         })
 
 

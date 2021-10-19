@@ -27,5 +27,6 @@ class UpdateAccount(BaseModel):
     contact_name : Optional[str] = None
     contact_surname : Optional[str] = None
     webhook_url : Optional[HttpUrl] = None
+    authenticated_id_key : Optional[str] = None
     algorithm_configurations : Optional[algorithmConfig] = None
     churn_info : Optional[churnInfo] = None

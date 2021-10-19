@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: profile-identification-worker
+  namespace: octy-production
+  labels:
+    app: profile-identification-worker-app
+spec:
+  type: ClusterIP
+  selector:
+    app: profile-identification-worker-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1039
+      targetPort: 8080

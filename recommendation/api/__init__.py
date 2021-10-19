@@ -3,6 +3,7 @@ from .routers import recommendation
 from .routers.error_handlers import add_exception_handlers
 from config import *
 from data.context.db_context import contextManager
+from services.AMQP import AMQPStateManager
 
 #python imports
 import logging
@@ -19,7 +20,9 @@ logger = logging.getLogger('uvicorn')
 @app.on_event("startup")
 async def startup():
     # Connect to mongoDB
-    contextManager.db_connect()
+    await contextManager.db_connect(logger=logger)
+
+    await AMQPStateManager().init_consumers(logger=logger)
 
     sentry_sdk.init(
     Config['SENTRY_URL'],
@@ -29,7 +32,8 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     # Disconnect from mongoDB
-    contextManager.db_disconnect()
+    await contextManager.db_disconnect(logger=logger)
+    await app.state.consumer_connection.close_connection()
 
 add_exception_handlers(app)
 app.include_router(recommendation.router)

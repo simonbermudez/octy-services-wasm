@@ -1,7 +1,7 @@
 # module imports
 from utils.utils import *
 from config import *
-from data.models.segments import DeleteSegments
+from data.models.segments import UpdatePastSegementProfiles
 
 # python imports
 import asyncio
@@ -52,13 +52,12 @@ class AMQPInterface():
                 await message_payload.reject() 
                 raise Exception(f'Refused message payload: {message_payload.body.decode()}. Not valid JSON')
 
-            # from .segmentation import SegmentationService
+            from .segmentation import SegmentationService
             
-            # segment_ids = DeleteSegments(**message_json)
-
-            # # Switch through routing_key to init desired action(s)
-            # if routing_key == 'segments.cmd.delete':
-            #     await SegmentationService(segment_ids.account_id).delete_segments(segment_ids.segment_ids, internal=True)
+            # Switch through routing_key to init desired action(s)
+            if routing_key == 'segment.profiles.cmd.update':
+                u_p_s_p = UpdatePastSegementProfiles(**message_json)
+                await SegmentationService(account=None, account_id=u_p_s_p.account_id).update_past_segment_profiles(profiles=u_p_s_p.profiles)
 
     async def publish_message(self, routing_key : str, message_payload : dict):
         """

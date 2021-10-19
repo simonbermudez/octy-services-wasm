@@ -454,6 +454,47 @@ class SegmentationService():
     async def _filter_segments(self, segments, segment_id):
         return list(filter(lambda x : x['segment_id'] == segment_id, segments[0]))
 
+    async def update_past_segment_profiles(self, profiles : list) -> None:
+        """
+        Parameters
+        ----------
+        profiles : list
+            List of parent and their respective child profiles
+
+        Returns
+        ----------
+        None
+        """
+
+        def _child_to_parent(profile_id) -> str: 
+            '''
+            if profile_id is a child,
+            return childs corresponding parent profile id
+            or None if child not found
+            '''
+            profile = next((p for p in profiles if profile_id in p.child_profiles), None)
+            if profile != None:
+                return profile.parent_profile
+            return None
+
+        # Get all child profiles
+        all_child_profile_ids = list()
+        [all_child_profile_ids.extend(cp for cp in p.child_profiles) for p in profiles]
+
+        segments = await segmentationRepository\
+            .get_past_segments_by_profile_ids(account_id=self.account_id, profile_ids=all_child_profile_ids)
+        for segment in segments:
+            current_segment_profile_ids = segment['profile_ids']
+            for i, profile in enumerate(current_segment_profile_ids):
+                parent = _child_to_parent(profile)
+                if parent:
+                    current_segment_profile_ids[i] = parent
+            updated_segment_profile_ids = list(dict.fromkeys(current_segment_profile_ids))
+            await segmentationRepository\
+                .update_past_segment_profile_ids(account_id=self.account_id, 
+                                                segment_id=segment['_id'], 
+                                                profile_ids=updated_segment_profile_ids)
+
     async def delete_segments(self, segment_ids : list) -> Union[list, list]:
         """
         Parameters

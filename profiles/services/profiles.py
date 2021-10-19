@@ -65,7 +65,7 @@ class ProfilesService():
         """
 
         if id_ != None and cursor == 0:
-            profile = profilesRepository.get_profile_by_id(account_id=self.account.account_id, profile_customer_id=id_)
+            profile = profilesRepository.get_profile_by_id(account_id=self.account.account_id, identifier=id_)
             if not profile:
                 raise OctyException(400, 'Invalid customer identifier provided', 
                 [{'message' : 'No customer profiles were found with the provided identifier', 
@@ -86,6 +86,78 @@ class ProfilesService():
                 [{'message' : 'No customer profiles found with the provided query parameters or pagination cursor exhausted', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
             return profiles, total
+
+    def get_profiles_meta(self, identifiers : list = None) -> list:
+        """
+        A method used to return a list of merged profiles.
+
+        Parameters
+        ----------
+        identifiers : list
+            A list of identifiers (profile_ids | customer_ids)
+
+        Returns
+        ----------
+        identifiers_meta : list
+        """
+   
+        merged_profiles = profilesRepository\
+            .get_merged_profiles(account_id=self.account.account_id, identifiers=identifiers)
+        found_profiles, _ = profilesRepository.get_profiles_by_identifiers(account_id=self.account_id, 
+                identifiers=identifiers, 
+                tag_statuses=['active'], 
+                ids=False, 
+                internal=True)
+
+        def _val_or_none(obj, key):
+            try:
+                return obj[key]
+            except TypeError:
+                return None
+
+        identifiers_meta = list()
+        for i in identifiers: 
+            exists=next((key for key in found_profiles if key['profile_id'] == i or key['customer_id'] == i), None)
+            parent_merged=next((key for key in merged_profiles if key['parent_profile_id'] == i or key['parent_customer_id'] == i), None)
+            try:
+                for mp in merged_profiles: 
+                    child_merged=next((key for key in mp['merged_profiles'] if key['profile_id'] == i or key['customer_id'] == i), None)
+                    if child_merged:
+                        child_merged=mp
+                        break
+            except Exception as e: 
+                print(e)
+                child_merged = None
+
+            is_parent = False
+            if parent_merged:
+                is_parent = True
+            
+            identifiers_meta.append(
+            {
+                "provided_identifier" : i,
+                "profile" : {
+                    "profile_exists" : True if exists != None else False,
+                    "profile_id" : None if _val_or_none(exists, 'profile_id') is None else exists['profile_id'],
+                    "customer_id" : None if _val_or_none(exists, 'customer_id') is None else exists['customer_id'],
+                    "created_at" : None if _val_or_none(exists, 'created_at') is None else exists['created_at'],
+                    "updated_at" : None if _val_or_none(exists, 'updated_at') is None else exists['updated_at']
+                },
+                "merged_info" : {
+                        "was_merged" : False if not is_parent and not child_merged else True,
+                        "merged_at" : _val_or_none(parent_merged, 'merged_at') if is_parent else _val_or_none(child_merged, 'merged_at'),
+                        "authenticated_id_key" : _val_or_none(parent_merged, 'authenticated_id_key') if is_parent else _val_or_none(child_merged, 'authenticated_id_key'),
+                        "authenticated_id_value" : _val_or_none(parent_merged, 'authenticated_id_value') if is_parent else _val_or_none(child_merged, 'authenticated_id_value'),
+                        "parent_or_child" : "parent_profile" if is_parent else ("child_profile" if child_merged else None),
+                        "parent_profile" : {
+                                "parent_profile_id" : None if _val_or_none(child_merged, 'parent_profile_id') is None else child_merged['parent_profile_id'],
+                                "parent_customer_id" : None if _val_or_none(child_merged, 'parent_customer_id') is None else child_merged['parent_customer_id'],
+                        },
+                        "merged_child_profiles" : parent_merged['merged_profiles'] if _val_or_none(parent_merged, 'merged_profiles') else (child_merged['merged_profiles'] if _val_or_none(child_merged, 'merged_profiles') else []),
+
+                }
+            })
+        return identifiers_meta
 
     def create_profiles(self, profiles : CreateProfiles) -> Union[list, list]:
         """
@@ -187,12 +259,14 @@ class ProfilesService():
 
         return updated, failed
 
-    async def delete_profiles(self, profiles : DeleteProfiles) -> Union[list, list]:
+    async def delete_profiles(self, profiles : DeleteProfiles, identification_job : bool = False) -> Union[list, list]:
         """
         Parameters
         ----------
         profiles : DeleteProfiles
             DeleteProfiles request model instance
+        identification_job : bool
+            was this method called as the result of a profile identification job?
     
         Returns
         ----------
@@ -202,13 +276,14 @@ class ProfilesService():
         for p in profiles.profiles:
             profiles_batch.append({
                 "profile_id" : p,
-                "account_id" : self.account.account_id
+                "account_id" : self.account_id
             })
-            await amqpInterface.publish_message(routing_key='events.cmd.delete',
-                message_payload={
-                    'account_id' : self.account.account_id,
-                    'profile_id' : p
-                })
+            if not identification_job:
+                await amqpInterface.publish_message(routing_key='events.cmd.delete',
+                    message_payload={
+                        'account_id' : self.account.account_id,
+                        'profile_id' : p
+                    })
 
         deleted , failed = await profilesRepository.delete_profiles(profiles_batch)
 
@@ -388,8 +463,8 @@ class ProfilesService():
 
         else:
 
-            profiles, not_found = profilesRepository.get_profile_by_ids(account_id=self.account_id, 
-                profile_ids=profiles.profiles, 
+            profiles, not_found = profilesRepository.get_profiles_by_identifiers(account_id=self.account_id, 
+                identifiers=profiles.profiles, 
                 tag_statuses=profiles.tag_statuses, 
                 ids=ids, 
                 internal=True)

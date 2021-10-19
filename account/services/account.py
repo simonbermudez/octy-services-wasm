@@ -5,6 +5,7 @@ from data.repositories.implementation.notifications_repository import Notificati
 from data.repositories.content.notification_content import ACCOUNT_SUBJECT, ACCOUNT_BODY
 from api.routers.request_models.account import *
 from api.routers.error_handlers import *
+from services.AMQP import amqpInterface
 from utils.utils import *
 from config import Config
 
@@ -28,7 +29,7 @@ class AccountService:
     """
     def __init__(self): pass
 
-    def create_account(self, account : CreateAccount) -> Dict:
+    async def create_account(self, account : CreateAccount) -> Dict:
         """
             A method used to create an Octy account.
 
@@ -79,6 +80,20 @@ class AccountService:
                         sk=sk)
                 }
         )
+
+        # call amqp service to create Octy jobs
+        for job in Config['OCTY_JOBS']:
+            await amqpInterface.publish_message(routing_key='octy.job.cmd.create',
+                message_payload={
+                    'account_id' : new_account['account_id'],
+                    'job_type' : job['job_type'],
+                    'job_meta' : {
+                        'desired_runs' : 0,
+                        'time_interval' : 2880, # 2 days
+                        'fail_threshold' : 0
+                    },
+                    'job_data' : job['job_data']
+            })
 
 
         return {

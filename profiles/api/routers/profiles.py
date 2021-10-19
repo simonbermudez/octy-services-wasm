@@ -27,7 +27,7 @@ limiter = Limiter(key_func=get_remote_address)
 ######################################
 
 ######################################
-# Route : /v1/retention/profiles/<profile_id/ clients customer_id if reference> (optional)
+# Route : /v1/retention/profiles?id=<profile_id/ clients customer_id if reference> (optional)
 # Request type : GET
 # Required parameters : null
 # Description : Access all customer profiles. Or all customer profiles associated with a specified profile_id
@@ -159,6 +159,34 @@ async def delete_customer_profiles(request: Request,  delete_profiles : DeletePr
     current_account: Account = Depends(decode_account_jwt)):
     delete_profiles, failed = await ProfilesService(current_account).delete_profiles(delete_profiles)
     return DeleteProfilesDTO(delete_profiles, failed).dto()
+
+
+######################################
+# Route : /v1/retention/profiles/metadata?ids=<profile_id | customer_id>,... (optional - max 100)
+# Request type : GET
+# Required parameters : null
+# Description : Identify current 'ownership' of specified profiles; that is, has each profile been merged, deleted or not.
+# Returns : Current status of the specified profiles & metadata on parent profile (if profile has been merged)
+# Limits : 120 Requests per minute
+# Requires auth : YES -- Public Key & Secret Key
+######################################
+
+@router.get('/v1/retention/profiles/metadata')
+@limiter.limit("120/minute")
+async def get_profiles_meta(request: Request, ids : str, 
+    current_account: Account = Depends(decode_account_jwt)):
+
+    identifiers = ids.split(",")
+    identifiers = list(dict.fromkeys(identifiers))
+
+    if len(identifiers) > Config['MAX_IDENTIFY_PROFILES']:
+        raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_IDENTIFY_PROFILES"]} identifiers can be provided per request', 
+            'extended_help': Config['PROFILES_EXTENDED_HELP']}])
+
+    
+    profiles_meta = ProfilesService(current_account).get_profiles_meta(identifiers)
+    return GetProfilesMetaDTO(profiles_meta).dto()
+    
 
 
 ######################################

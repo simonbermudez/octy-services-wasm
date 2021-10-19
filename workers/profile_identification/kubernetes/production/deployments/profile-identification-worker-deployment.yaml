@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: profile-identification-worker-deploy
+  namespace: octy-production
+  labels:
+    app: profile-identification-worker-app
+spec:
+  selector:
+    matchLabels:
+      app: profile-identification-worker-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: profile-identification-worker-app
+    spec:
+      containers:
+      - name: profile-identification-worker-app
+        image: benpayflic/octy-profile-identification-worker:$COMMIT_SHA1
+        imagePullPolicy: Always
+        env:
+          - name: PROFILE_IDENTIFICATION_WORKER_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: profile-identification-worker-config  # The ConfigMap this value comes from.
+                key: profile_identification_worker_config # The key to fetch.
+          - name: PROFILE_IDENTIFICATION_WORKER_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: profile-identification-worker-secrets # The Secret this value comes from.
+                key: profile_identification_worker_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "192Mi"
+            cpu: "300m"
+          # limits:
+            # memory: "384Mi"
+            # cpu: "600m"
+      imagePullSecrets:
+      - name: docker-hub-key

@@ -4,20 +4,25 @@ from data.context.db_context import contextManager
 
 # python imports
 import json
+import logging
 
 # external imports
 from fastapi.testclient import TestClient
+import pytest
 
 
 client = TestClient(app)
-# Connect to mongoDB
-contextManager.db_connect()
+
+logger = logging.getLogger('test-logger')
 
 ######################################
 # Account API TESTS:
 ######################################
 
-def test_get_accounts_internal():
+@pytest.mark.asyncio
+async def test_get_accounts_internal():
+    # Connect to mongoDB
+    await contextManager.db_connect(logger=logger)
     response = client.post("/v1/internal/accounts",
         headers={"cursor": "0"},
         json={'account_ids' : [
@@ -31,7 +36,10 @@ def test_get_accounts_internal():
 # Auth API TESTS:
 ######################################
 
-def test_authenticate_account():
+@pytest.mark.asyncio
+async def test_authenticate_account():
+    # Connect to mongoDB
+    await contextManager.db_connect(logger=logger)
     response = client.get("/v1/account/authenticate",
         headers={"Authorization": "Basic cGtfMmRlNGJmOTItNmQwNC00ODVhLTlkMDktMjViNGJmMDkxZDpza18xYzBhNjA1Yi1kMWU3LTQ1NjEtYWI4OC05NmU5YWI4MTQ2"}
     )

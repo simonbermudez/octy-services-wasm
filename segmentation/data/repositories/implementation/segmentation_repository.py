@@ -138,6 +138,30 @@ class _SegmentationRepository(SegmentationInterface):
         
         return None
 
+    async def get_past_segments_by_profile_ids(self, account_id : str, profile_ids : list) -> list:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        profile_ids : list
+            List of octy profile identifiers
+
+        Returns
+        ----------
+        segments : list
+        """
+        query = {
+            '$and' : [
+                {"account_id" : { "$eq" : account_id}},
+                {"segment_type" : { "$eq" : "past"}},
+                {"status" : { "$eq" : "active"}},
+                {"profile_ids" : { "$in" : profile_ids}}
+        ]}
+        results_cursor = tbl_segments._get_collection().find(query)
+        segments = json.loads(dumps(list(results_cursor), indent = 2))
+        return segments
+
     def get_segments(self, account_id : str, segment_type : str, status : str, cursor : int, internal : bool = False) -> Union[list, int]:
         """
         Parameters
@@ -263,6 +287,24 @@ class _SegmentationRepository(SegmentationInterface):
                 pending_deleted_segments = list(filter(lambda i : i['segment_id'] != err['op']['u']['$set']['segment_id'], pending_deleted_segments))
 
         return pending_deleted_segments, failed_to_update
+
+    async def update_past_segment_profile_ids(self, account_id : str, segment_id : str, profile_ids : list) -> None:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        segment_id : str
+            segment identifier
+        profile_ids : list
+            List of octy profile identifiers
+
+        Returns
+        ----------
+        None
+        """
+        tbl_segments.objects(Q(account_id__exact=account_id) \
+            & Q(segment_id__exact=segment_id)).update(set__profile_ids=profile_ids)
 
     async def delete_segments(self, account_id : str, segment_ids : list) -> None:
         """
