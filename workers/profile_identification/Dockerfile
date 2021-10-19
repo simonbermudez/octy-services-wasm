@@ -2,9 +2,9 @@
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
 LABEL maintainer="ben@octy.ai"
 EXPOSE 8080
-RUN mkdir -p /profile-identification
-WORKDIR /profile-identification
-COPY "./workers/profile-identification" .
+RUN mkdir -p /profile_identification
+WORKDIR /profile_identification
+COPY "./workers/profile_identification" .
 RUN pip install -r ./requirements.txt
 CMD ["uvicorn", "worker:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
 
@@ -13,8 +13,8 @@ CMD ["uvicorn", "worker:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
 # FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
 # LABEL maintainer="ben@octy.ai"
 # EXPOSE 8080
-# RUN mkdir -p /profile-identification
-# WORKDIR /profile-identification
-# COPY . /profile-identification
-# RUN pip install -r /profile-identification/requirements.txt
+# RUN mkdir -p /profile_identification
+# WORKDIR /profile_identification
+# COPY . /profile_identification
+# RUN pip install -r /profile_identification/requirements.txt
 # CMD ["uvicorn", "worker:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
