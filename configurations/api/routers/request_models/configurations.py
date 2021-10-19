@@ -20,6 +20,7 @@ class SetAccountConfigs(BaseModel):
     contact_name : str
     contact_surname : str
     webhook_url : HttpUrl
+    authenticated_id_key : Optional[str] = None
 
 
 ### Set recommendations algorithm configs Input Schema

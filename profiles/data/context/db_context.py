@@ -26,41 +26,40 @@ class ContextManager():
     """
     def __init__(self):pass
 
-    def db_connect(self, app, logger) -> None: 
+    async def db_connect(self, logger) -> None: 
         """
             A method used to connect to a mongoDB database
 
             Parameters
             ----------
-            None
+            logger : logger instance
 
             Returns
             ----------
-            result : None
+            None
         """
 
-        con = connect(host=Secrets['DB_URI'])
-        app.state.mongo_conn = con
+        connect(host=Secrets['DB_URI'])
         logger.info('Opened connection to DB')
 
-    def db_disconnect(self, logger) -> None: 
+    async def db_disconnect(self, logger) -> None: 
         """
             A method used to disconnect from a mongoDB database
 
             Parameters
             ----------
-            None
+            logger : logger instance
 
             Returns
             ----------
-            result : None
+            None
         """
 
         #Disconnect from mongoDB
         disconnect(alias=Config['DB_ALIAS'])
         logger.info('Closed conenction to DB')
 
-    def db_redis_connect(self, logger) -> None: 
+    async def db_redis_connect(self, logger) -> None: 
         """
             A method used to connect to a redis database
 
@@ -70,7 +69,7 @@ class ContextManager():
 
             Returns
             ----------
-            result : None
+            None
         """
 
         global redis_conn

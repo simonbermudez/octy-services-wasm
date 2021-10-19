@@ -1,7 +1,7 @@
 # module imports
 from utils.utils import *
 from config import *
-from data.models.events import DeleteProfiles
+from data.models.events import DeleteProfiles, UpdateEventsOwner
 from data.repositories.implementation.events_repository import eventsRepository
 
 # python imports
@@ -58,6 +58,9 @@ class AMQPInterface():
             if routing_key == 'events.cmd.delete':
                 p = DeleteProfiles(**message_json)
                 await eventsRepository.delete_profile_events(account_id=p.account_id, profile_id=p.profile_id)
+            elif routing_key == 'events.cmd.update':
+                p = UpdateEventsOwner(**message_json)
+                await eventsRepository.update_events_owner(account_id=p.account_id, profiles=p.profiles)
 
     async def publish_message(self, routing_key : str, message_payload : dict):
         """

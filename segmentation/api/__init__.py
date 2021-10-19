@@ -26,7 +26,7 @@ logger = logging.getLogger('uvicorn')
 @app.on_event("startup")
 async def startup():
     # Connect to mongoDB
-    contextManager.db_connect()
+    await contextManager.db_connect(logger=logger)
 
     sentry_sdk.init(
     Config['SENTRY_URL'],
@@ -39,7 +39,7 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     # Disconnect from mongoDB
-    contextManager.db_disconnect()
+    await contextManager.db_disconnect(logger=logger)
     # graceful disconnection from RabbitMQ
     await app.state.consumer_connection.close_connection()
     await app.state.publisher_connection.close_connection()

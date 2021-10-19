@@ -120,6 +120,14 @@
             "dockerfile_path" : "./workers/segmentation/Dockerfile",
             "k8_deployment_yaml" : "./workers/segmentation/kubernetes/production/deployments/segmentation-worker-deployment.yaml"
 
+        },
+        {
+            "service_name" : "profile_identification_worker",
+            "service_directory" : "./workers/profile_identification",
+            "docker_image_name" : "benpayflic/octy-profile-identification-worker",
+            "dockerfile_path" : "./workers/profile_identification/Dockerfile",
+            "k8_deployment_yaml" : "./workers/profile_identification/kubernetes/production/deployments/profile-identification-worker-deployment.yaml"
+
         }
 
     ]

@@ -1,7 +1,6 @@
 # module imports
 from .utils import *
 from .request_models.account import *
-from services.AMQP import amqpInterface
 from services.account import accountService
 from .dto.account import *
 
@@ -36,22 +35,7 @@ limiter = Limiter(key_func=get_remote_address)
              dependencies=[Depends(validate_post_headers)])
 @limiter.limit("120/minute")
 async def create_new_account(request: Request, account: CreateAccount):
-    new_account = accountService.create_account(account)
-    # call amqp service to create Octy jobs
-    for job in Config['ML_JOBS']:
-        await amqpInterface.publish_message(routing_key='octy.job.cmd.create',
-            message_payload={
-                'account_id' : new_account['account_id'],
-                'job_type' : job,
-                'job_meta' : {
-                    'desired_runs' : 0,
-                    'time_interval' : 2880, # 2 days
-                    'fail_threshold' : 0
-                },
-                'job_data' : {
-                    'job_sub_type' : 'training'
-                }
-        })
+    new_account = await accountService.create_account(account)
     return CreateAccountDTO(new_account['account_name'],
                             new_account['contact_email_address'],
                             new_account['pk'],

@@ -10,6 +10,8 @@ import json
 
 # external imports
 from bson.json_util import dumps
+from mongoengine.errors import BulkWriteError
+from sentry_sdk import capture_exception
 
 class _RecommendationsRepository(RecommendationsInterface):
     """
@@ -67,5 +69,21 @@ class _RecommendationsRepository(RecommendationsInterface):
         results_cursor = tbl_recommendations_cache._get_collection().find(query)
         recommendations = json.loads(dumps(list(results_cursor), indent = 2))
         return recommendations
+
+    async def delete_cached_recommendations(self,
+                                account_id : str,
+                                profiles : list):
+        """
+        Parameters
+        ----------
+        account_id : str
+        profiles : list
+
+        Returns
+        ----------
+        None
+        """
+        tbl_recommendations_cache.objects(account_id__exact=account_id, profile_id__in=profiles).delete()
+
 
 recommendationsRepository = _RecommendationsRepository()

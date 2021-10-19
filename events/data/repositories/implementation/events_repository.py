@@ -289,6 +289,54 @@ class _EventsRepository(EventsInterface):
 
         return found_events, total
 
+    async def update_events_owner(self, account_id  :str, profiles : list) -> None:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        profiles : list
+            list of parent and relative child octy profile identifiers
+
+        Returns
+        ----------
+        None
+        """ 
+        # get all events owned by account where id in child profiles
+        all_child_profile_ids = list()
+        [all_child_profile_ids.extend(cp for cp in p.child_profiles) for p in profiles]
+
+        def _child_to_parent(profile_id) -> str: 
+            '''
+            if profile_id is a child,
+            return childs corresponding parent profile id
+            or None if child not found
+            '''
+            profile = next((p for p in profiles if profile_id in p.child_profiles), None)
+            if profile != None:
+                return profile.parent_profile
+            return None
+
+        #BULK UPDATE OPERATION
+        bulk_operation = tbl_event_instances._get_collection().initialize_unordered_bulk_op()
+        for cpi in all_child_profile_ids:
+            parent = _child_to_parent(cpi)
+            if parent:
+                bulk_operation.find({
+                    '$and' : [
+                        {"account_id" : { "$eq" : account_id}},
+                        {"profile_id" : { "$eq" : cpi}}
+                    ]
+                }).update(
+                    {
+                        "$set" : {"profile_id" : parent}
+                    }
+                )
+        try:
+            bulk_operation.execute()
+        except BulkWriteError as bwe:
+            raise Exception(f"Exception occurred when updating event instances : {str(bwe)}")
+
     async def delete_profile_events(self, account_id : str, profile_id : str) -> None:
         """
         Parameters
@@ -400,77 +448,3 @@ class _EventsRepository(EventsInterface):
 
 
 eventsRepository = _EventsRepository()
-
-
-
-
-'''
-    async def get_events(self, account_id : str, profile_ids : list, timeframe : int, cursor : int) -> Union[list, int]:
-        """
-        Parameters
-        ----------
-        account_id : str
-            Octy account id
-        profile_ids : list
-            List of Octy profile identifiers
-        timeframe : int
-            number of days events must have occurred in
-        cursor : int
-            pagination cursor
-
-        Returns
-        ----------
-        events : list
-        total : int
-        """
-        found_events = []
-        datetime_timeframe = dt.now() - td(days=timeframe+1) # NOTE: Add one additional day
-        events = tbl_event_instances.objects((Q(profile_id__in=profile_ids) & \
-            Q(account_id__exact=account_id) & Q(created_at__gt=datetime_timeframe))).skip(cursor).limit(2000)
-        total = tbl_event_instances.objects((Q(profile_id__in=profile_ids) & \
-            Q(account_id__exact=account_id) & Q(created_at__gt=datetime_timeframe))).count()
-        
-        for event in events:
-            event_dict = json.loads(event.to_json())
-            event_dict['event_id'] = event_dict['_id']
-            event_dict.pop('_id', None)
-            event_dict['created_at'] = int_to_dt(event_dict['created_at']['$date'], as_str=True) if event_dict['created_at'] != None else None
-            found_events.append(event_dict)
-
-        return found_events, total
-
-
-'''
-
-# payload = {
-#     'account_id' : account_id,
-#     'event_types': events
-# }
-# url = f"{Config['PROFILE_SERVICE_CLUSTER_IP']}/v1/internal/events/meta"
-# event_types = []
-
-# t0 = time.time()
-# try:
-#     response = requests_retry_session().post(url,timeout=5, data=json.dumps(payload))
-# except Exception as x:
-#     print('Exception', x.__class__.__name__)
-#     print(f'Error: {x}')
-# else:
-#     print('It eventually worked', response.status_code)
-# finally:
-#     t1 = time.time()
-#     print('Took', t1 - t0, 'seconds')
-
-# if response.status_code != 200:
-#     return event_types
-
-# body = json.loads(response.text)
-# for event_type in body['events']:
-#     event_types.append(
-#         {
-#             'event_type': event_type['event_type'],
-#             'exists' : event_type['event_type'],
-#             'event_properties': event_type['event_properties']
-#         }
-#     )
-# return event_types, body['event_count']

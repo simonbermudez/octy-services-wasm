@@ -164,6 +164,7 @@ class _AccountRepository(AccountInterface):
             a.account_configurations.contact_surname=account.contact_surname
             a.account_configurations.contact_email_address=account.contact_email_address
             a.account_configurations.webhook_url=account.webhook_url
+            a.account_configurations.authenticated_id_key=account.authenticated_id_key
 
             a.last_updated_action = 'updated account configurations'
 

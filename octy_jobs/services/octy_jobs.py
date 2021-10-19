@@ -360,8 +360,7 @@ class OctyJobQueue():
                                 },
                                 'octy_job_id' : job['_id']
                             })
-                            
-                
+                                        
                 elif job['job_meta']['job_type'] == 'rfm' : 
                     if 'rfm' not in account['permissions']:
                         continue
@@ -393,6 +392,26 @@ class OctyJobQueue():
                                 'octy_job_id' : job['_id']
                             })
                 
+                elif job['job_meta']['job_type'] == 'profile_iden' : 
+                    try:
+                        if not account['account_configurations']['authenticated_id_key'] \
+                            or account['account_configurations']['authenticated_id_key'] == "":
+                            continue
+                    except:
+                        continue
+
+                    await amqpInterface.publish_message(routing_key='profile.identification.cmd.run',
+                        message_payload={
+                            'account_data' : {
+                                'account_id' : account['_id'],
+                                'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
+                            },
+                            'profile_iden_job_data' : {
+                                'authenticated_id_key' : account['account_configurations']['authenticated_id_key']
+                            },
+                            'octy_job_id' : job['_id']
+                        })
+
                 # update job to 'processing' to ensure future ticks do not run it again
                 octy_job_updates.append(
                     {

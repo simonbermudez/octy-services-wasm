@@ -1,0 +1,43 @@
+{
+    "ENV" : "identity.worker.production",
+    "SENTRY_URL" : "https://e4b80290888a4267a2224efc6dbed258@o324132.ingest.sentry.io/1826169",
+    "OCTY_JOB_SERVICE_CLUSTER_IP" : "http://10.245.179.248:1034",
+    "PROFILE_SERVICE_CLUSTER_IP" : "http://10.245.84.145:1027",
+    "AMQP_URL" : "amqps://kcditigk:jckigtvlFqNxH652hdYIqRPQH7kPuS0n@brilliant-grey-impala.rmq2.cloudamqp.com/kcditigk",
+    "EXCHANGE" : "octy-services",
+    "AMQP_CONSUMERS" : [        
+        {
+            "QUEUE" : "profile-identification-run-queue",
+            "ROUTING_KEY" : "profile.identification.cmd.run"
+        }
+    ],
+    "AMQP_PUBLISHERS" : [
+        {
+            "QUEUE" : "profile-events-update-queue",
+            "ROUTING_KEY" : "events.cmd.update"
+        },
+        {
+            "QUEUE" : "rec-cache-delete-queue",
+            "ROUTING_KEY" : "reccache.cmd.delete"
+        },
+        {
+            "QUEUE" : "profiles-update-queue",
+            "ROUTING_KEY" : "profiles.cmd.update"
+        },
+        {
+            "QUEUE" : "profiles-delete-queue",
+            "ROUTING_KEY" : "profiles.cmd.delete"
+        },
+        {
+            "QUEUE" : "segment-profiles-update-queue",
+            "ROUTING_KEY" : "segment.profiles.cmd.update"
+        }
+    ],
+
+    "REDIS_USER" : "default",
+    "REDIS_PVT_HOST" : "private-octy-redis-cache-do-user-3151901-0.b.db.ondigitalocean.com",
+    "REDIS_PUB_HOST" : "octy-redis-cache-do-user-3151901-0.b.db.ondigitalocean.com",
+    "REDIS_PORT" : 25061,
+
+    "DB_ALIAS" : "profile_db"
+}

@@ -20,6 +20,7 @@ class AccountConfigurations(EmbeddedDocument):
     contact_surname = StringField(required=True)
     contact_email_address = StringField(required=True)
     webhook_url = StringField(required=True)
+    authenticated_id_key = StringField(required=False)
     limits = ListField(default=[{
         "MAX_TOTAL_PROFILES" : Config['MAX_TOTAL_PROFILES'],
         "MAX_TOTAL_ITEMS" : Config['MAX_TOTAL_ITEMS'],

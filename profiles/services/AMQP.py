@@ -1,7 +1,7 @@
 # module imports
 from utils.utils import *
 from config import *
-from data.models.profiles import UpdateProfiles
+from data.models.profiles import UpdateProfiles, DeleteProfiles
 from data.models.segment_tags import SegmentIDUpdateDelete, GroupedSegmentationDatabaseOperations
 from data.repositories.implementation.profiles_repository import profilesRepository
 
@@ -60,6 +60,9 @@ class AMQPInterface():
             if routing_key == 'profiles.cmd.update':
                 profiles = UpdateProfiles(**message_json)
                 await ProfilesService(account=None, account_id=profiles.account_id).update_profiles(profiles=profiles, internal=True)
+            elif routing_key == 'profiles.cmd.delete':
+                profiles = DeleteProfiles(**message_json)
+                await ProfilesService(account=None, account_id=profiles.account_id).delete_profiles(profiles=profiles, identification_job=True)
             elif routing_key == 'segment.tags.cmd.update.delete':
                 st = SegmentIDUpdateDelete(**message_json)
                 await profilesRepository.update_delete_segment_tags(account_id=st.account_id, segment_ids=st.segment_ids, action=st.action)

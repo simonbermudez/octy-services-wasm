@@ -24,7 +24,7 @@ async def startup():
     environment=Config['ENV'])
     
     # Connect to mongoDB
-    contextManager.db_connect()
+    await contextManager.db_connect(logger=logger)
     await AMQPStateManager().init_consumers(logger=logger)
     await AMQPStateManager().init_publishers(logger=logger)
 
@@ -32,7 +32,7 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     # Disconnect from mongoDB
-    contextManager.db_disconnect()
+    await contextManager.db_disconnect(logger=logger)
     # graceful disconnection from RabbitMQ
     await app.state.publisher_connection.close_connection()
     await app.state.consumer_connection.close_connection()

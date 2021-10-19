@@ -16,7 +16,8 @@ class AccountConfigsDTO():
                     'contact_name' : self.account.account_configurations['c_n'],
                     'contact_surname' : self.account.account_configurations['c_s'],
                     'contact_email_address' : self.account.account_configurations['c_e'],
-                    'webhook_url': self.account.account_configurations['we']
+                    'webhook_url': self.account.account_configurations['we'],
+                    'authenticated_id_key' : self.account.account_configurations['ak']
                 }
             }
         )
@@ -37,7 +38,8 @@ class SetAccountConfigsDTO():
                     'contact_name' : self.configs.contact_name,
                     'contact_surname' : self.configs.contact_surname,
                     'contact_email_address' : self.configs.contact_email_address,
-                    'webhook_url': self.configs.webhook_url
+                    'webhook_url': self.configs.webhook_url,
+                    'authenticated_id_key' : self.configs.authenticated_id_key
                 }
             }
         )

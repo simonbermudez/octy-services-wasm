@@ -29,3 +29,7 @@ class UpdateProfilesChild(BaseModel):
 class UpdateProfiles(BaseModel):
     account_id : str
     profiles : List[UpdateProfilesChild]
+
+class DeleteProfiles(BaseModel):
+    account_id : str
+    profiles : List[str]
