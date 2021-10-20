@@ -120,6 +120,7 @@ class ProfilesService():
             exists=next((key for key in found_profiles if key['profile_id'] == i or key['customer_id'] == i), None)
             parent_merged=next((key for key in merged_profiles if key['parent_profile_id'] == i or key['parent_customer_id'] == i), None)
             try:
+                child_merged=None
                 for mp in merged_profiles: 
                     child_merged=next((key for key in mp['merged_profiles'] if key['profile_id'] == i or key['customer_id'] == i), None)
                     if child_merged:
