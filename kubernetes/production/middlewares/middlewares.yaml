@@ -10,7 +10,7 @@ spec:
     address: https://api.octy.ai/v1/account/authenticate
     trustForwardHeader: true
     authResponseHeaders:
-      - X-AUTH-JWT-TOKEN
+      - X-AUTH-JWT
 
 ---
 # ADMIN AUTH MIDDLEWARE

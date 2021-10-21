@@ -30,10 +30,9 @@ class AuthService:
     def __init__(self): pass
 
 
-    async def authenticate_account(self, request : Request) -> None:
+    async def validate_auth_request_headers(self, request : Request) -> None:
         """
-            A method used to authenticate an account using pk and sk 
-            in Basic Authorization token.
+            A method used to verify required auth headers have been provided.
 
             Parameters
             ----------
@@ -76,15 +75,10 @@ class AuthService:
             raise OctyException(401,'Authentication failed', [{'message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
-        valid_pk, valid_sk = authRepository.verify_account_keys(pk, sk)
-        if not valid_pk or not valid_sk:
-            _log_failed_auth(request, valid_pk)
-            raise OctyException(401,'Authentication failed', [{'message' : 'Invalid public_key or secret_key provided', 
-                'extended_help': Config['AUTH_EXTENDED_HELP']}])
-
-    async def get_auth_token(self, request : Request) -> str:
+    async def authenticatation(self, request : Request) -> str:
         """
-            A method used to return an authorization token
+            A method used to validate provided crednetials 
+            and return an authorization JWT
 
             Parameters
             ----------
@@ -93,14 +87,17 @@ class AuthService:
 
             Returns
             ----------
-            Auth token : str
-                Account Auth (fat jwt token) containing account info + authorized resource tags
+            Auth JWT : str
+                Account Auth (fat jwt) containing account info + authorized resource tags
         """
-        res, pk, _ = basic_auth_parse(request.headers['authorization'])
-        if res == False:
-            raise Exception(500, 'Could not parse basic auth header')
+        _,pk,sk = basic_auth_parse(request.headers['authorization'])
+        valid_pk, valid_sk, account = authRepository.verify_account_keys(pk, sk)
+        if not valid_pk or not valid_sk:
+            _log_failed_auth(request, valid_pk)
+            raise OctyException(401,'Authentication failed', [{'message' : 'Invalid public_key or secret_key provided', 
+                'extended_help': Config['AUTH_EXTENDED_HELP']}])
+        return await authRepository.generate_authorization_token(account=account)
 
-        return await authRepository.auth_token(pk)
 
 # Helpers
 def _log_failed_auth(request : Request, valid_pk : bool) -> None:

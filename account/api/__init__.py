@@ -21,6 +21,9 @@ logger = logging.getLogger('uvicorn')
 async def startup():
     # Connect to mongoDB
     await contextManager.db_connect(logger=logger)
+
+    # Connect to redis pool
+    await contextManager.db_redis_connect(logger=logger)
     # Exception logger
     sentry_sdk.init(
     Config['SENTRY_URL'],

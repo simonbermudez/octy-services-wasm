@@ -15,18 +15,21 @@ class AuthInterface(ABC):
 
         Returns
         ----------
-        :rtype: bool, bool
+        :rtype: bool, bool, dict
         """
         raise NotImplementedError
 
 
     @abstractmethod
-    def auth_token(self, pk: str):
+    def generate_authorization_token(self, account: str):
         """
+        A method used to generate a fat jwt,
+        containing account information + authorized tags
+
         Parameters
         ----------
-        pk : str
-            Octy public key
+        account : dict
+            Octy account
 
         Returns
         ----------

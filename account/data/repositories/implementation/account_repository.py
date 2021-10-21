@@ -5,6 +5,7 @@ from data.models.account import UpdateAccount
 from utils.utils import *
 from api.routers.error_handlers import *
 from config import Config
+import data.context.db_context as ctx
 
 # python imports
 from typing import *
@@ -51,9 +52,9 @@ class _AccountRepository(AccountInterface):
         # Argon2 encrypt secret key
         ph = PasswordHasher()
         secret_key = generate_uid('sk')
-
+        pk = generate_uid('pk')
         keys = Keys(
-            public_key = generate_uid('pk'),
+            public_key = pk,
             secret_key = ph.hash(secret_key)
         )
         account_configurations = AccountConfigurations(
@@ -90,7 +91,7 @@ class _AccountRepository(AccountInterface):
         except NotUniqueError as err:
             raise OctyException(400, 'Duplicate entry', [{'message' : str(err), 'extended_help': ''}])
 
-
+        _cache_account_data(pk=pk, account_data=new_account.to_json())
 
         return new_account, secret_key
 
@@ -141,7 +142,6 @@ class _AccountRepository(AccountInterface):
         
         return found_accounts, total
 
-
     async def update_account(self, account : UpdateAccount, action : str):
         """
             A method used to update an Octy account
@@ -190,6 +190,8 @@ class _AccountRepository(AccountInterface):
 
         a.save()
 
+        _cache_account_data(pk=a.keys.public_key, account_data=a.to_json())
+
     def delete_account(self, account_id : str) -> None:
         """
             A method used to delete an Octy account
@@ -203,6 +205,15 @@ class _AccountRepository(AccountInterface):
             ----------
             None
         """
-        tbl_accounts.objects.get(account_id__exact=account_id).delete()
+        a = tbl_accounts.objects.get(account_id__exact=account_id)
+        # Remove account from cache
+        ctx.redis_conn.delete(f'pk:{a.keys.public_key}')
+        # Delete account from mongo DB
+        a.delete()
+
+# Private functions
+
+def _cache_account_data(pk : str, account_data : dict) -> None:
+    ctx.redis_conn.set(f'pk:{pk}', account_data)
 
 accountRepository = _AccountRepository()
