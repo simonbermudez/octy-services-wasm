@@ -9,6 +9,7 @@ from .dto.profiles import *
 
 #python imports
 from typing import Optional
+import re
 
 #external imports
 from fastapi import APIRouter, Request, Depends
@@ -176,11 +177,15 @@ async def delete_customer_profiles(request: Request,  delete_profiles : DeletePr
 async def get_profiles_meta(request: Request, ids : str, 
     current_account: Account = Depends(decode_account_jwt)):
 
+    ids = re.sub(r'(\s|\u180B|\u200B|\u200C|\u200D|\u2060|\uFEFF)+', '',ids)
     identifiers = ids.split(",")
-    identifiers = list(dict.fromkeys(identifiers))
+    identifiers = list(dict.fromkeys(filter(None, identifiers)))
 
     if len(identifiers) > Config['MAX_IDENTIFY_PROFILES']:
         raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_IDENTIFY_PROFILES"]} identifiers can be provided per request', 
+            'extended_help': Config['PROFILES_EXTENDED_HELP']}])
+    elif len(identifiers) < 1:
+        raise OctyException(400,'Invalid Parameters', [{'message' : f'A minimum number of {1} identifier must be provided with each request', 
             'extended_help': Config['PROFILES_EXTENDED_HELP']}])
 
     
