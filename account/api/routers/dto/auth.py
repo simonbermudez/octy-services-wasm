@@ -12,10 +12,10 @@ class AuthenticateDTO():
                 'request_meta': {'request_status': 'Success',
                                  'message': 'Successfully generated account authorization token'},
                 'auth' : {
-                    'jwt_token' : self.auth_token
+                    'jwt' : self.auth_token
                 }
             },
             headers={
-                'X-AUTH-JWT-TOKEN' : self.auth_token
+                'X-AUTH-JWT' : self.auth_token
             }
         )

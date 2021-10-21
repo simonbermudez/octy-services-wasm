@@ -7,7 +7,9 @@ from typing import *
 
 #external imports
 from mongoengine import connect, disconnect
+import redis, certifi
 
+redis_conn = None
 
 class ContextManager():
     """
@@ -56,5 +58,30 @@ class ContextManager():
         #Disconnect from mongoDB
         disconnect(alias=Config['DB_ALIAS'])
         logger.info('Closed conenction to DB')
+
+    async def db_redis_connect(self, logger) -> None: 
+        """
+            A method used to connect to a redis database
+
+            Parameters
+            ----------
+            None
+
+            Returns
+            ----------
+            None
+        """
+
+        global redis_conn
+        redis_conn = \
+            redis.Redis(
+                    host=Config['REDIS_PUB_HOST'], 
+                    port=Config['REDIS_PORT'], 
+                    password=Secrets['REDIS_PASS'],
+                    db=2,
+                    ssl=True, 
+                    ssl_ca_certs=certifi.where())
+        logger.info(f'Opened Redis connection pool. host: {Config["REDIS_PUB_HOST"]} on port: {Config["REDIS_PORT"]}')
+
 
 contextManager = ContextManager()

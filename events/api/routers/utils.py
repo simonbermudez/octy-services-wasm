@@ -19,19 +19,19 @@ import jwt
 def decode_account_jwt(request : Request):
     '''
         Decode the auth JWT containing account information
-        in the X-AUTH-JWT-TOKEN request header.
+        in the X-AUTH-JWT request header.
     '''
     try:
-        request.headers['X-AUTH-JWT-TOKEN']
+        request.headers['X-AUTH-JWT']
     except KeyError:
-        raise OctyException(400,'Missing header',[{'message' : '[X-AUTH-JWT-TOKEN] : auth-token header must be provided in request headers.', 
+        raise OctyException(400,'Missing header',[{'message' : '[X-AUTH-JWT] : auth-token header must be provided in request headers.', 
             'extended_help': Config['INVALID_JSON_EXTENDED_HELP']}])
 
     with open('keys/octy-public-key.pub', 'rb') as f:
         public_key = f.read()
 
     try:
-        decoded_token = jwt.decode(request.headers['X-AUTH-JWT-TOKEN'], public_key, algorithms='RS256')
+        decoded_token = jwt.decode(request.headers['X-AUTH-JWT'], public_key, algorithms='RS256')
         if decoded_token['m']['exp'] < dt_to_int(dt.now(tz.utc)):
             raise Exception(500, 'Authentication failed becuase of a server error. Invalid JWT token provided!')
     except jwt.InvalidTokenError as e:

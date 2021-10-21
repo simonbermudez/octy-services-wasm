@@ -3,6 +3,7 @@ from data.repositories.Iauth_repository import AuthInterface
 from data.models.db_schemas import tbl_accounts, tbl_failed_auth_attempts
 from secrets import Secrets
 from utils.utils import dt_to_int, base64_decode
+import data.context.db_context as ctx
 
 # python imports
 from datetime import datetime as dt
@@ -36,7 +37,7 @@ class _AuthRepository(AuthInterface):
     def __init__(self): pass
 
 
-    def verify_account_keys(self, pk: str, sk: str) -> Union[bool, bool]:
+    def verify_account_keys(self, pk: str, sk: str) -> Union[bool, bool, dict]:
         """
             A method used to verify Octy account holder keys
 
@@ -51,43 +52,40 @@ class _AuthRepository(AuthInterface):
             ----------
             pk valid : bool
             sk valid : bool
+            account : dict | None
         """
+
+        res = ctx.redis_conn.get(f'pk:{pk}')
+        if not res:
+            return False, False, None
         
-        try:
-            account = tbl_accounts.objects.get(keys__public_key__exact=pk)
-            if account.active != True:
-                return False, False
-        except DoesNotExist:
-            return False, False
+        account = json.loads(res)
+        if not account['active']:
+            return False, False, None
 
         #Argon2 secret key for comparrison
         ph = PasswordHasher()
         try:
-            ph.verify(account.keys.secret_key, sk)
+            ph.verify(account['keys']['secret_key'], sk)
         except VerifyMismatchError:
-            return True, False
+            return True, False, None
 
-        return True, True
+        return True, True, account
 
-    async def auth_token(self, pk: str) -> str:
+    async def generate_authorization_token(self, account : dict) -> str:
         """
-            A method used to generate a fat jwt token,
+            A method used to generate a fat auth jwt,
             containing account information + authorized tags
 
             Parameters
             ----------
-            pk : str
-                Octy public key
+            account : dict
+                Octy account
 
             Returns
             ----------
-            auth jwt token : str
+            auth jwt : str
         """
-        account = json.loads(tbl_accounts.objects
-                             .get(keys__public_key__exact=pk).to_json())
-
-        # with open('./account/keys/octy-private-key', 'rb') as f:
-        #     private_key = f.read()
         try:
             private_key = base64_decode(os.environ.get('OCTY_PRIVATE_KEY'), is_json=False)
         except:
@@ -130,9 +128,10 @@ class _AuthRepository(AuthInterface):
             }
         }
 
-        jwt_token = jwt.encode(payload, private_key, algorithm='RS256')
+        auth_jwt = jwt.encode(payload, private_key, algorithm='RS256')
 
-        return jwt_token
+        return auth_jwt
+
 
 
     def log_failed_auth(self, failed_attempt : Dict) -> object:

@@ -30,7 +30,7 @@ limiter = Limiter(key_func=get_remote_address)
 ######################################
 
 @router.get('/v1/account/authenticate',
-            dependencies=[Depends(authService.authenticate_account)])
-@limiter.limit("600/minute")
+            dependencies=[Depends(authService.validate_auth_request_headers)])
+@limiter.limit("10000/minute")
 async def authenticate_account(request: Request):
-    return AuthenticateDTO(await authService.get_auth_token(request)).dto()
+    return AuthenticateDTO(await authService.authenticatation(request)).dto()
