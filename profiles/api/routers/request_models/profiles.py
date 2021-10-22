@@ -3,16 +3,27 @@ from pydantic import BaseModel, ValidationError, validator
 from typing import Optional, Dict, List, Any
 from config import Config
 
-'''
-#description: Optional[str] = None
-customer_id : str = Query(..., max_length=20) #... <- makes it required
-'''
+def disallow_null_values(value : dict, attribute : str):
+    for k, v in value.items():
+        ex = f'Invalid {attribute} attribute provided. Null values or empty strings can not be provided as {attribute} values. Invalid key pair value: ({k} : {v})'
+        if v is None :
+            raise ValueError(ex)
+        elif type(v) == str:
+            if v == "" or v.isspace():
+                raise ValueError(ex)
+    return value
 
 ### Create customer profiles Input Schema
 class CreateProfilesChild(BaseModel):
     customer_id : str
     profile_data : Dict
+    @validator('profile_data')
+    def profiledata(cls, v):
+        return disallow_null_values(v, 'profile_data')
     platform_info : Dict
+    @validator('platform_info')
+    def platforminfo(cls, v):
+        return disallow_null_values(v, 'platform_info')
     has_charged : bool
 
 class CreateProfiles(BaseModel):
@@ -32,7 +43,13 @@ class UpdateProfilesChild(BaseModel):
     profile_id : str
     customer_id : str
     profile_data : Dict
+    @validator('profile_data')
+    def profiledata(cls, v):
+        return disallow_null_values(v, 'profile_data')
     platform_info : Dict
+    @validator('platform_info')
+    def platforminfo(cls, v):
+        return disallow_null_values(v, 'platform_info')
     has_charged : bool
     status: str
     @validator('status')
