@@ -10,6 +10,7 @@ CHANGE_CHECKER=./scripts/changed-since-last-commit.py
 COMMIT_SHA1=$CIRCLE_SHA1
 export COMMIT_SHA1=$COMMIT_SHA1
 export CIRCLE_COMPARE_URL=$CIRCLE_COMPARE_URL
+export GIT_TOKEN=$GIT_TOKEN # Used to download private project libs from GH repo.
 echo "$KUBERNETES_CLUSTER_CERTIFICATE" | base64 --decode > cert.crt
 
 echo "Checking for changes on master ..."
@@ -38,7 +39,7 @@ for deploy in $(jq -rc '.deployments[]' ./scripts/deployments.json ); do
         if [[ `python3 ${CHANGE_CHECKER} ${SERVICE_DIR}` == "True" ]]; then
                 echo "Changes found in ${SERVICE_NAME} service, Publishing updated ${SERVICE_NAME} service Docker image ..."
                 # Build docker image
-                docker build --no-cache -t $DOCKER_IMAGE_NAME:latest -f $DOCKERFILE_PATH .
+                docker build --no-cache --build-arg git_token=$GIT_TOKEN -t $DOCKER_IMAGE_NAME:latest -f $DOCKERFILE_PATH .
                 # tag and push image to registry
                 docker tag $DOCKER_IMAGE_NAME:latest $DOCKER_IMAGE_NAME:$CIRCLE_SHA1
                 docker push $DOCKER_IMAGE_NAME:latest
