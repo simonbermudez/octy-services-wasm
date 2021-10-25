@@ -5,7 +5,7 @@ from data.repositories.implementation.notifications_repository import Notificati
 from data.repositories.content.notification_content import ACCOUNT_SUBJECT, ACCOUNT_BODY
 from api.routers.request_models.account import *
 from api.routers.error_handlers import *
-from services.AMQP import amqpInterface
+#from services.AMQP import amqpInterface
 from utils.utils import *
 from config import Config
 
@@ -13,6 +13,7 @@ from config import Config
 
 
 # external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import Request
 
 
@@ -83,8 +84,8 @@ class AccountService:
 
         # call amqp service to create Octy jobs
         for job in Config['OCTY_JOBS']:
-            await amqpInterface.publish_message(routing_key='octy.job.cmd.create',
-                message_payload={
+            await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+                payload={
                     'account_id' : new_account['account_id'],
                     'job_type' : job['job_type'],
                     'job_meta' : {
