@@ -19,7 +19,7 @@ logger = logging.getLogger('test-logger')
 # Account API TESTS:
 ######################################
 
-@pytest.mark.asyncio
+# @pytest.mark.asyncio
 async def test_get_accounts_internal():
     # Connect to mongoDB
     await contextManager.db_connect(logger=logger)
@@ -36,7 +36,7 @@ async def test_get_accounts_internal():
 # Auth API TESTS:
 ######################################
 
-@pytest.mark.asyncio
+# @pytest.mark.asyncio
 async def test_authenticate_account():
     # Connect to mongoDB
     await contextManager.db_connect(logger=logger)
