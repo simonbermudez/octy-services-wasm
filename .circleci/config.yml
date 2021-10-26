@@ -13,7 +13,11 @@ jobs:
     # Then run your tests!
     # CircleCI will report the results back to your VCS provider.
     steps:
-      - checkout
+      - checkout      
+      - run:
+          name: Install octy-rabbitmq-lib
+          command: |
+            pip install git+https://$GIT_TOKEN@github.com/Octy-ai/octy-rabbitmq-lib.git@1.1.0
       - python/install-packages:
           pkg-manager: pip
           # app-dir: ~/project/package-directory/  # If you're requirements.txt isn't in the root directory.
