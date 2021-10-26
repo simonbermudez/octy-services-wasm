@@ -26,6 +26,7 @@ pika==1.2.0
 pydantic==1.8.2
 pymongo==3.11.4
 pytest==6.2.4
+pytest-asyncio==0.16.0
 redis==3.5.3
 requests==2.25.1
 s3transfer==0.3.6
