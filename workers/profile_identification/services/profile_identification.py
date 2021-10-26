@@ -1,6 +1,5 @@
 # module imports
 from data.repositories.implementation.profiles_iden_repository import profilesIdenRepository
-from .AMQP import amqpInterface
 from utils.utils import *
 from config import Config
 
@@ -15,6 +14,7 @@ import sys
 from typing import Any
 
 # external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from sentry_sdk import capture_exception
 import pandas as pd
 import numpy as np
@@ -96,12 +96,12 @@ class ProfileIdentification():
 
         for mes in self.amqp_messages:
             if sys.getsizeof(mes['messages']) < self.amqp_message_size_limit:
-                await amqpInterface.publish_message(routing_key=mes['routing_key'],
-                    message_payload={'account_id' : self.account_id, mes['key'] : mes['messages']})
+                await amqpPublisher.send_message(routing_key=mes['routing_key'],
+                    payload={'account_id' : self.account_id, mes['key'] : mes['messages']})
             else:
                 for chunk in list(chunks(mes['messages'], round(sys.getsizeof(mes['messages']) / self.amqp_message_size_limit))):
-                    await amqpInterface.publish_message(routing_key=mes['routing_key'],
-                        message_payload={'account_id' : self.account_id, mes['key'] : chunk})
+                    await amqpPublisher.send_message(routing_key=mes['routing_key'],
+                        payload={'account_id' : self.account_id, mes['key'] : chunk})
 
     async def _send_http_request(self, url : str, payload : dict) -> None:
         session = requests_retry_session()

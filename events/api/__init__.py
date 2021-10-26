@@ -3,12 +3,14 @@ from .routers import events, event_types
 from .routers.error_handlers import add_exception_handlers
 from config import Config
 from data.context.db_context import contextManager
-from services.AMQP import AMQPStateManager
+from amqp.consumer import on_consumer_message_cb
 
 #python imports
 import logging
 
 #external imports
+from octy_rabbitmq.amqp_consumer import AMQPConsumer
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import FastAPI, Request
 import sentry_sdk
 
@@ -25,17 +27,34 @@ async def startup():
     
     # Connect to mongoDB
     await contextManager.db_connect(logger=logger)
-    await AMQPStateManager().init_consumers(logger=logger)
-    await AMQPStateManager().init_publishers(logger=logger)
+
+    '''
+    AMQP PUBLISHERS
+    '''
+    # Import initialised publisher and populate with required attributes
+    amqpPublisher.exchange_name = Config['EXCHANGE']
+    amqpPublisher.amqp_url = Config['AMQP_URL']
+    amqpPublisher.amqp_publishers = Config['AMQP_PUBLISHERS']
+    amqpPublisher.logger = logger
+    # Start publishers
+    await amqpPublisher.start()
+
+    '''
+    AMQP CONSUMERS
+    '''
+    await AMQPConsumer(Config['EXCHANGE'],
+        Config['AMQP_URL'], 
+        Config['AMQP_CONSUMERS'], 
+        on_consumer_message_cb, 
+        logger).start() # Start consumers
+
+
 
 
 @app.on_event("shutdown")
 async def shutdown():
     # Disconnect from mongoDB
     await contextManager.db_disconnect(logger=logger)
-    # graceful disconnection from RabbitMQ
-    await app.state.publisher_connection.close_connection()
-    await app.state.consumer_connection.close_connection()
 
 add_exception_handlers(app)
 app.include_router(events.router)

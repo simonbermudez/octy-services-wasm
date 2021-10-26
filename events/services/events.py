@@ -1,7 +1,6 @@
 # module imports
 from data.repositories.implementation.events_repository import eventsRepository
 from data.repositories.implementation.event_types_repository import eventTypesRepository
-from .AMQP import amqpInterface
 from api.routers.request_models.events import *
 from api.routers.request_models.account import Account
 from api.routers.error_handlers import *
@@ -14,7 +13,7 @@ from datetime import datetime as dt
 import json
 
 # external imports
-
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 
 class EventsService():
     """
@@ -98,8 +97,8 @@ class EventsService():
 
         if event.event_type in segment_event_types:
             # make AMQP call to init live segmentation worker
-            await amqpInterface.publish_message(routing_key='octy.job.cmd.create',
-                message_payload={
+            await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+                payload={
                     'account_id' : self.account.account_id,
                     'job_type' : 'seg',
                     'job_meta' : {
@@ -263,8 +262,8 @@ class EventsService():
             if event_type == 'charged':
 
                 # make AMQP call to Update customer profile 'has_charged' == True
-                await amqpInterface.publish_message(routing_key='profiles.cmd.update',
-                message_payload={
+                await amqpPublisher.send_message(routing_key='profiles.cmd.update',
+                payload={
                     "account_id" : self.account.account_id,
                     "profiles" : [
                         {
@@ -307,8 +306,8 @@ class EventsService():
             elif event_type == 'churned':
                 
                 # make AMQP call to Update customer profile 'status' == 'churned', if profile is active.
-                await amqpInterface.publish_message(routing_key='profiles.cmd.update',
-                message_payload={
+                await amqpPublisher.send_message(routing_key='profiles.cmd.update',
+                payload={
                     "account_id" : self.account.account_id,
                     "profiles" : [
                         {

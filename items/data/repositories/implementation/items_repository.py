@@ -4,7 +4,6 @@ from data.models.db_schemas import tbl_items
 from api.routers.request_models.items import *
 from utils.utils import *
 from api.routers.error_handlers import *
-from services.AMQP import amqpInterface
 
 
 # python imports
@@ -14,6 +13,7 @@ from datetime import datetime as dt
 import copy
 
 # external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from mongoengine.errors import BulkWriteError
 from mongoengine.queryset.visitor import Q
 from pymongo.errors import BulkWriteError
@@ -361,8 +361,8 @@ class _ItemsRepository(ItemsInterface):
             # publish message to update item_id_stop_list in account configurations
             rec_configs['config_json']['item_id_stop_list'] = new_stop_list
             print(rec_configs['config_json'])
-            await amqpInterface.publish_message(routing_key='algo.configs.cmd.update',
-                message_payload={
+            await amqpPublisher.send_message(routing_key='algo.configs.cmd.update',
+                payload={
                     "account_id" : account.account_id,
                     "algorithm_configurations" : {
                         "algorithm_name" : 'rec',

@@ -24,28 +24,29 @@ class ContextManager():
     """
     def __init__(self): pass
 
-    def db_connect(self) -> None: 
+    async def db_connect(self, logger) -> None: 
         """
             A method used to connect to a mongoDB database
 
             Parameters
             ----------
-            None
+            logger : logger instance
 
             Returns
             ----------
             result : None
         """
 
-        connect(host=Secrets["DB_URI"])
+        connect(host=Secrets['DB_URI'])
+        logger.info('Opened connection to DB')
         
-    async def db_disconnect(self) -> None: 
+    async def db_disconnect(self, logger) -> None: 
         """
             A method used to disconnect from a mongoDB database
 
             Parameters
             ----------
-            None
+            logger : logger instance
 
             Returns
             ----------
@@ -53,8 +54,8 @@ class ContextManager():
         """
 
         #Disconnect from mongoDB
-        disconnect(alias=Config["DB_ALIAS"])
-        print("Closed conenction to DB")
+        disconnect(alias=Config['DB_ALIAS'])
+        logger.info('Closed conenction to DB')
 
 contextManager = ContextManager()
 

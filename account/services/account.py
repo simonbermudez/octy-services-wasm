@@ -5,7 +5,6 @@ from data.repositories.implementation.notifications_repository import Notificati
 from data.repositories.content.notification_content import ACCOUNT_SUBJECT, ACCOUNT_BODY
 from api.routers.request_models.account import *
 from api.routers.error_handlers import *
-#from services.AMQP import amqpInterface
 from utils.utils import *
 from config import Config
 

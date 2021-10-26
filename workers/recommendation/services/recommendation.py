@@ -1,7 +1,6 @@
 # module imports
 from data.repositories.implementation.recommendation_repository import recommendationsRepository
 from data.repositories.implementation.bucket_repository import bucketRepository
-from .AMQP import amqpInterface
 from utils.utils import *
 from config import Config
 
@@ -17,6 +16,7 @@ from io import BytesIO
 import copy
 
 # external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from sentry_sdk import capture_exception
 import pandas as pd
 import joblib
@@ -420,8 +420,8 @@ class RecommenderTraining():
 
         self.logger.info('Sending AMQP message to octy-job queue to create follow-up job!')
         # create follow up octy job to update training job status
-        await amqpInterface.publish_message(routing_key='octy.job.cmd.create',
-            message_payload={
+        await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+            payload={
                 'account_id' : self.account_id,
                 'job_type' : 'rec',
                 'job_meta' : {
@@ -599,8 +599,8 @@ class RecommenderCompleteTrainingJob():
                                                                 best_model_training_job_id='--',
                                                                 status='Failed')
             # Delete Octy job
-            await amqpInterface.publish_message(routing_key='octy.job.cmd.delete',
-                message_payload={
+            await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
+                payload={
                     "account_id" : self.account_id,
                     "octy_job_ids" : [self.octy_job_id],
                     "alt_identifiers" : None

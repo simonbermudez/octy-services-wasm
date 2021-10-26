@@ -1,7 +1,7 @@
 # module imports
 from data.repositories.Iaccount_config_repository import AccountConfigInterface
 from config import Config
-from services.AMQP import amqpInterface
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 
 # python imports
 import requests
@@ -36,8 +36,8 @@ class _AccountConfigRepository(AccountConfigInterface):
             ----------
             None
         """
-        await amqpInterface.publish_message(routing_key='account.configs.cmd.update',
-        message_payload={
+        await amqpPublisher.send_message(routing_key='account.configs.cmd.update',
+        payload={
             "account_id" : account.account_id,
             "contact_email_address" : account.contact_email_address,
             "contact_name" : account.contact_name,

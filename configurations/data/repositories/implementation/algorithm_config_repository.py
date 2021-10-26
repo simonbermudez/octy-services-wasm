@@ -2,7 +2,7 @@
 from data.repositories.Ialgorithm_config_repository import AlgorithmConfigInterface
 from config import Config
 from utils.utils import *
-from services.AMQP import amqpInterface
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 
 # python imports
 from typing import *
@@ -45,8 +45,8 @@ class _AlgorithmConfigRepository(AlgorithmConfigInterface):
             None
         """
 
-        await amqpInterface.publish_message(routing_key='algo.configs.cmd.update',
-        message_payload={
+        await amqpPublisher.send_message(routing_key='algo.configs.cmd.update',
+        payload={
             "account_id" : algorithm_config.account_id,
             "algorithm_configurations" : {
                  "algorithm_name" : algorithm_config.algorithm_name,
