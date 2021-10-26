@@ -1,7 +1,6 @@
 #module imports 
 from .routers import account_configurations
 from .routers import algorithm_configurations
-from services.AMQP import AMQPStateManager
 from .routers.error_handlers import add_exception_handlers
 from config import Config
 
@@ -9,6 +8,7 @@ from config import Config
 import logging
 
 #external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import FastAPI
 import sentry_sdk
 
@@ -23,13 +23,17 @@ async def startup():
     traces_sample_rate=1.0,
     environment=Config['ENV'],)
 
-    await AMQPStateManager().init_publishers(logger=logger)
+    '''
+    AMQP PUBLISHERS
+    '''
+    # Import initialised publisher and populate with required attributes
+    amqpPublisher.exchange_name = Config['EXCHANGE']
+    amqpPublisher.amqp_url = Config['AMQP_URL']
+    amqpPublisher.amqp_publishers = Config['AMQP_PUBLISHERS']
+    amqpPublisher.logger = logger
+    # Start publishers
+    await amqpPublisher.start()
 
-
-@app.on_event("shutdown")
-async def shutdown():
-    # graceful disconnection from RabbitMQ
-    await app.state.publisher_connection.close_connection()
 
 add_exception_handlers(app)
 app.include_router(account_configurations.router)

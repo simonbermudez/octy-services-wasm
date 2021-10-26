@@ -5,13 +5,13 @@ from api.routers.request_models.account import Account
 from api.routers.error_handlers import *
 from utils.utils import *
 from config import Config
-from services.AMQP import amqpInterface
 
 # python imports
 from typing import *
 import json
 
 # external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import Request
 
 
@@ -433,8 +433,8 @@ class SegmentationService():
         elif segment.segment_type == 'past':
             seg = await self._create_segment_ref(segment)
             
-            await amqpInterface.publish_message(routing_key='octy.job.cmd.create',
-                message_payload={
+            await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+                payload={
                     'account_id' : self.account.account_id,
                     'alt_dentifier' :seg['segment_id'],
                     'job_type' : 'seg',
@@ -549,8 +549,8 @@ class SegmentationService():
         #Delete segment definition
         await segmentationRepository.delete_segments(self.account_id, deleted_segments)
         #Delete all segment tags associated with current segment
-        await amqpInterface.publish_message(routing_key='segment.tags.cmd.update.delete',
-            message_payload={
+        await amqpPublisher.send_message(routing_key='segment.tags.cmd.update.delete',
+            payload={
                 "account_id" : self.account.account_id,
                 "action" : "delete",
                 "segment_ids" : deleted_segments
@@ -562,8 +562,8 @@ class SegmentationService():
         _ids = []
         for seg in deleted_segments:
             _ids.append(seg['segment_id'])
-        await amqpInterface.publish_message(routing_key='octy.job.cmd.delete',
-            message_payload={
+        await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
+            payload={
                 "account_id" : self.account.account_id,
                 "octy_job_ids" : None,
                 "alt_identifiers" : _ids

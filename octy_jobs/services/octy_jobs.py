@@ -1,7 +1,6 @@
 # module imports
 from .scheduler import RobustScheduler
 from data.repositories.implementation.octy_jobs_repository import octyJobsRepository
-from .AMQP import amqpInterface
 from utils.utils import *
 from config import Config
 
@@ -12,6 +11,7 @@ from datetime import date
 import asyncio
 
 # external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from sentry_sdk import capture_exception
 
 
@@ -239,8 +239,8 @@ class OctyJobQueue():
                         continue
                     #switch through segmentation types
                     if job['job_data']['data']['segmentation_type'] == 'past' :
-                        await amqpInterface.publish_message(routing_key='past.segmentation.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='past.segmentation.cmd.run',
+                            payload={
                                 'account_data' : {
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -253,8 +253,8 @@ class OctyJobQueue():
                             })
 
                     elif job['job_data']['data']['segmentation_type'] == 'live' :
-                        await amqpInterface.publish_message(routing_key='live.segmentation.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='live.segmentation.cmd.run',
+                            payload={
                                 'account_data' : {
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -268,8 +268,8 @@ class OctyJobQueue():
                             })
                 
                     elif job['job_data']['data']['segmentation_type'] == 'pending-live' :
-                        await amqpInterface.publish_message(routing_key='live.segmentation.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='live.segmentation.cmd.run',
+                            payload={
                                 'account_data' : {                                
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -297,8 +297,8 @@ class OctyJobQueue():
                         continue
                     #switch through job sub types
                     if job['job_data']['data']['job_sub_type'] == 'training' :
-                        await amqpInterface.publish_message(routing_key='rec.training.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='rec.training.cmd.run',
+                            payload={
                                 'account_data' : {
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -311,8 +311,8 @@ class OctyJobQueue():
                             })
 
                     elif job['job_data']['data']['job_sub_type'] == 'complete' :
-                        await amqpInterface.publish_message(routing_key='rec.training.complete.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='rec.training.complete.cmd.run',
+                            payload={
                                 'account_data' : {
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -332,8 +332,8 @@ class OctyJobQueue():
                         continue
                     #switch through job sub types
                     if job['job_data']['data']['job_sub_type'] == 'training':
-                        await amqpInterface.publish_message(routing_key='churn.training.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='churn.training.cmd.run',
+                            payload={
                                 'account_data' : {
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -346,8 +346,8 @@ class OctyJobQueue():
                             })
 
                     if job['job_data']['data']['job_sub_type'] == 'complete': 
-                        await amqpInterface.publish_message(routing_key='churn.training.complete.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='churn.training.complete.cmd.run',
+                            payload={
                                 'account_data' : {
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -366,8 +366,8 @@ class OctyJobQueue():
                         continue
                     #switch through job sub types
                     if job['job_data']['data']['job_sub_type'] == 'training':
-                        await amqpInterface.publish_message(routing_key='rfm.training.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='rfm.training.cmd.run',
+                            payload={
                                 'account_data' : {
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -379,8 +379,8 @@ class OctyJobQueue():
                             })
 
                     if job['job_data']['data']['job_sub_type'] == 'complete': 
-                        await amqpInterface.publish_message(routing_key='rfm.training.complete.cmd.run',
-                            message_payload={
+                        await amqpPublisher.send_message(routing_key='rfm.training.complete.cmd.run',
+                            payload={
                                 'account_data' : {
                                     'account_id' : account['_id'],
                                     'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
@@ -400,8 +400,8 @@ class OctyJobQueue():
                     except:
                         continue
 
-                    await amqpInterface.publish_message(routing_key='profile.identification.cmd.run',
-                        message_payload={
+                    await amqpPublisher.send_message(routing_key='profile.identification.cmd.run',
+                        payload={
                             'account_data' : {
                                 'account_id' : account['_id'],
                                 'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'

@@ -2,7 +2,6 @@
 from data.repositories.implementation.profiles_repository import profilesRepository
 from api.routers.request_models.profiles import *
 from api.routers.request_models.account import Account
-from .AMQP import amqpInterface
 from api.routers.error_handlers import *
 from utils.utils import *
 from config import Config
@@ -12,6 +11,7 @@ from typing import *
 import json
 
 # external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import Request
 
 
@@ -280,8 +280,8 @@ class ProfilesService():
                 "account_id" : self.account_id
             })
             if not identification_job:
-                await amqpInterface.publish_message(routing_key='events.cmd.delete',
-                    message_payload={
+                await amqpPublisher.send_message(routing_key='events.cmd.delete',
+                    payload={
                         'account_id' : self.account.account_id,
                         'profile_id' : p
                     })

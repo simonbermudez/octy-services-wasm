@@ -6,6 +6,8 @@ RUN mkdir -p /rfm
 WORKDIR /rfm
 COPY "./workers/rfm" .
 RUN pip install -r ./requirements.txt
+ARG git_token
+RUN pip install git+https://$git_token@github.com/Octy-ai/octy-rabbitmq-lib.git@1.1.0
 CMD ["uvicorn", "worker:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
 
 # Development > local

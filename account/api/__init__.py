@@ -26,6 +26,7 @@ async def startup():
 
     # Connect to redis pool
     await contextManager.db_redis_connect(logger=logger)
+    
     # Exception logger
     sentry_sdk.init(
     Config['SENTRY_URL'],

@@ -3,7 +3,7 @@ from .routers import octy_jobs
 from .routers.error_handlers import add_exception_handlers
 from config import *
 from data.context.db_context import contextManager
-from services.AMQP import AMQPStateManager
+from amqp.consumer import on_consumer_message_cb
 from services.octy_jobs import OctyJobQueue
 
 #python imports
@@ -11,6 +11,8 @@ import logging
 
 
 #external imports
+from octy_rabbitmq.amqp_consumer import AMQPConsumer
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import FastAPI
 import sentry_sdk
 
@@ -29,17 +31,32 @@ async def startup():
     traces_sample_rate=1.0,
     environment=Config['ENV'],)
 
-    await AMQPStateManager().init_consumers(logger=logger)
-    await AMQPStateManager().init_publishers(logger=logger)
+    '''
+    AMQP PUBLISHERS
+    '''
+    # Import initialised publisher and populate with required attributes
+    amqpPublisher.exchange_name = Config['EXCHANGE']
+    amqpPublisher.amqp_url = Config['AMQP_URL']
+    amqpPublisher.amqp_publishers = Config['AMQP_PUBLISHERS']
+    amqpPublisher.logger = logger
+    # Start publishers
+    await amqpPublisher.start()
+
+    '''
+    AMQP CONSUMERS
+    '''
+    await AMQPConsumer(Config['EXCHANGE'],
+        Config['AMQP_URL'], 
+        Config['AMQP_CONSUMERS'], 
+        on_consumer_message_cb, 
+        logger).start() # Start consumers
+
     await octy_job_queue.start_job_queue()
 
 @app.on_event("shutdown")
 async def shutdown():
     # Disconnect from mongoDB
     await contextManager.db_disconnect(logger=logger)
-    # graceful disconnection from RabbitMQ
-    await app.state.consumer_connection.close_connection()
-    await app.state.publisher_connection.close_connection()
     await octy_job_queue.stop_job_queue()
 
 add_exception_handlers(app)

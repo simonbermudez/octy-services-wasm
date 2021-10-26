@@ -2,7 +2,6 @@
 from data.repositories.implementation.segmentation_repository import segmentationRepository
 from utils.utils import *
 from config import Config
-from services.AMQP import amqpInterface
 
 # python imports
 from typing import *
@@ -15,6 +14,7 @@ import copy
 import time
 
 # external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 import strconv
 from sentry_sdk import capture_exception
 
@@ -54,8 +54,8 @@ class PastSegmentation():
     async def _process_gsdo(self): 
         # Process all grouped messages
         if len(self.gsdo['operations']) > 0:
-            await amqpInterface.publish_message(routing_key='grouped.segmentation.operations.cmd',
-                message_payload=self.gsdo)
+            await amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
+                payload=self.gsdo)
             # flush grouped messages
             self.gsdo = {"account_id": self.account_id, "operations" :[]}
 
@@ -421,8 +421,8 @@ class LiveSegmentation():
     async def _process_gsdo(self): 
         # Process all grouped messages
         if len(self.gsdo['operations']) > 0:
-            await amqpInterface.publish_message(routing_key='grouped.segmentation.operations.cmd',
-                message_payload=self.gsdo)
+            await amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
+                payload=self.gsdo)
             # flush grouped messages
             self.gsdo = {"account_id": self.account_id, "operations" :[]}
 
@@ -625,8 +625,8 @@ class LiveSegmentation():
 
     async def _create_live_validation_octy_job(self, segment_event : dict, segment_id : str) -> None:
         time_interval = segment_event['exp_timeframe']+self.live_validation_octy_job_time_buffer
-        await amqpInterface.publish_message(routing_key='octy.job.cmd.create',
-            message_payload={
+        await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+            payload={
                 'account_id' : self.account_id,
                 'job_type' : 'seg',
                 'job_meta' : {
@@ -882,8 +882,8 @@ class PendingLiveSegmentation():
     async def _process_gsdo(self): 
         # Process all grouped messages
         if len(self.gsdo['operations']) > 0:
-            await amqpInterface.publish_message(routing_key='grouped.segmentation.operations.cmd',
-                message_payload=self.gsdo)
+            await amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
+                payload=self.gsdo)
             # flush grouped messages
             self.gsdo = {"account_id": self.account_id, "operations" :[]}
 
@@ -1127,8 +1127,8 @@ class PendingLiveSegmentation():
         return meets_criteria
 
     async def _delete_octy_jobs(self) -> None:
-        await amqpInterface.publish_message(routing_key='octy.job.cmd.delete',
-            message_payload={
+        await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
+            payload={
                 "account_id" : self.account_id,
                 "octy_job_ids" : [self.octy_job_id, self.live_octy_job_id],
                 "alt_identifiers" : None

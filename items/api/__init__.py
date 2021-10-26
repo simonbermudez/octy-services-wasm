@@ -2,13 +2,13 @@
 from .routers import items
 from .routers.error_handlers import add_exception_handlers
 from config import Config
-from services.AMQP import AMQPStateManager
 from data.context.db_context import contextManager
 
 #python imports
 import logging
 
 #external imports
+from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import FastAPI, Request
 import sentry_sdk
 
@@ -24,32 +24,25 @@ async def startup():
     environment=Config['ENV'])
 
     # Connect to mongoDB
-    contextManager.db_connect()
-    await AMQPStateManager().init_publishers(logger=logger)
+    await contextManager.db_connect(logger=logger)
+
+    '''
+    AMQP PUBLISHERS
+    '''
+    # Import initialised publisher and populate with required attributes
+    amqpPublisher.exchange_name = Config['EXCHANGE']
+    amqpPublisher.amqp_url = Config['AMQP_URL']
+    amqpPublisher.amqp_publishers = Config['AMQP_PUBLISHERS']
+    amqpPublisher.logger = logger
+    # Start publishers
+    await amqpPublisher.start()
 
 
 @app.on_event("shutdown")
 async def shutdown():
     # Disconnect from mongoDB
-    contextManager.db_disconnect()
-    
-    # graceful disconnection from RabbitMQ
-    await app.state.publisher_connection.close_connection()
+    await contextManager.db_disconnect(logger=logger)
 
 
 add_exception_handlers(app)
 app.include_router(items.router)
-
-
-# @app.middleware('http')
-# async def http_middleware(request: Request, call_next):
-#     try:
-#         # Connect to mongoDB
-#         contextManager.db_connect()
-#         response = await call_next(request)
-#         return response
-#     finally:
-#         # Disconnect from mongoDB
-#         contextManager.db_disconnect()
-
-#     raise Exception(500)

@@ -46,7 +46,7 @@ class ContextManager():
 
             Parameters
             ----------
-            None
+            logger : logger instance
 
             Returns
             ----------
