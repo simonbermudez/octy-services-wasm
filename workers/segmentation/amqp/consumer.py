@@ -35,9 +35,9 @@ def handle_message(payload, main_loop) -> None:
     try:
         message_json = json.loads(payload.body.decode())
         if routing_key == 'past.segmentation.cmd.run':
-            job_data = PastSegmentationJob(**message_json)
+            payload_data = PastSegmentationJob(**message_json)
         elif routing_key == 'live.segmentation.cmd.run':
-            job_data = LiveSegmentationJob(**message_json)
+            payload_data = LiveSegmentationJob(**message_json)
     except Exception as ex:
         # if the message_payload is not valid JSON refuse message.
         logger.error(f'Refused message payload: {payload.body.decode()}. Exception : {ex}')
@@ -54,26 +54,26 @@ def handle_message(payload, main_loop) -> None:
 
     try:
         if routing_key == 'past.segmentation.cmd.run':
-            loop.run_until_complete(PastSegmentation(account_id=job_data.account_data.account_id, 
-                                webhook_url=job_data.account_data.webhook_url, 
-                                octy_job_id=job_data.octy_job_id,
-                                segment_id=job_data.segment_data.segment_id).run())
+            loop.run_until_complete(PastSegmentation(account_id=payload_data.account_data.account_id, 
+                                webhook_url=payload_data.account_data.webhook_url, 
+                                octy_job_id=payload_data.octy_job_id,
+                                segment_id=payload_data.job_data.segment_data.segment_id).run())
 
         elif routing_key == 'live.segmentation.cmd.run':
-            if job_data.segment_data.segmentation_type == 'live':
-                loop.run_until_complete(LiveSegmentation(account_id=job_data.account_data.account_id,
-                                    webhook_url=job_data.account_data.webhook_url, 
-                                    octy_job_id=job_data.octy_job_id,
-                                    event_obj=job_data.event_data).run())
+            if payload_data.segment_data.segmentation_type == 'live':
+                loop.run_until_complete(LiveSegmentation(account_id=payload_data.account_data.account_id,
+                                    webhook_url=payload_data.account_data.webhook_url, 
+                                    octy_job_id=payload_data.octy_job_id,
+                                    event_obj=payload_data.job_data.event_data).run())
 
-            elif job_data.segment_data.segmentation_type == 'pending-live':
-                loop.run_until_complete(PendingLiveSegmentation(account_id=job_data.account_data.account_id, 
-                                        webhook_url=job_data.account_data.webhook_url, 
-                                        octy_job_id=job_data.octy_job_id,
-                                        segment_id=job_data.segment_data.segment_id,
-                                        profile_id=job_data.event_data.profile.profile_id,
-                                        live_octy_job_id=job_data.live_octy_job_id,
-                                        event_timeframe=job_data.event_timeframe).run())
+            elif payload_data.segment_data.segmentation_type == 'pending-live':
+                loop.run_until_complete(PendingLiveSegmentation(account_id=payload_data.account_data.account_id, 
+                                        webhook_url=payload_data.account_data.webhook_url, 
+                                        octy_job_id=payload_data.octy_job_id,
+                                        segment_id=payload_data.job_data.segment_data.segment_id,
+                                        profile_id=payload_data.job_data.event_data.profile.profile_id,
+                                        live_octy_job_id=payload_data.job_data.live_octy_job_id,
+                                        event_timeframe=payload_data.job_data.event_data.event_timeframe).run())
     except Exception as ex:
         logger.error(f'Error running segmentation job: {ex}')
         # Requeue failed message

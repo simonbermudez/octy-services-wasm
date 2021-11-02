@@ -100,14 +100,27 @@ class EventsService():
             await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
                 payload={
                     'account_id' : self.account.account_id,
-                    'job_type' : 'seg',
                     'job_meta' : {
+                        'job_type' : 'seg',
+                        'amqp_routing_key': 'live.segmentation.cmd.run',
+                        'required_permissions' : ['seg'],
+                        'required_configurations' :
+                            { 
+                                'account_attributes' : [
+                                    'account_configurations.webhook_url'
+                                ],
+                                'algorithm_configuration_idxs' : [
+                                ]
+                            },
                         'desired_runs' : 1,
                         'time_interval' : 0,
                         'fail_threshold' : 10
                     },
                     'job_data' : {
-                        'segmentation_type' : 'live',
+                        'segment_data' : {
+                            'segmentation_type': 'live'
+                        },
+                        'validation_job' : False,
                         'event_data' : {
                             'event_id' : event_id,
                             'event_type_id' : event_type_id,

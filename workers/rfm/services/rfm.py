@@ -329,14 +329,24 @@ class RFMAnalysis():
         await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
             payload={
                 'account_id' : self.account_id,
-                'job_type' : 'rfm',
                 'job_meta' : {
+                    'job_type' : 'rfm',
+                    'amqp_routing_key': 'rfm.training.complete.cmd.run',
+                    'required_permissions' : ['rfm'],
+                    'required_configurations' :
+                        { 
+                            'account_attributes' : [
+                                'account_configurations.webhook_url',
+                                'bucket'
+                            ],
+                            'algorithm_configuration_idxs' : [
+                            ]
+                        },
                     'desired_runs' : 1,
                     'time_interval' : 30,
                     'fail_threshold' : 3
                 },
                 'job_data' : {
-                    'job_sub_type' : 'complete',
                     'training_job_id' : self.training_job_id
                 }
         })

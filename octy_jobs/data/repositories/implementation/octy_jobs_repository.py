@@ -2,7 +2,7 @@
 from data.repositories.Iocty_jobs_repository import OctyJobsInterface
 from utils.utils import *
 from api.routers.error_handlers import *
-from data.models.db_schemas import tbl_octy_jobs, JobMeta, JobData
+from data.models.db_schemas import tbl_octy_jobs, JobMeta, RequiredConfigs
 
 # python imports
 from typing import *
@@ -46,27 +46,30 @@ class _OctyJobsRepository(OctyJobsInterface):
         None
         """
         #TODO: Do not create duplicate Job unless current matching job has exceeded desited run or failed limits etc.
+        required_configurations = RequiredConfigs(
+            account_attributes=octy_job['job_meta']['required_configurations'].account_attributes,
+            algorithm_configuration_idxs=octy_job['job_meta']['required_configurations'].algorithm_configuration_idxs
+        )
         job_meta = JobMeta(
             job_type=octy_job['job_meta']['job_type'],
+            amqp_routing_key=octy_job['job_meta']['amqp_routing_key'],
+            required_permissions=octy_job['job_meta']['required_permissions'],
+            required_configurations=required_configurations,
             desired_runs=octy_job['job_meta']['desired_runs'],
             time_interval=octy_job['job_meta']['time_interval'],
             fail_threshold=octy_job['job_meta']['fail_threshold']
         )
-
-        job_data = JobData(
-            data=octy_job['job_data']['data']
-        )
-
+        
         db_job = tbl_octy_jobs(
             octy_job_id=octy_job['octy_job_id'],
             account_id=account_id,
             alt_dentifier=octy_job['alt_dentifier'],
             job_meta=job_meta,
-            job_data=job_data
+            job_data=octy_job['job_data']
         )
         db_job.save()
     
-    def update_octy_job(self, octy_job_updates : list) -> None:
+    async def update_octy_job(self, octy_job_updates : list) -> None:
         """
         Parameters
         ----------
@@ -150,7 +153,7 @@ class _OctyJobsRepository(OctyJobsInterface):
                 }).remove()
         bulk_operation.execute()
 
-    def get_octy_jobs(self, cursor : int) -> list:
+    async def get_octy_jobs(self, cursor : int) -> list:
         """
         Parameters
         ----------
@@ -164,7 +167,7 @@ class _OctyJobsRepository(OctyJobsInterface):
         raw_res = json.loads(dumps(list(results_cursor), indent = 2))
         return raw_res
 
-    def get_pending_job_accounts(self, account_ids : list) -> list:
+    async def get_pending_job_accounts(self, account_ids : list) -> list:
         """
         Parameters
         ----------

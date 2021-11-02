@@ -86,12 +86,7 @@ class AccountService:
             await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
                 payload={
                     'account_id' : new_account['account_id'],
-                    'job_type' : job['job_type'],
-                    'job_meta' : {
-                        'desired_runs' : 0,
-                        'time_interval' : 2880, # 2 days
-                        'fail_threshold' : 0
-                    },
+                    'job_meta' : job['job_meta'],
                     'job_data' : job['job_data']
             })
 

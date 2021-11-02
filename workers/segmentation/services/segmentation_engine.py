@@ -628,17 +628,33 @@ class LiveSegmentation():
         await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
             payload={
                 'account_id' : self.account_id,
-                'job_type' : 'seg',
                 'job_meta' : {
+                    'job_type' : 'pending-live',
+                    'amqp_routing_key': 'live.segmentation.cmd.run',
+                    'required_permissions' : ['seg'],
+                    'required_configurations' :
+                        { 
+                            'account_attributes' : [
+                                'account_configurations.webhook_url'
+                            ],
+                            'algorithm_configuration_idxs' : [
+                            ]
+                        },
                     'desired_runs' : 1,
                     'time_interval' : time_interval,
                     'fail_threshold' : 10
                 },
                 'job_data' : {
-                    'segmentation_type' : 'pending-live',
-                    'segment_id' : segment_id,
-                    'profile_id' : self.profile['profile_id'],
-                    'live_octy_job_id' : self.octy_job_id
+                        'segment_data' : {
+                            'segmentation_type' : 'pending-live',
+                            'segment_id' : segment_id
+                        },
+                        'event_data' : {
+                            'profile_id' : self.profile['profile_id'],
+                            'event_timeframe' : 5
+                        },
+                        'validation_job' : True,
+                        'live_octy_job_id' : self.octy_job_id
                 }
         })
         self.logger.info(f"Creating new octy-job for this profile and segment with a time interval of {str(time_interval)} minutes")

@@ -9,6 +9,7 @@ from typing import *
 import json
 from datetime import date
 import asyncio
+from functools import reduce
 
 # external imports
 from octy_rabbitmq.amqp_publisher import amqpPublisher
@@ -39,14 +40,15 @@ class OctyJobQueueService():
             'account_id' : self.account_id,
             'alt_dentifier' : octy_job.alt_dentifier,
             'job_meta' : {
-                'job_type' : octy_job.job_type,
+                'required_permissions' : octy_job.job_meta.required_permissions,
+                'required_configurations' : octy_job.job_meta.required_configurations,
+                'amqp_routing_key' : octy_job.job_meta.amqp_routing_key,
+                'job_type' : octy_job.job_meta.job_type,
                 'desired_runs' : octy_job.job_meta.desired_runs if octy_job.job_meta.desired_runs != 0 else 1000000000000,
                 'time_interval' : octy_job.job_meta.time_interval,
                 'fail_threshold' : octy_job.job_meta.fail_threshold if octy_job.job_meta.fail_threshold != 0 else 1000000000000,
             },
-            'job_data' : {
-                'data' : octy_job.job_data,
-            }
+            'job_data' : octy_job.job_data
         }
         await octyJobsRepository.create_octy_job(self.account_id, new_octy_job)
 
@@ -71,7 +73,6 @@ class OctyJobQueueService():
         ])
 
 
-
 class OctyJobQueue():
     """
         OctyJobQueue
@@ -85,7 +86,7 @@ class OctyJobQueue():
         ----------
         logger : object
         queue_process_interval : int
-            number in minutes, the job queue should be processed
+            the interval (in minutes) at which the job queue should be processed
     """
     def __init__(self, logger : object, queue_process_interval : int): 
         self.logger = logger
@@ -93,6 +94,8 @@ class OctyJobQueue():
         self.stop_run_continuously = None
         self.scheduler = RobustScheduler(self.logger)
         self.is_processing = False
+        self.pending_jobs = None
+        self.accounts = None
 
     async def run_continuously(self, scheduler):
         while not self.stop_run_continuously:
@@ -114,13 +117,13 @@ class OctyJobQueue():
         self.stop_run_continuously = True
         self.logger.info(f"Octy Job Queue >> Stopped robust job queue on background thread!")
     
-    async def validate_algorithm_config(self, account : dict, idx : int):
-        print(account['algorithm_configurations'][idx]['config_json'])
+    # <process octy jobs private methods>
+    async def _validate_algorithm_config(self, account : dict, idx : int):
         if not bool(account['algorithm_configurations'][idx]['config_json']):
             return False
         else: return True
 
-    async def filter_pending_exceeded_jobs(self, jobs :list) -> Union[list, list]:
+    async def _filter_pending_exceeded_jobs(self, jobs :list) -> Union[list, list]:
         p_js=[]
         pending_jobs = list(filter(lambda x : x['job_meta']['successful_runs'] < x['job_meta']['desired_runs'] and x['job_meta']['status'] == 'pending' , jobs))
         exceeded_jobs = list(filter(lambda x : x['job_meta']['successful_runs'] >= x['job_meta']['desired_runs'], jobs))
@@ -149,79 +152,146 @@ class OctyJobQueue():
         invalid_jobs.extend(failed_jobs)
         return p_js, invalid_jobs
 
+    async def _get_all_jobs(self) -> list:
+        jobs = []
+        cursor = 0
+        cursor_exhausted = False
+        while not cursor_exhausted:
+            jobs_page = await octyJobsRepository.get_octy_jobs(cursor)
+            num_jobs = len(jobs_page)
+            if num_jobs < 1:
+                cursor_exhausted = True
+            jobs.extend(jobs_page)
+            cursor += num_jobs
+        return jobs
+    
+    async def _delete_invalid_jobs(self, invalid_jobs : list) -> None:
+        identifiers = []
+        account_ids = []
+        for er in invalid_jobs:
+            identifiers.append(er['_id'])
+            account_ids.append(er['account_id'])
+        await octyJobsRepository.delete_octy_jobs(account_ids=account_ids,identifiers=identifiers)
+
+    async def _get_accounts(self, account_ids : list) -> None:
+        self.accounts = await octyJobsRepository.get_pending_job_accounts(account_ids)
+        if not self.accounts:
+            # HTTP error must have occurred or all jobs invalid. 
+            # let them re-run, but increment failed count
+            ex = 'Pending jobs found, but no accounts were returned from account service. Trying again.'
+            for octy_job in self.pending_jobs:
+                octyJobsRepository.update_octy_job([
+                    {
+                        'account_id' : octy_job['account_id'],
+                        'octy_job_id' : octy_job['_id'],
+                        'suc_inc_by' : 0,
+                        'fail_inc_by' : 1,
+                        'status' : 'pending', # update back to pending for next tick to manage
+                        'action' : f'octy job queue --> Error occurred during processing :: {ex}'
+                    }
+                ])
+            self.is_processing = False
+            self.logger.error(f"Octy Job Queue >> {ex}")
+            raise Exception(f"Octy Job Queue >> {ex}")
+    
+    def _deep_get(self, dictionary, keys, default=None):
+        return reduce(lambda d, key: d.get(key, default) if isinstance(d, dict) else default, keys.split("."), dictionary)
+
+    async def _validate_account_attr(self, account, key) -> Union[bool, str]: # result & location : 'tl' or 'nest'
+        if '.' in key:
+            return bool(self._deep_get(account,key)), 'nest'
+        try:
+            return bool(account[key]), 'tl'
+        except KeyError:
+            pass
+
+    async def _validate_algorithm_config(self, account : dict, idx : int) -> bool:
+        try:
+            return bool(account['algorithm_configurations'][idx]['config_json'])
+        except KeyError:
+            return False
+
+    async def _build_message_payload(self, account : dict, job : dict) -> dict:
+        '''
+        Check account has required permissions for this job type.
+        Map job to model and return message payload
+
+        Returns 
+        -------
+        result : bool
+        payload : dict
+        '''
+
+        # Hard coded required payload attributes
+        payload = {
+            'account_data' : {
+                'account_id' : account['_id']
+            },
+            'octy_job_id' : job['_id'],
+            'job_data' : job['job_data']
+        }
+
+        # Assess permissions
+        if len(job['job_meta']['required_permissions'])>0:
+            for per in job['job_meta']['required_permissions']:
+                if per not in account['permissions']:
+                    return False, {}
+
+        # Assess required account attributes & configurations	
+        for req_acc_attr in job['job_meta']['required_configurations']['account_attributes']:
+            res, loc = await self._validate_account_attr(account, req_acc_attr)
+            if not res:
+                return False, {}
+            # append to payload::account_data
+            if loc == 'tl':
+                payload['account_data'][req_acc_attr] = account[req_acc_attr]
+            elif loc == 'nest':
+                payload['account_data'][req_acc_attr.split('.')[-1:][0]] = self._deep_get(account,req_acc_attr)
+        
+        # Assess required algorithm configurations
+        for req_algo_conf_idx in \
+            job['job_meta']['required_configurations']['algorithm_configuration_idxs']:
+            res = await self._validate_algorithm_config(account, req_algo_conf_idx)
+            if not res:
+                return False, {}
+            # append to payload::account_data
+            payload['account_data']['algorithm_configurations'] = \
+                account['algorithm_configurations'][req_algo_conf_idx]['config_json']
+        return True, payload
+
     async def process_octy_jobs(self):
         try:
             if self.is_processing:
                 self.logger.warning(f"Octy Job Queue >> Not finished processing current batch of Octy jobs.. waiting till next tick")
                 return 
-
             self.is_processing = True
-
             self.logger.info(f"Octy Job Queue >> Processing Octy jobs")
 
-            jobs = []
-            cursor = 0
-            cursor_exhausted = False
-
-            while not cursor_exhausted:
-                jobs_page = octyJobsRepository.get_octy_jobs(cursor)
-                num_jobs = len(jobs_page)
-                if num_jobs < 1:
-                    cursor_exhausted = True
-                jobs.extend(jobs_page)
-                cursor += num_jobs
-            
+            jobs = await self._get_all_jobs()
             if len(jobs) < 1:
                 self.is_processing = False
                 self.logger.warning(f"Octy Job Queue >> No pending jobs found! Going back to sleep zzz")
                 return
             
-            pending_jobs, invalid_jobs = await self.filter_pending_exceeded_jobs(jobs)
-
+            # Filter pending and invalid jobs
+            self.pending_jobs, invalid_jobs = await self._filter_pending_exceeded_jobs(jobs)
             if invalid_jobs:
-                identifiers = []
-                account_ids = []
-                for er in invalid_jobs:
-                    identifiers.append(er['_id'])
-                    account_ids.append(er['account_id'])
-                await octyJobsRepository.delete_octy_jobs(account_ids=account_ids,identifiers=identifiers)
+                await self._delete_invalid_jobs(invalid_jobs=invalid_jobs)
 
-            if len(pending_jobs) < 1:
+            if len(self.pending_jobs) < 1:
                 self.is_processing = False
                 self.logger.warning(f"Octy Job Queue >> No pending jobs found! Going back to sleep zzz")
                 return
 
             # Get account data for all accounts associated with pending jobs.
-            account_ids = [] 
-            for job in pending_jobs: account_ids.append(job['account_id'])
-            
-            accounts = octyJobsRepository.get_pending_job_accounts(account_ids)
-            if not accounts:
-                # HTTP error must have occurred or all jobs invalid. 
-                # let them re-run, but increment failed count
-                ex = 'Pending jobs found, but no accounts were returned from account service. Trying again.'
-                for octy_job in pending_jobs:
-                    octyJobsRepository.update_octy_job([
-                        {
-                            'account_id' : octy_job['account_id'],
-                            'octy_job_id' : octy_job['_id'],
-                            'suc_inc_by' : 0,
-                            'fail_inc_by' : 1,
-                            'status' : 'pending', # update back to pending for next tick to manage
-                            'action' : f'octy job queue --> Error occurred during processing :: {ex}'
-                        }
-                    ])
-                self.is_processing = False
-                self.logger.error(f"Octy Job Queue >> {ex}")
-                capture_exception(Exception(f"Octy Job Queue >> {ex}"))
-                raise Exception(f"Octy Job Queue >> {ex}")
+            await self._get_accounts(account_ids=[job['account_id'] for job in self.pending_jobs])
 
-            octy_job_updates = []
-            for job in pending_jobs:
+            octy_job_updates = list()
+            for job in self.pending_jobs:
 
-                account = next((key for key in accounts if key['_id'] == job['account_id']), None)
+                account = next((key for key in self.accounts if key['_id'] == job['account_id']), None)
                 if not account:
-                    octyJobsRepository.update_octy_job([
+                    octy_job_updates.append([
                         {
                             'account_id' : job['account_id'],
                             'octy_job_id' : job['_id'],
@@ -232,185 +302,13 @@ class OctyJobQueue():
                         }
                     ])
                     continue
-                #switch through job type to complete required action
-                if job['job_meta']['job_type'] == 'seg' : 
-                    # Check permissions from account
-                    if 'seg' not in account['permissions']:
-                        continue
-                    #switch through segmentation types
-                    if job['job_data']['data']['segmentation_type'] == 'past' :
-                        await amqpPublisher.send_message(routing_key='past.segmentation.cmd.run',
-                            payload={
-                                'account_data' : {
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'segment_data' : {
-                                    'segmentation_type' : job['job_data']['data']['segmentation_type'],
-                                    'segment_id' : job['job_data']['data']['segment_id']
-                                },
-                                'octy_job_id' : job['_id']   
-                            })
 
-                    elif job['job_data']['data']['segmentation_type'] == 'live' :
-                        await amqpPublisher.send_message(routing_key='live.segmentation.cmd.run',
-                            payload={
-                                'account_data' : {
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'segment_data' : {
-                                    'segmentation_type' : job['job_data']['data']['segmentation_type']
-                                },
-                                'event_data' : job['job_data']['data']['event_data'],
-                                'octy_job_id' : job['_id'],
-                                'validation_job' : False
-                            })
-                
-                    elif job['job_data']['data']['segmentation_type'] == 'pending-live' :
-                        await amqpPublisher.send_message(routing_key='live.segmentation.cmd.run',
-                            payload={
-                                'account_data' : {                                
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'segment_data' : {
-                                    'segmentation_type' : job['job_data']['data']['segmentation_type'],
-                                    'segment_id' : job['job_data']['data']['segment_id']
-                                },
-                                'event_data' : {
-                                    'profile' : {
-                                        'profile_id' : job['job_data']['data']['profile_id']
-                                    }
-                                },
-                                'live_octy_job_id' : job['job_data']['data']['live_octy_job_id'],
-                                'octy_job_id' : job['_id'],
-                                'event_timeframe' : job['job_meta']['time_interval'],
-                                'validation_job' : True 
-                            })
-                
-                elif job['job_meta']['job_type'] == 'rec' : 
-                    # Check permissions from account
-                    if 'rec' not in account['permissions']:
-                        continue
-                    if not await self.validate_algorithm_config(account, 0):
-                        continue
-                    #switch through job sub types
-                    if job['job_data']['data']['job_sub_type'] == 'training' :
-                        await amqpPublisher.send_message(routing_key='rec.training.cmd.run',
-                            payload={
-                                'account_data' : {
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'rec_job_data' : {
-                                    'bucket' : account['bucket'],
-                                    'algorithm_configurations' : account['algorithm_configurations'][0]['config_json']
-                                },
-                                'octy_job_id' : job['_id']   
-                            })
-
-                    elif job['job_data']['data']['job_sub_type'] == 'complete' :
-                        await amqpPublisher.send_message(routing_key='rec.training.complete.cmd.run',
-                            payload={
-                                'account_data' : {
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'rec_job_data' : {
-                                    'hyperparam_tuning_job_id' : job['job_data']['data']['hyperparam_tuning_job_id'],
-                                    'bucket' : account['bucket'],
-                                    'algorithm_configurations' : account['algorithm_configurations'][0]['config_json']
-                                },
-                                'octy_job_id' : job['_id']
-                            })
-                
-                elif job['job_meta']['job_type'] == 'churn' : 
-                    if 'churn' not in account['permissions']:
-                        continue
-                    if not await self.validate_algorithm_config(account, 1):
-                        continue
-                    #switch through job sub types
-                    if job['job_data']['data']['job_sub_type'] == 'training':
-                        await amqpPublisher.send_message(routing_key='churn.training.cmd.run',
-                            payload={
-                                'account_data' : {
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'churn_job_data' : {
-                                    'bucket' : account['bucket'],
-                                    'algorithm_configurations' : account['algorithm_configurations'][1]['config_json']
-                                },
-                                'octy_job_id' : job['_id']
-                            })
-
-                    if job['job_data']['data']['job_sub_type'] == 'complete': 
-                        await amqpPublisher.send_message(routing_key='churn.training.complete.cmd.run',
-                            payload={
-                                'account_data' : {
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'churn_job_data' : {
-                                    'hyperparam_tuning_job_id' : job['job_data']['data']['hyperparam_tuning_job_id'],
-                                    'previous_churn_percentage' : account['churn_info']['churn_precentage'],
-                                    'bucket' : account['bucket'],
-                                    'algorithm_configurations' : account['algorithm_configurations'][1]['config_json']
-                                },
-                                'octy_job_id' : job['_id']
-                            })
-                                        
-                elif job['job_meta']['job_type'] == 'rfm' : 
-                    if 'rfm' not in account['permissions']:
-                        continue
-                    #switch through job sub types
-                    if job['job_data']['data']['job_sub_type'] == 'training':
-                        await amqpPublisher.send_message(routing_key='rfm.training.cmd.run',
-                            payload={
-                                'account_data' : {
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'rfm_job_data' : {
-                                    'bucket' : account['bucket']
-                                },
-                                'octy_job_id' : job['_id']
-                            })
-
-                    if job['job_data']['data']['job_sub_type'] == 'complete': 
-                        await amqpPublisher.send_message(routing_key='rfm.training.complete.cmd.run',
-                            payload={
-                                'account_data' : {
-                                    'account_id' : account['_id'],
-                                    'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                                },
-                                'rfm_job_data' : {
-                                    'training_job_id' : job['job_data']['data']['training_job_id'],
-                                    'bucket' : account['bucket']
-                                },
-                                'octy_job_id' : job['_id']
-                            })
-                
-                elif job['job_meta']['job_type'] == 'profile_iden' : 
-                    try:
-                        if not account['account_configurations']['authenticated_id_key'] \
-                            or account['account_configurations']['authenticated_id_key'] == "":
-                            continue
-                    except:
-                        continue
-
-                    await amqpPublisher.send_message(routing_key='profile.identification.cmd.run',
-                        payload={
-                            'account_data' : {
-                                'account_id' : account['_id'],
-                                'webhook_url' : account['account_configurations']['webhook_url'] if account['account_configurations']['webhook_url'] != '' or account['account_configurations']['webhook_url'] != None else 'https://google.com'
-                            },
-                            'profile_iden_job_data' : {
-                                'authenticated_id_key' : account['account_configurations']['authenticated_id_key']
-                            },
-                            'octy_job_id' : job['_id']
-                        })
+                res, payload = await self._build_message_payload(account, job)
+                if res:
+                    await amqpPublisher.send_message(routing_key=job['job_meta']['amqp_routing_key'], payload=payload)
+                else:
+                    self.logger.warning(f'Job failed to be processed due to missing attributes. Account ID : {account["account_id"]} Job type : {job["job_meta"]["job_type"]}')
+                    continue
 
                 # update job to 'processing' to ensure future ticks do not run it again
                 octy_job_updates.append(
@@ -424,7 +322,8 @@ class OctyJobQueue():
                     }
                 )
 
-            octyJobsRepository.update_octy_job(octy_job_updates)
+            if len(octy_job_updates) > 0:
+                await octyJobsRepository.update_octy_job(octy_job_updates)
             self.is_processing = False
         except Exception as e:
             capture_exception(e)

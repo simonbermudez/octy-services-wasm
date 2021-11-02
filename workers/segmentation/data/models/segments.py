@@ -14,6 +14,7 @@ class SegmentTags(BaseModel):
     segment_id : str
     segment_tag : str
     status : Optional[str]
+
 class ProfileData(BaseModel):
     profile_id : str
     customer_id : Optional[str]
@@ -34,20 +35,26 @@ class EventData(BaseModel):
     event_properties : Optional[Dict]
     created_at : Optional[Any]
     profile : ProfileData
+    event_timeframe : Optional[int]
 
+
+class PastJobData(BaseModel):
+    segment_data : SegmentData
+
+class LiveJobData(BaseModel):
+    segment_data : SegmentData
+    event_data : EventData
+    validation_job : bool
+    live_octy_job_id : Optional[str]
 
 # ------------------------------
 
 class PastSegmentationJob(BaseModel):
     account_data : AccountData
-    segment_data : SegmentData
+    job_data : PastJobData
     octy_job_id : str
 
 class LiveSegmentationJob(BaseModel):
     account_data : AccountData
-    segment_data : SegmentData
-    event_data : EventData
+    job_data : LiveJobData
     octy_job_id : str
-    live_octy_job_id : Optional[str]
-    event_timeframe : Optional[int]
-    validation_job : bool
