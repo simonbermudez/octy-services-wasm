@@ -7,8 +7,15 @@ from datetime import datetime as dt
 from mongoengine import Document, StringField, IntField, DateTimeField, ListField, EmbeddedDocumentField, EmbeddedDocument, DynamicField
 
 ### tbl_octy_jobs schema ---
+class RequiredConfigs(EmbeddedDocument):
+    account_attributes = ListField(StringField(),default=[])
+    algorithm_configuration_idxs = ListField(IntField(),default=[])
+
 class JobMeta(EmbeddedDocument):
     job_type = StringField(required=True)
+    amqp_routing_key = StringField(required=True)
+    required_permissions = ListField(StringField(),default=[])
+    required_configurations = EmbeddedDocumentField(RequiredConfigs)
     desired_runs = IntField(default=0)
     successful_runs = IntField(default=0)
     failed_runs = IntField(default=0)
@@ -20,14 +27,11 @@ class JobMeta(EmbeddedDocument):
     updated_at = DateTimeField(null=True)
     last_updated_action = StringField(null=True)
 
-class JobData(EmbeddedDocument):
-    data = DynamicField(required=False)
-
 
 class tbl_octy_jobs(Document):
     octy_job_id = StringField(primary_key=True)
     account_id = StringField(required=True)
     alt_dentifier = StringField(required=False,null=True)
     job_meta = EmbeddedDocumentField(JobMeta)
-    job_data = EmbeddedDocumentField(JobData)
+    job_data = DynamicField(required=False)
   

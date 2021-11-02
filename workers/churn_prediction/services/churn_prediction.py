@@ -124,14 +124,26 @@ class ChurnPredictionTraining():
         await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
             payload={
                 'account_id' : self.account_id,
-                'job_type' : 'churn',
                 'job_meta' : {
+                    'job_type' : 'churn',
+                    'amqp_routing_key': 'churn.training.complete.cmd.run',
+                    'required_permissions' : ['churn'],
+                    'required_configurations' :
+                        { 
+                            'account_attributes' : [
+                                'account_configurations.webhook_url',
+                                'bucket',
+                                'churn_info.churn_precentage'
+                            ],
+                            'algorithm_configuration_idxs' : [
+                                1
+                            ]
+                        },
                     'desired_runs' : 1,
                     'time_interval' : 60,
                     'fail_threshold' : 3
                 },
                 'job_data' : {
-                    'job_sub_type' : 'complete',
                     'hyperparam_tuning_job_id' : self.hyperparam_tuning_job_id
                 }
         })

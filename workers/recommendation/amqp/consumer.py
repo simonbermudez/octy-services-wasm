@@ -35,9 +35,9 @@ def handle_message(payload, main_loop) -> None:
     try:
         message_json = json.loads(payload.body.decode())
         if routing_key == 'rec.training.cmd.run':
-            job_data = RecTrainingJob(**message_json)
+            payload_data = RecTrainingJob(**message_json)
         elif routing_key == 'rec.training.complete.cmd.run':
-            job_data = RecCompleteJob(**message_json)
+            payload_data = RecCompleteJob(**message_json)
     except Exception as ex:
         # if the message_payload is not valid JSON refuse message.
         logger.error(f'Refused message payload: {payload.body.decode()}. Exception : {ex}')
@@ -54,18 +54,18 @@ def handle_message(payload, main_loop) -> None:
 
     try:
         if routing_key == 'rec.training.cmd.run':
-            loop.run_until_complete(RecommenderTraining(account_id=job_data.account_data.account_id, 
-                                    octy_job_id=job_data.octy_job_id,
-                                    bucket=job_data.rec_job_data.bucket,
-                                    algorithm_configurations=job_data.rec_job_data.algorithm_configurations).run())
+            loop.run_until_complete(RecommenderTraining(account_id=payload_data.account_data.account_id, 
+                                    octy_job_id=payload_data.octy_job_id,
+                                    bucket=payload_data.account_data.bucket,
+                                    algorithm_configurations=payload_data.account_data.algorithm_configurations).run())
             
         elif routing_key == 'rec.training.complete.cmd.run':
-            loop.run_until_complete(RecommenderCompleteTrainingJob(account_id=job_data.account_data.account_id,
-                                    algorithm_configurations=job_data.rec_job_data.algorithm_configurations,
-                                    octy_job_id=job_data.octy_job_id,
-                                    hyperparam_tuning_job_id=job_data.rec_job_data.hyperparam_tuning_job_id,
-                                    bucket=job_data.rec_job_data.bucket,
-                                    webhook_url=job_data.account_data.webhook_url).run())
+            loop.run_until_complete(RecommenderCompleteTrainingJob(account_id=payload_data.account_data.account_id,
+                                    webhook_url=payload_data.account_data.webhook_url,
+                                    octy_job_id=payload_data.octy_job_id,
+                                    bucket=payload_data.account_data.bucket,
+                                    algorithm_configurations=payload_data.account_data.algorithm_configurations,
+                                    hyperparam_tuning_job_id=payload_data.job_data.hyperparam_tuning_job_id).run())
     except Exception as ex:
         logger.error(f'Error running recommender job: {ex}')
         # Requeue failed message

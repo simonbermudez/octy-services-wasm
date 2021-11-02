@@ -34,7 +34,7 @@ def handle_message(payload, main_loop) -> None:
 
     try:
         message_json = json.loads(payload.body.decode())
-        job_data = ProfileIdenJob(**message_json)
+        job_payload = ProfileIdenJob(**message_json)
     except Exception as ex:
         # if the message_payload is not valid JSON refuse message.
         logger.error(f'Refused message payload: {payload.body.decode()}. Exception : {ex}')
@@ -51,10 +51,10 @@ def handle_message(payload, main_loop) -> None:
 
     try:
         if routing_key == 'profile.identification.cmd.run':
-            loop.run_until_complete(ProfileIdentification(account_id=job_data.account_data.account_id, 
-                    webhook_url=job_data.account_data.webhook_url,
-                    authenticated_id_key=job_data.profile_iden_job_data.authenticated_id_key,
-                    octy_job_id=job_data.octy_job_id).run())
+            loop.run_until_complete(ProfileIdentification(account_id=job_payload.account_data.account_id, 
+                    webhook_url=job_payload.account_data.webhook_url,
+                    authenticated_id_key=job_payload.account_data.authenticated_id_key,
+                    octy_job_id=job_payload.octy_job_id).run())
     except Exception as ex:
         logger.error(f'Error running profile identification job: {ex}')
         # Requeue failed message

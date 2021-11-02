@@ -35,9 +35,9 @@ def handle_message(payload, main_loop) -> None:
     try:
         message_json = json.loads(payload.body.decode())
         if routing_key == 'churn.training.cmd.run':
-            job_data = ChurnTrainingJob(**message_json)
+            job_payload = ChurnTrainingJob(**message_json)
         elif routing_key == 'churn.training.complete.cmd.run':
-            job_data = ChurnCompleteJob(**message_json)
+            job_payload = ChurnCompleteJob(**message_json)
     except Exception as ex:
         # if the message_payload is not valid JSON refuse message.
         logger.error(f'Refused message payload: {payload.body.decode()}. Exception : {ex}')
@@ -54,19 +54,19 @@ def handle_message(payload, main_loop) -> None:
 
     try:
         if routing_key == 'churn.training.cmd.run':
-            loop.run_until_complete(ChurnPredictionTraining(account_id=job_data.account_data.account_id, 
-                                    octy_job_id=job_data.octy_job_id,
-                                    bucket=job_data.churn_job_data.bucket,
-                                    algorithm_configurations=job_data.churn_job_data.algorithm_configurations).run())
+            loop.run_until_complete(ChurnPredictionTraining(account_id=job_payload.account_data.account_id, 
+                                    octy_job_id=job_payload.octy_job_id,
+                                    bucket=job_payload.account_data.bucket,
+                                    algorithm_configurations=job_payload.account_data.algorithm_configurations).run())
         
         elif routing_key == 'churn.training.complete.cmd.run':
-            loop.run_until_complete(ChurnPredictionCompleteTrainingJob(account_id=job_data.account_data.account_id,
-                                    octy_job_id=job_data.octy_job_id,
-                                    bucket=job_data.churn_job_data.bucket,
-                                    hyperparam_tuning_job_id=job_data.churn_job_data.hyperparam_tuning_job_id,
-                                    previous_churn_percentage=job_data.churn_job_data.previous_churn_percentage,
-                                    algorithm_configurations=job_data.churn_job_data.algorithm_configurations,
-                                    webhook_url=job_data.account_data.webhook_url).run())
+            loop.run_until_complete(ChurnPredictionCompleteTrainingJob(account_id=job_payload.account_data.account_id,
+                                    octy_job_id=job_payload.octy_job_id,
+                                    bucket=job_payload.account_data.bucket,
+                                    algorithm_configurations=job_payload.account_data.algorithm_configurations,
+                                    webhook_url=job_payload.account_data.webhook_url,
+                                    hyperparam_tuning_job_id=job_payload.job_data.hyperparam_tuning_job_id,
+                                    previous_churn_percentage=job_payload.job_data.previous_churn_percentage).run())
     except Exception as ex:
         logger.error(f'Error running churn prediction job: {ex}')
         # Requeue failed message

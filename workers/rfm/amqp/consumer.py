@@ -35,9 +35,9 @@ def handle_message(payload, main_loop) -> None:
     try:
         message_json = json.loads(payload.body.decode())
         if routing_key == 'rfm.training.cmd.run':
-            job_data = RFMAnalysisJob(**message_json)
+            job_payload = RFMAnalysisJob(**message_json)
         elif routing_key == 'rfm.training.complete.cmd.run':
-            job_data = RFMCompleteJob(**message_json)
+            job_payload = RFMCompleteJob(**message_json)
     except Exception as ex:
         # if the message_payload is not valid JSON refuse message.
         logger.error(f'Refused message payload: {payload.body.decode()}. Exception : {ex}')
@@ -54,16 +54,16 @@ def handle_message(payload, main_loop) -> None:
 
     try:
         if routing_key == 'rfm.training.cmd.run':
-            loop.run_until_complete(RFMAnalysis(account_id=job_data.account_data.account_id, 
-                                    octy_job_id=job_data.octy_job_id,
-                                    bucket=job_data.rfm_job_data.bucket).run())
+            loop.run_until_complete(RFMAnalysis(account_id=job_payload.account_data.account_id, 
+                                    octy_job_id=job_payload.octy_job_id,
+                                    bucket=job_payload.account_data.bucket).run())
         
         elif routing_key == 'rfm.training.complete.cmd.run':
-            loop.run_until_complete(RFMCompleteAnalysis(account_id=job_data.account_data.account_id,
-                                    octy_job_id=job_data.octy_job_id,
-                                    bucket=job_data.rfm_job_data.bucket,
-                                    training_job_id=job_data.rfm_job_data.training_job_id,
-                                    webhook_url=job_data.account_data.webhook_url).run())
+            loop.run_until_complete(RFMCompleteAnalysis(account_id=job_payload.account_data.account_id,
+                                    octy_job_id=job_payload.octy_job_id,
+                                    bucket=job_payload.account_data.bucket,
+                                    training_job_id=job_payload.job_data.training_job_id,
+                                    webhook_url=job_payload.account_data.webhook_url).run())
     except Exception as ex:
         logger.error(f'Error running rfm job: {ex}')
         # Requeue failed message

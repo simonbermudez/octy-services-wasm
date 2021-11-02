@@ -437,8 +437,18 @@ class SegmentationService():
                 payload={
                     'account_id' : self.account.account_id,
                     'alt_dentifier' :seg['segment_id'],
-                    'job_type' : 'seg',
                     'job_meta' : {
+                        'job_type' : 'seg',
+                        'amqp_routing_key': 'past.segmentation.cmd.run',
+                        'required_permissions' : ['seg'],
+                        'required_configurations' :
+                            { 
+                                'account_attributes' : [
+                                    'account_configurations.webhook_url'
+                                ],
+                                'algorithm_configuration_idxs' : [
+                                ]
+                            },
                         'desired_runs' : 0,
                         'time_interval' : Config['PAST_SEGMENTATION_JOB_INTERVAL'],
                         'fail_threshold' : 0
