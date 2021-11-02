@@ -60,13 +60,13 @@ def handle_message(payload, main_loop) -> None:
                                 segment_id=payload_data.job_data.segment_data.segment_id).run())
 
         elif routing_key == 'live.segmentation.cmd.run':
-            if payload_data.segment_data.segmentation_type == 'live':
+            if payload_data.job_data.segment_data.segmentation_type == 'live':
                 loop.run_until_complete(LiveSegmentation(account_id=payload_data.account_data.account_id,
                                     webhook_url=payload_data.account_data.webhook_url, 
                                     octy_job_id=payload_data.octy_job_id,
                                     event_obj=payload_data.job_data.event_data).run())
 
-            elif payload_data.segment_data.segmentation_type == 'pending-live':
+            elif payload_data.job_data.segment_data.segmentation_type == 'pending-live':
                 loop.run_until_complete(PendingLiveSegmentation(account_id=payload_data.account_data.account_id, 
                                         webhook_url=payload_data.account_data.webhook_url, 
                                         octy_job_id=payload_data.octy_job_id,
