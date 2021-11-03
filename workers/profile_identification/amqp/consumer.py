@@ -54,7 +54,8 @@ def handle_message(payload, main_loop) -> None:
             loop.run_until_complete(ProfileIdentification(account_id=job_payload.account_data.account_id, 
                     webhook_url=job_payload.account_data.webhook_url,
                     authenticated_id_key=job_payload.account_data.authenticated_id_key,
-                    octy_job_id=job_payload.octy_job_id).run())
+                    octy_job_id=job_payload.octy_job_id,
+                    loop=main_loop).run())
     except Exception as ex:
         logger.error(f'Error running profile identification job: {ex}')
         # Requeue failed message

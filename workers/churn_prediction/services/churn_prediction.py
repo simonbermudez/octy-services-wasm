@@ -45,11 +45,12 @@ class ChainedAssignment:
 
 class ChurnPredictionTraining():
 
-    def __init__(self, account_id : str, octy_job_id : str, bucket : str, algorithm_configurations : dict):
+    def __init__(self, account_id : str, octy_job_id : str, bucket : str, algorithm_configurations : dict, loop : Any):
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.algorithm_configurations = algorithm_configurations
+        self.loop = loop
         self.logger = logging.getLogger('uvicorn')
         self.hyperparam_tuning_job_id = generate_uid('hp-t-job')
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
@@ -121,7 +122,7 @@ class ChurnPredictionTraining():
         })
 
         # create follow up octy job to update training job status
-        await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+        self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.create',
             payload={
                 'account_id' : self.account_id,
                 'job_meta' : {
@@ -146,7 +147,7 @@ class ChurnPredictionTraining():
                 'job_data' : {
                     'hyperparam_tuning_job_id' : self.hyperparam_tuning_job_id
                 }
-        })
+        }))
 
 
     # Data aggregation private methods
@@ -706,13 +707,15 @@ class ChurnPredictionCompleteTrainingJob():
                 hyperparam_tuning_job_id : str, 
                 previous_churn_percentage : int,
                 algorithm_configurations : dict, 
-                webhook_url : str):
+                webhook_url : str,
+                loop : Any):
 
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.algorithm_configurations = algorithm_configurations
         self.hyperparam_tuning_job_id = hyperparam_tuning_job_id
+        self.loop = loop
         self.best_training_job = None
         self.hp_tuning_job = None
         self.webhook_url = webhook_url
@@ -824,12 +827,12 @@ class ChurnPredictionCompleteTrainingJob():
                                                                 best_model_training_job_id='--',
                                                                 status='Failed')
             # Delete Octy job
-            await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
+            self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
                 payload={
                     "account_id" : self.account_id,
                     "octy_job_ids" : [self.octy_job_id],
                     "alt_identifiers" : None
-                })
+                }))
 
             await self._job_failed_webhook()
         except Exception as err:
@@ -891,7 +894,7 @@ class ChurnPredictionCompleteTrainingJob():
                 await self._destroy_job()
 
         # update account churn report information
-        await amqpPublisher.send_message(routing_key='churn.info.cmd.update',
+        self.loop.create_task(amqpPublisher.send_message(routing_key='churn.info.cmd.update',
             payload={
                 'account_id' : self.account_id,
                 'churn_info' : {
@@ -900,7 +903,7 @@ class ChurnPredictionCompleteTrainingJob():
                     'churn_difference' : churn_diff,
                     'features' : self.features
                 }  
-            })
+            }))
 
     async def _get_cached_dataset(self) -> None:
         self.logger.info('Loading cached dataset...')
@@ -1026,11 +1029,11 @@ class ChurnPredictionCompleteTrainingJob():
             amqp_batch_profiles.append(profile_updates)
 
         for profiles_updates in amqp_batch_profiles:
-            await amqpPublisher.send_message(routing_key='profiles.cmd.update',
+            self.loop.create_task(amqpPublisher.send_message(routing_key='profiles.cmd.update',
                 payload={
                     'account_id' : self.account_id,
                     'profiles' : profiles_updates  
-                })
+                }))
 
 
     async def run(self) :

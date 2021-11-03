@@ -29,10 +29,11 @@ from kneed import KneeLocator
 
 class RFMAnalysis():
 
-    def __init__(self, account_id : str, octy_job_id : str, bucket : str):
+    def __init__(self, account_id : str, octy_job_id : str, bucket : str, loop : Any):
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
+        self.loop = loop
         self.logger = logging.getLogger('uvicorn')
         self.training_job_id = generate_uid('training-job')
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
@@ -326,7 +327,7 @@ class RFMAnalysis():
         })
 
         # create follow up octy job to update training job status
-        await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+        self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.create',
             payload={
                 'account_id' : self.account_id,
                 'job_meta' : {
@@ -349,7 +350,7 @@ class RFMAnalysis():
                 'job_data' : {
                     'training_job_id' : self.training_job_id
                 }
-        })
+        }))
 
 
     async def run(self) -> None: 
@@ -380,12 +381,13 @@ class RFMAnalysis():
 
 class RFMCompleteAnalysis():
 
-    def __init__(self, account_id : str, octy_job_id : str, bucket : str, training_job_id : str, webhook_url : str):
+    def __init__(self, account_id : str, octy_job_id : str, bucket : str, training_job_id : str, webhook_url : str, loop : Any):
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.training_job_id = training_job_id
         self.webhook_url = webhook_url
+        self.loop = loop
         self.logger = logging.getLogger('uvicorn')
         self.rfm_scores_df = None
         self.amqp_message_size_limit = 104857600 #100 MB AMQP message limit
@@ -483,12 +485,12 @@ class RFMCompleteAnalysis():
                                                                 training_job_id=self.training_job_id,
                                                                 status='Failed')
             # Delete Octy job
-            await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
+            self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
                 payload={
                     "account_id" : self.account_id,
                     "octy_job_ids" : [self.octy_job_id],
                     "alt_identifiers" : None
-                })
+                }))
 
             await self._job_failed_webhook()
         except Exception as err:
@@ -536,11 +538,11 @@ class RFMCompleteAnalysis():
             amqp_batch_profiles.append(profile_updates)
 
         for profiles_updates in amqp_batch_profiles:
-            await amqpPublisher.send_message(routing_key='profiles.cmd.update',
+            self.loop.create_task(amqpPublisher.send_message(routing_key='profiles.cmd.update',
                 payload={
                     'account_id' : self.account_id,
                     'profiles' : profiles_updates  
-                })
+                }))
 
 
     async def run(self) :

@@ -25,11 +25,12 @@ import numpy as np
 
 class RecommenderTraining():
 
-    def __init__(self, account_id : str, octy_job_id : str, bucket : str, algorithm_configurations : dict):
+    def __init__(self, account_id : str, octy_job_id : str, bucket : str, algorithm_configurations : dict, loop : Any):
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.algorithm_configurations = algorithm_configurations
+        self.loop = loop
         self.logger = logging.getLogger('uvicorn')
         self.hyperparam_tuning_job_id = generate_uid('hp-t-job')
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
@@ -420,7 +421,7 @@ class RecommenderTraining():
 
         self.logger.info('Sending AMQP message to octy-job queue to create follow-up job!')
         # create follow up octy job to update training job status
-        await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+        self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.create',
             payload={
                 'account_id' : self.account_id,
                 'job_meta' : {
@@ -444,7 +445,7 @@ class RecommenderTraining():
                 'job_data' : {
                     'hyperparam_tuning_job_id' : self.hyperparam_tuning_job_id
                 }
-        })
+        }))
 
     async def run(self) -> None: 
         try:
@@ -480,13 +481,14 @@ class RecommenderTraining():
 
 class RecommenderCompleteTrainingJob():
 
-    def __init__(self, account_id : str, algorithm_configurations : dict, octy_job_id : str, hyperparam_tuning_job_id : str, bucket : str, webhook_url : str):
+    def __init__(self, account_id : str, algorithm_configurations : dict, octy_job_id : str, hyperparam_tuning_job_id : str, bucket : str, webhook_url : str, loop : Any):
         self.account_id = account_id
         self.algorithm_configurations = algorithm_configurations
         self.octy_job_id = octy_job_id
         self.hyperparam_tuning_job_id = hyperparam_tuning_job_id
         self.bucket = bucket
         self.webhook_url = webhook_url
+        self.loop = loop
         self.logger = logging.getLogger('uvicorn')
         self.status = 'InProgress'
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
@@ -610,12 +612,12 @@ class RecommenderCompleteTrainingJob():
                                                                 best_model_training_job_id='--',
                                                                 status='Failed')
             # Delete Octy job
-            await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
+            self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
                 payload={
                     "account_id" : self.account_id,
                     "octy_job_ids" : [self.octy_job_id],
                     "alt_identifiers" : None
-                })
+                }))
 
             await self._job_failed_webhook()
         except Exception as err:

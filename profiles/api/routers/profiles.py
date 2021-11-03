@@ -158,7 +158,7 @@ async def update_customer_profiles(request: Request, update_profiles : UpdatePro
 @limiter.limit("120/minute")
 async def delete_customer_profiles(request: Request,  delete_profiles : DeleteProfiles,
     current_account: Account = Depends(decode_account_jwt)):
-    delete_profiles, failed = await ProfilesService(current_account).delete_profiles(delete_profiles)
+    delete_profiles, failed = await ProfilesService(current_account).delete_profiles(profiles=delete_profiles)
     return DeleteProfilesDTO(delete_profiles, failed).dto()
 
 

@@ -57,7 +57,8 @@ def handle_message(payload, main_loop) -> None:
             loop.run_until_complete(RecommenderTraining(account_id=payload_data.account_data.account_id, 
                                     octy_job_id=payload_data.octy_job_id,
                                     bucket=payload_data.account_data.bucket,
-                                    algorithm_configurations=payload_data.account_data.algorithm_configurations).run())
+                                    algorithm_configurations=payload_data.account_data.algorithm_configurations,
+                                    loop=main_loop).run())
             
         elif routing_key == 'rec.training.complete.cmd.run':
             loop.run_until_complete(RecommenderCompleteTrainingJob(account_id=payload_data.account_data.account_id,
@@ -65,7 +66,8 @@ def handle_message(payload, main_loop) -> None:
                                     octy_job_id=payload_data.octy_job_id,
                                     bucket=payload_data.account_data.bucket,
                                     algorithm_configurations=payload_data.account_data.algorithm_configurations,
-                                    hyperparam_tuning_job_id=payload_data.job_data.hyperparam_tuning_job_id).run())
+                                    hyperparam_tuning_job_id=payload_data.job_data.hyperparam_tuning_job_id,
+                                    loop=main_loop).run())
     except Exception as ex:
         logger.error(f'Error running recommender job: {ex}')
         # Requeue failed message

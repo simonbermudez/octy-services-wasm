@@ -56,14 +56,16 @@ def handle_message(payload, main_loop) -> None:
         if routing_key == 'rfm.training.cmd.run':
             loop.run_until_complete(RFMAnalysis(account_id=job_payload.account_data.account_id, 
                                     octy_job_id=job_payload.octy_job_id,
-                                    bucket=job_payload.account_data.bucket).run())
+                                    bucket=job_payload.account_data.bucket,
+                                    loop=main_loop).run())
         
         elif routing_key == 'rfm.training.complete.cmd.run':
             loop.run_until_complete(RFMCompleteAnalysis(account_id=job_payload.account_data.account_id,
                                     octy_job_id=job_payload.octy_job_id,
                                     bucket=job_payload.account_data.bucket,
                                     training_job_id=job_payload.job_data.training_job_id,
-                                    webhook_url=job_payload.account_data.webhook_url).run())
+                                    webhook_url=job_payload.account_data.webhook_url,
+                                    loop=main_loop).run())
     except Exception as ex:
         logger.error(f'Error running rfm job: {ex}')
         # Requeue failed message
