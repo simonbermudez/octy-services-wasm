@@ -23,6 +23,10 @@ octy_job_queue = OctyJobQueue(logger, 2)
 
 @app.on_event("startup")
 async def startup():
+
+    # Connect to redis pool
+    await contextManager.db_redis_connect(logger=logger)
+    
     # Connect to mongoDB
     await contextManager.db_connect(logger=logger)
 

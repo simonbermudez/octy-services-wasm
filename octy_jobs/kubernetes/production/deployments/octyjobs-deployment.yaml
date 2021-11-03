@@ -25,7 +25,17 @@ spec:
       - name: octy-jobs-app
         image: benpayflic/octy-jobs-service:$COMMIT_SHA1
         imagePullPolicy: Always
+        command:
+          - "sh"
+          - "-c"
+          - |
+            echo "$POD_ID"
+            echo
+            grep ".*" /etc/podinfo/*
+            while :; do sleep 3600; done
         env:
+          - name: POD_ID
+            valueFrom: {fieldRef: {fieldPath: metadata.name}}
           - name: OCTY_JOB_CONFIG # name that can be refefenced in app
             valueFrom:
               configMapKeyRef:

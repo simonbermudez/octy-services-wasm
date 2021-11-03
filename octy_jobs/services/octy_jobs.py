@@ -2,14 +2,13 @@
 from .scheduler import RobustScheduler
 from data.repositories.implementation.octy_jobs_repository import octyJobsRepository
 from utils.utils import *
-from config import Config
 
 # python imports
 from typing import *
-import json
-from datetime import date
+from datetime import datetime as dt
 import asyncio
 from functools import reduce
+import os
 
 # external imports
 from octy_rabbitmq.amqp_publisher import amqpPublisher
@@ -105,8 +104,7 @@ class OctyJobQueue():
     async def start_job_queue(self) -> None:
         self.logger.info(f"Octy Job Queue >> Starting robust job queue")
         #Schedule queue process task
-        self.scheduler.every(self.queue_process_interval).minutes.do(self.process_octy_jobs)
-        #self.stop_run_continuously = run_continuously(self.scheduler)
+        self.scheduler.every(self.queue_process_interval).minutes.do(self._process_octy_jobs)
         loop = asyncio.get_event_loop()
         loop.create_task(self.run_continuously(self.scheduler))
         self.logger.info(f"Octy Job Queue >> Started robust job queue on app aynscio loop!")
@@ -123,11 +121,39 @@ class OctyJobQueue():
             return False
         else: return True
 
+    async def _reset_jobs(self, jobs : list) -> None:
+        octy_job_updates = list()
+        for job in jobs:
+            octy_job_updates.append(
+                {
+                    'account_id' : job['account_id'],
+                    'octy_job_id' : job['_id'],
+                    'suc_inc_by' : 0,
+                    'fail_inc_by' : 0,
+                    'status' : 'pending', # update back to pending for next tick to manage
+                    'action' : f'octy job queue --> Error occurred during processing :: job status hung as "processing" for more than 24 hours.'
+                }
+            )
+        await octyJobsRepository.update_octy_job(octy_job_updates)
+
     async def _filter_pending_exceeded_jobs(self, jobs :list) -> Union[list, list]:
-        p_js=[]
         pending_jobs = list(filter(lambda x : x['job_meta']['successful_runs'] < x['job_meta']['desired_runs'] and x['job_meta']['status'] == 'pending' , jobs))
         exceeded_jobs = list(filter(lambda x : x['job_meta']['successful_runs'] >= x['job_meta']['desired_runs'], jobs))
         failed_jobs = list(filter(lambda x : x['job_meta']['failed_runs'] > x['job_meta']['fail_threshold'], jobs))
+        processing_jobs = list(filter(lambda x : x['job_meta']['status'] == 'processing', jobs))
+
+        hung_jobs = list()
+        for pro_j in processing_jobs:
+            last_run_date = int_to_dt(pro_j['job_meta']['last_run']['$date'], as_str=False)
+            if (dt.now() - last_run_date).days >= 1:
+                # Jobs that have remained in a 'processing' state for more than 24 hours.
+                # This signals that the job has hung and will not be run again until 
+                # the job status is updated.
+                hung_jobs.append(pro_j)
+        if len(hung_jobs)>0:
+            await self._reset_jobs(hung_jobs)
+
+        p_js=list()
         for j in pending_jobs:
 
             try:
@@ -146,8 +172,8 @@ class OctyJobQueue():
                 #COMPARE MINUTES
                 if round((dt.now() - last_run).total_seconds() / 60) >= j['job_meta']['time_interval']:
                     p_js.append(j)
-
-        invalid_jobs = []
+        
+        invalid_jobs = list()
         invalid_jobs.extend(exceeded_jobs)
         invalid_jobs.extend(failed_jobs)
         return p_js, invalid_jobs
@@ -259,7 +285,7 @@ class OctyJobQueue():
                 account['algorithm_configurations'][req_algo_conf_idx]['config_json']
         return True, payload
 
-    async def process_octy_jobs(self):
+    async def _process_octy_jobs(self):
         try:
             if self.is_processing:
                 self.logger.warning(f"Octy Job Queue >> Not finished processing current batch of Octy jobs.. waiting till next tick")
@@ -288,6 +314,12 @@ class OctyJobQueue():
 
             octy_job_updates = list()
             for job in self.pending_jobs:
+
+                is_job_owner = await octyJobsRepository.claim_pending_job(account_id=job['account_id'], 
+                                                                         octy_job_id=job['_id'],
+                                                                         pod_id=os.environ.get('POD_ID'))
+                if not is_job_owner:
+                    continue
 
                 account = next((key for key in self.accounts if key['_id'] == job['account_id']), None)
                 if not account:
