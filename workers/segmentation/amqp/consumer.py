@@ -57,14 +57,16 @@ def handle_message(payload, main_loop) -> None:
             loop.run_until_complete(PastSegmentation(account_id=payload_data.account_data.account_id, 
                                 webhook_url=payload_data.account_data.webhook_url, 
                                 octy_job_id=payload_data.octy_job_id,
-                                segment_id=payload_data.job_data.segment_data.segment_id).run())
+                                segment_id=payload_data.job_data.segment_data.segment_id,
+                                loop=main_loop).run())
 
         elif routing_key == 'live.segmentation.cmd.run':
             if payload_data.job_data.segment_data.segmentation_type == 'live':
                 loop.run_until_complete(LiveSegmentation(account_id=payload_data.account_data.account_id,
                                     webhook_url=payload_data.account_data.webhook_url, 
                                     octy_job_id=payload_data.octy_job_id,
-                                    event_obj=payload_data.job_data.event_data).run())
+                                    event_obj=payload_data.job_data.event_data,
+                                    loop=main_loop).run())
 
             elif payload_data.job_data.segment_data.segmentation_type == 'pending-live':
                 loop.run_until_complete(PendingLiveSegmentation(account_id=payload_data.account_data.account_id, 
@@ -73,7 +75,8 @@ def handle_message(payload, main_loop) -> None:
                                         segment_id=payload_data.job_data.segment_data.segment_id,
                                         profile_id=payload_data.job_data.event_data.profile.profile_id,
                                         live_octy_job_id=payload_data.job_data.live_octy_job_id,
-                                        event_timeframe=payload_data.job_data.event_data.event_timeframe).run())
+                                        event_timeframe=payload_data.job_data.event_data.event_timeframe,
+                                        loop=main_loop).run())
     except Exception as ex:
         logger.error(f'Error running segmentation job: {ex}')
         # Requeue failed message

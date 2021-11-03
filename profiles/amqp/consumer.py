@@ -62,7 +62,7 @@ def handle_message(payload, main_loop) -> None:
         if routing_key == 'profiles.cmd.update':
             loop.run_until_complete(ProfilesService(account=None, account_id=profiles.account_id).update_profiles(profiles=profiles, internal=True))
         elif routing_key == 'profiles.cmd.delete':
-            loop.run_until_complete(ProfilesService(account=None, account_id=profiles.account_id).delete_profiles(profiles=profiles, identification_job=True))
+            loop.run_until_complete(ProfilesService(account=None, account_id=profiles.account_id).delete_profiles(profiles=profiles, identification_job=True, loop=main_loop))
         elif routing_key == 'segment.tags.cmd.update.delete':
             loop.run_until_complete(profilesRepository.update_delete_segment_tags(account_id=st.account_id, segment_ids=st.segment_ids, action=st.action))
         elif routing_key == 'grouped.segmentation.operations.cmd':

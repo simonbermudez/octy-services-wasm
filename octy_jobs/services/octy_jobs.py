@@ -319,6 +319,7 @@ class OctyJobQueue():
                                                                          octy_job_id=job['_id'],
                                                                          pod_id=os.environ.get('POD_ID'))
                 if not is_job_owner:
+                    self.logger.warning(f"Octy Job Queue >> pending job with ID: {job['_id']} is not owned by this pod. Skipping job.")
                     continue
 
                 account = next((key for key in self.accounts if key['_id'] == job['account_id']), None)

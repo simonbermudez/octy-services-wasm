@@ -260,7 +260,7 @@ class ProfilesService():
 
         return updated, failed
 
-    async def delete_profiles(self, profiles : DeleteProfiles, identification_job : bool = False) -> Union[list, list]:
+    async def delete_profiles(self, profiles : DeleteProfiles, identification_job : bool = False, loop : Any = None) -> Union[list, list]:
         """
         Parameters
         ----------
@@ -280,11 +280,11 @@ class ProfilesService():
                 "account_id" : self.account_id
             })
             if not identification_job:
-                await amqpPublisher.send_message(routing_key='events.cmd.delete',
+                loop.create_task(amqpPublisher.send_message(routing_key='events.cmd.delete',
                     payload={
                         'account_id' : self.account.account_id,
                         'profile_id' : p
-                    })
+                    }))
 
         deleted , failed = await profilesRepository.delete_profiles(profiles_batch)
 

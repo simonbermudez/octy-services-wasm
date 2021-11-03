@@ -33,11 +33,12 @@ class PastSegmentation():
         octy_job_id : str
         segment_id : str
     """
-    def __init__(self, account_id : str, webhook_url : str, octy_job_id : str, segment_id : str):
+    def __init__(self, account_id : str, webhook_url : str, octy_job_id : str, segment_id : str, loop : Any):
         self.account_id = account_id
         self.webhook_url = webhook_url
         self.octy_job_id = octy_job_id
         self.segment_id = segment_id
+        self.loop = loop
         self.gsdo = {"account_id": self.account_id, "operations" :[]} # Grouped Segmentation Database Operations
         self.gsdo_size_limit = 104857600 #100 MB AMQP message limit
         self.logger = logging.getLogger('uvicorn')
@@ -54,8 +55,8 @@ class PastSegmentation():
     async def _process_gsdo(self): 
         # Process all grouped messages
         if len(self.gsdo['operations']) > 0:
-            await amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
-                payload=self.gsdo)
+            self.loop.create_task(amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
+                payload=self.gsdo))
             # flush grouped messages
             self.gsdo = {"account_id": self.account_id, "operations" :[]}
 
@@ -399,11 +400,12 @@ class LiveSegmentation():
         octy_job_id : str
         event_obj : object
     """
-    def __init__(self, account_id : str, webhook_url : str, octy_job_id : str, event_obj : object):
+    def __init__(self, account_id : str, webhook_url : str, octy_job_id : str, event_obj : object, loop : Any):
         self.account_id = account_id
         self.webhook_url = webhook_url
         self.octy_job_id = octy_job_id
         self.event = event_obj.dict() # parse event object to dict
+        self.loop = loop
         self.gsdo = {"account_id": self.account_id, "operations" :[]} # Grouped Segmentation Database Operations
         self.gsdo_size_limit = 104857600 #100 MB AMQP message limit
         self.logger = logging.getLogger('uvicorn')
@@ -421,8 +423,8 @@ class LiveSegmentation():
     async def _process_gsdo(self): 
         # Process all grouped messages
         if len(self.gsdo['operations']) > 0:
-            await amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
-                payload=self.gsdo)
+            self.loop.create_task(amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
+                payload=self.gsdo))
             # flush grouped messages
             self.gsdo = {"account_id": self.account_id, "operations" :[]}
 
@@ -625,7 +627,7 @@ class LiveSegmentation():
 
     async def _create_live_validation_octy_job(self, segment_event : dict, segment_id : str) -> None:
         time_interval = segment_event['exp_timeframe']+self.live_validation_octy_job_time_buffer
-        await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+        self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.create',
             payload={
                 'account_id' : self.account_id,
                 'job_meta' : {
@@ -656,7 +658,7 @@ class LiveSegmentation():
                         'validation_job' : True,
                         'live_octy_job_id' : self.octy_job_id
                 }
-        })
+        }))
         self.logger.info(f"Creating new octy-job for this profile and segment with a time interval of {str(time_interval)} minutes")
 
     async def _get_profile(self):
@@ -873,7 +875,7 @@ class PendingLiveSegmentation():
         event_timeframe : int 
     """
 
-    def __init__(self, account_id : str, webhook_url : str, segment_id : str, profile_id : str, octy_job_id : str, live_octy_job_id : str, event_timeframe : int):
+    def __init__(self, account_id : str, webhook_url : str, segment_id : str, profile_id : str, octy_job_id : str, live_octy_job_id : str, event_timeframe : int, loop : Any):
         self.account_id = account_id
         self.webhook_url = webhook_url
         self.segment_id = segment_id
@@ -881,6 +883,7 @@ class PendingLiveSegmentation():
         self.octy_job_id = octy_job_id
         self.live_octy_job_id  = live_octy_job_id
         self.event_timeframe = event_timeframe + 1
+        self.loop = loop
         self.gsdo = {"account_id": self.account_id, "operations" :[]} # Grouped Segmentation Database Operations
         self.gsdo_size_limit = 104857600 #100 MB AMQP message limit
         self.logger = logging.getLogger('uvicorn')
@@ -898,8 +901,8 @@ class PendingLiveSegmentation():
     async def _process_gsdo(self): 
         # Process all grouped messages
         if len(self.gsdo['operations']) > 0:
-            await amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
-                payload=self.gsdo)
+            self.loop.create_task(amqpPublisher.send_message(routing_key='grouped.segmentation.operations.cmd',
+                payload=self.gsdo))
             # flush grouped messages
             self.gsdo = {"account_id": self.account_id, "operations" :[]}
 
@@ -1143,12 +1146,12 @@ class PendingLiveSegmentation():
         return meets_criteria
 
     async def _delete_octy_jobs(self) -> None:
-        await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
+        self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
             payload={
                 "account_id" : self.account_id,
                 "octy_job_ids" : [self.octy_job_id, self.live_octy_job_id],
                 "alt_identifiers" : None
-            })
+            }))
 
     async def run(self) -> None:
         try:

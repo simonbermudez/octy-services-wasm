@@ -27,11 +27,12 @@ class ProfileIdentification():
         - Identifying & Merging authenticated and anonymous profiles (profiles creating during unauthenticated sessions).
         ...
     """
-    def __init__(self, account_id : str, webhook_url : str, authenticated_id_key : str,  octy_job_id : str): 
+    def __init__(self, account_id : str, webhook_url : str, authenticated_id_key : str,  octy_job_id : str, loop : Any): 
         self.account_id = account_id
         self.webhook_url = webhook_url
         self.authenticated_id_key = authenticated_id_key
         self.octy_job_id = octy_job_id
+        self.loop = loop
         self.logger = logging.getLogger('uvicorn')
         self.profiles = list()
         self.profiles_df = None
@@ -96,12 +97,12 @@ class ProfileIdentification():
 
         for mes in self.amqp_messages:
             if sys.getsizeof(mes['messages']) < self.amqp_message_size_limit:
-                await amqpPublisher.send_message(routing_key=mes['routing_key'],
-                    payload={'account_id' : self.account_id, mes['key'] : mes['messages']})
+                self.loop.create_task(amqpPublisher.send_message(routing_key=mes['routing_key'],
+                    payload={'account_id' : self.account_id, mes['key'] : mes['messages']}))
             else:
                 for chunk in list(chunks(mes['messages'], round(sys.getsizeof(mes['messages']) / self.amqp_message_size_limit))):
-                    await amqpPublisher.send_message(routing_key=mes['routing_key'],
-                        payload={'account_id' : self.account_id, mes['key'] : chunk})
+                    self.loop.create_task(amqpPublisher.send_message(routing_key=mes['routing_key'],
+                        payload={'account_id' : self.account_id, mes['key'] : chunk}))
 
     async def _send_http_request(self, url : str, payload : dict) -> None:
         session = requests_retry_session()

@@ -57,7 +57,8 @@ def handle_message(payload, main_loop) -> None:
             loop.run_until_complete(ChurnPredictionTraining(account_id=job_payload.account_data.account_id, 
                                     octy_job_id=job_payload.octy_job_id,
                                     bucket=job_payload.account_data.bucket,
-                                    algorithm_configurations=job_payload.account_data.algorithm_configurations).run())
+                                    algorithm_configurations=job_payload.account_data.algorithm_configurations,
+                                    loop=main_loop).run())
         
         elif routing_key == 'churn.training.complete.cmd.run':
             loop.run_until_complete(ChurnPredictionCompleteTrainingJob(account_id=job_payload.account_data.account_id,
@@ -66,7 +67,8 @@ def handle_message(payload, main_loop) -> None:
                                     algorithm_configurations=job_payload.account_data.algorithm_configurations,
                                     webhook_url=job_payload.account_data.webhook_url,
                                     hyperparam_tuning_job_id=job_payload.job_data.hyperparam_tuning_job_id,
-                                    previous_churn_percentage=job_payload.job_data.previous_churn_percentage).run())
+                                    previous_churn_percentage=job_payload.job_data.previous_churn_percentage,
+                                    loop=main_loop).run())
     except Exception as ex:
         logger.error(f'Error running churn prediction job: {ex}')
         # Requeue failed message
