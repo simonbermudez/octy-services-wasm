@@ -3,6 +3,7 @@ from data.repositories.Iocty_jobs_repository import OctyJobsInterface
 from utils.utils import *
 from api.routers.error_handlers import *
 from data.models.db_schemas import tbl_octy_jobs, JobMeta, RequiredConfigs
+import data.context.db_context as ctx
 
 # python imports
 from typing import *
@@ -45,29 +46,46 @@ class _OctyJobsRepository(OctyJobsInterface):
         ----------
         None
         """
-        #TODO: Do not create duplicate Job unless current matching job has exceeded desited run or failed limits etc.
-        required_configurations = RequiredConfigs(
-            account_attributes=octy_job['job_meta']['required_configurations'].account_attributes,
-            algorithm_configuration_idxs=octy_job['job_meta']['required_configurations'].algorithm_configuration_idxs
-        )
-        job_meta = JobMeta(
-            job_type=octy_job['job_meta']['job_type'],
-            amqp_routing_key=octy_job['job_meta']['amqp_routing_key'],
-            required_permissions=octy_job['job_meta']['required_permissions'],
-            required_configurations=required_configurations,
-            desired_runs=octy_job['job_meta']['desired_runs'],
-            time_interval=octy_job['job_meta']['time_interval'],
-            fail_threshold=octy_job['job_meta']['fail_threshold']
-        )
-        
-        db_job = tbl_octy_jobs(
-            octy_job_id=octy_job['octy_job_id'],
-            account_id=account_id,
-            alt_dentifier=octy_job['alt_dentifier'],
-            job_meta=job_meta,
-            job_data=octy_job['job_data']
-        )
-        db_job.save()
+        existing_jobs =  tbl_octy_jobs._get_collection().find({
+            '$and' : [
+                {"account_id" : { "$eq" : account_id}},
+                {"job_meta.job_type" : {"$eq" : octy_job['job_meta']['job_type']}},
+                {"job_meta.amqp_routing_key" : {"$eq" : octy_job['job_meta']['amqp_routing_key']}},
+                {"job_data" : {"$eq" : octy_job['job_data']}}
+            ]
+        })
+
+        create_job_ref = True
+        if existing_jobs.count()>0:
+            create_job_ref = False
+            if existing_jobs[0]['job_meta']['successful_runs'] >= existing_jobs[0]['job_meta']['desired_runs'] or \
+                existing_jobs[0]['job_meta']['failed_runs'] >= existing_jobs[0]['job_meta']['fail_threshold']:
+                # Allow a tempory duplicate if we know the next job tick will handle the deletion of the stale job instance.
+                create_job_ref = True
+
+        if create_job_ref:
+            required_configurations = RequiredConfigs(
+                account_attributes=octy_job['job_meta']['required_configurations'].account_attributes,
+                algorithm_configuration_idxs=octy_job['job_meta']['required_configurations'].algorithm_configuration_idxs
+            )
+            job_meta = JobMeta(
+                job_type=octy_job['job_meta']['job_type'],
+                amqp_routing_key=octy_job['job_meta']['amqp_routing_key'],
+                required_permissions=octy_job['job_meta']['required_permissions'],
+                required_configurations=required_configurations,
+                desired_runs=octy_job['job_meta']['desired_runs'],
+                time_interval=octy_job['job_meta']['time_interval'],
+                fail_threshold=octy_job['job_meta']['fail_threshold']
+            )
+            
+            db_job = tbl_octy_jobs(
+                octy_job_id=octy_job['octy_job_id'],
+                account_id=account_id,
+                alt_dentifier=octy_job['alt_dentifier'],
+                job_meta=job_meta,
+                job_data=octy_job['job_data']
+            )
+            db_job.save()
     
     async def update_octy_job(self, octy_job_updates : list) -> None:
         """
@@ -217,4 +235,51 @@ class _OctyJobsRepository(OctyJobsInterface):
 
         return accounts
 
+    async def claim_pending_job(self, account_id : str, octy_job_id : str, pod_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+        octy_job_id : str
+            Octy Job id
+        pod_id : str
+            K8 pod identifier running this instance
+
+        Returns
+        ----------
+        is_owner : bool
+        """
+        '''
+        FLOW 1:
+            - OctyJobPod1 picks up pending job and claims it. (deleted after 24 hours)
+            - OctyJobPod1 processes job.
+            - OctyJobPod2 picks up pending job, attmepts to claim it and gets rejected. 
+            - OctyJobPod2 skips job, does not report as failed.
+        
+        FLOW 2: 
+            - OctyJobPod1 owns job and a failed response was returned from worker.
+            - Next tick, OctyJobPod1 picks up pending job, attmepts to claim it and gets accepted as OctyJobPod1 pod ID matches 
+            - OctyJobPod1 processes job.
+        
+        '''
+        name = f'account.id:{account_id}:octy.job:{octy_job_id}'
+        res = ctx.redis_conn.\
+            set(name=name, 
+                value=pod_id, 
+                nx=True, 
+                ex=86400) # expire after 24 hours
+        if not res:
+            # This means this job exists and is owned by A pod.
+            # Determine if its THIS pod that owns it.
+            job_pod_id = ctx.redis_conn.get(name=name)
+            if job_pod_id.decode() == pod_id:
+                return True
+            else:
+                return False
+        else:
+            return True
+        
+
+        
 octyJobsRepository = _OctyJobsRepository()

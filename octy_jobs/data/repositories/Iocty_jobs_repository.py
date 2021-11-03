@@ -71,3 +71,18 @@ class OctyJobsInterface(ABC):
         :rtype: list
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def claim_pending_job(self, account_id : str, octy_job_id : str, pod_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+        octy_job_id : str
+        pod_id : str
+
+        Returns
+        ----------
+        :rtype: bool
+        """
+        raise NotImplementedError
