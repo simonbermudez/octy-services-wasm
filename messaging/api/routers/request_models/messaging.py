@@ -72,7 +72,7 @@ class CreateTemplates(BaseModel):
     @validator('templates')
     def length(cls, v):
         if len(v) > Config['MAX_CREATE_TEMPLATES']:
-            raise ValueError('You can only create up to 100 templates per request.')
+            raise ValueError(f'You can only create up to {Config["MAX_CREATE_TEMPLATES"]} templates per request.')
         return v
     @validator('templates')
     def content_validation(cls, v):
@@ -97,7 +97,7 @@ class UpdateTemplates(BaseModel):
     @validator('templates')
     def length(cls, v):
         if len(v) > Config['MAX_UPDATE_DELETE_TEMPLATES']:
-            raise ValueError('You can only update up to 100 templates per request.')
+            raise ValueError(f'You can only update up to {Config["MAX_UPDATE_DELETE_TEMPLATES"]} templates per request.')
         return v
     @validator('templates')
     def content_validation(cls, v):
@@ -109,7 +109,7 @@ class DeleteTemplates(BaseModel):
     @validator('template_ids')
     def length(cls, v):
         if len(v) > Config['MAX_UPDATE_DELETE_TEMPLATES']:
-            raise ValueError('You can only delete up to 100 templates per request.')
+            raise ValueError(f'You can only delete up to {Config["MAX_UPDATE_DELETE_TEMPLATES"]} templates per request.')
         return v
 
 ### Generate content Input Schema

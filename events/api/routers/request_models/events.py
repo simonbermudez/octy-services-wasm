@@ -9,7 +9,7 @@ class CreateEvent(BaseModel):
     event_type : str
     event_properties : dict
     profile_id : str
-    created_at : Optional[str] # only acknoloedged if batch create
+    created_at : Optional[str] # only acknowledged if batch create
 
 ### Delete event types Input Schema
 class BatchCreateEvents(BaseModel):
@@ -17,7 +17,7 @@ class BatchCreateEvents(BaseModel):
     @validator('events')
     def length(cls, v):
         if len(v) > Config['MAX_CREATE_EVENTS']:
-            raise ValueError('You can only create up to 100 events per request.')
+            raise ValueError(f'You can only create up to {Config["MAX_CREATE_EVENTS"]} events per request.')
         return v
 
 

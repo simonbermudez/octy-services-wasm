@@ -20,7 +20,7 @@ class CreateItems(BaseModel):
     @validator('items')
     def length(cls, v):
         if len(v) > Config['MAX_CREATE_ITEMS']:
-            raise ValueError('You can only create up to 100 items per request. For larger uploads, please use the octy cli.')
+            raise ValueError(f'You can only create up to {Config["MAX_CREATE_ITEMS"]} items per request. For larger uploads, please use the octy cli.')
         return v
     
 
@@ -48,7 +48,7 @@ class UpdateItems(BaseModel):
     @validator('items')
     def length(cls, v):
         if len(v) > Config['MAX_UPDATE_DELETE_ITEMS']:
-            raise ValueError('You can only update up to 100 items per request.')
+            raise ValueError(f'You can only update up to {Config["MAX_UPDATE_DELETE_ITEMS"]} items per request.')
         return v
 
 ### Delete items Input Schema
@@ -57,5 +57,5 @@ class DeleteItems(BaseModel):
     @validator('items')
     def length(cls, v):
         if len(v) > Config['MAX_UPDATE_DELETE_ITEMS']:
-            raise ValueError('You can only delete up to 100 items per request.')
+            raise ValueError(f'You can only delete up to {Config["MAX_UPDATE_DELETE_ITEMS"]} items per request.')
         return v

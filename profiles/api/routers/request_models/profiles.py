@@ -31,7 +31,7 @@ class CreateProfiles(BaseModel):
     @validator('profiles')
     def length(cls, v):
         if len(v) > Config["MAX_CREATE_PROFILES"]:
-            raise ValueError('You can only create up to 100 profiles per request. For larger uploads, please use the octy cli.')
+            raise ValueError(f'You can only create up to {Config["MAX_CREATE_PROFILES"]} profiles per request. For larger uploads, please use the octy cli.')
         return v
 
 ### Update customer profiles Input Schema
@@ -70,7 +70,7 @@ class UpdateProfiles(BaseModel):
     @validator('profiles')
     def length(cls, v):
         if len(v) > Config["MAX_UPDATE_DELETE_PROFILES"]:
-            raise ValueError('You can only update up to 100 profiles per request.')
+            raise ValueError(f'You can only update up to {Config["MAX_UPDATE_DELETE_PROFILES"]} profiles per request.')
         return v
 
 
@@ -80,7 +80,7 @@ class DeleteProfiles(BaseModel):
     @validator('profiles')
     def length(cls, v):
         if len(v) > Config["MAX_UPDATE_DELETE_PROFILES"]:
-            raise ValueError('You can only delete up to 100 profiles per request.')
+            raise ValueError(f'You can only delete up to {Config["MAX_UPDATE_DELETE_PROFILES"]} profiles per request.')
         return v
 
 ### Get customer profiles Internal Input Schema
