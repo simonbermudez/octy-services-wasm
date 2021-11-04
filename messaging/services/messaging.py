@@ -276,6 +276,12 @@ class MessagingService():
 
 
                     #iterate over each message data object -- (each requested message)
+                    if len(message.data)<1 and len(template['required_data'])<1:
+                        created_messages.append({'template_id' : message.template_id, 'friendly_name' : template['friendly_name'],'title' : template['title'] ,'content' : template['content']})
+                        continue
+                    elif len(message.data)<1 and len(template['required_data'])>0:
+                        failed_messages.append({'template_id': message.template_id, 'reason' : 'Missing required data for this message.'})
+                        continue
                     for d in message.data:
                         values_dict = {} #init values dict
                         message_failed=False
