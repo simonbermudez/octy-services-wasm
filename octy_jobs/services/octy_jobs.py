@@ -60,7 +60,7 @@ class OctyJobQueueService():
         pass
 
     async def status_callback(self, octy_job : dict) -> None:
-        octyJobsRepository.update_octy_job([
+        await octyJobsRepository.update_octy_job([
             {
                 'account_id' : self.account_id,
                 'octy_job_id' : octy_job['octy_job_id'],
