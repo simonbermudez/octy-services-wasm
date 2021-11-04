@@ -47,26 +47,29 @@ class _EventTypesRepository(EventTypesInterface):
         """
         return tbl_custom_event_types.objects(account_id__exact=account_id).count()
 
-    def get_event_type_by_id(self, account_id : str, event_type_id : str) -> dict:
+    def get_event_type_by_ids(self, account_id : str, event_type_ids : list) -> list:
         """
         Parameters
         ----------
         account_id : str
             Octy account id
-        event_type_id : str
-            The event_type_id of the event type that should be returned.
+        event_type_ids : list
+            list of event_type_id(s)
 
         Returns
         ----------
-        result : dict
+        event types : list
         """
-        event_types = tbl_custom_event_types.objects((Q(event_type_id__exact=event_type_id) & Q(account_id__exact=account_id)))
+        event_types_dicts = []
+        event_types = tbl_custom_event_types.objects((Q(event_type_id__in=event_type_ids) & Q(account_id__exact=account_id)))
         if event_types:
-            event_type_dict = json.loads(event_types.to_json())
-            event_type_dict[0]['event_type_id'] = event_type_dict[0]['_id']
-            event_type_dict= _format_event_type(event_type_dict[0])
-            return event_type_dict
-        return None
+            event_types_dicts = json.loads(event_types.to_json())
+        
+        for event_type in event_types_dicts:
+            event_type['event_type_id'] = event_type['_id']
+            _format_event_type(event_type)
+
+        return event_types_dicts
     
     def get_event_type_by_name(self, account_id : str, event_type : str) -> dict:
         """

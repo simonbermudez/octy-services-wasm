@@ -9,6 +9,7 @@ from services.event_types import EventTypesService
 
 #python imports
 from typing import Optional
+import re
 
 #external imports
 from fastapi import APIRouter, Request, Depends
@@ -27,9 +28,9 @@ limiter = Limiter(key_func=get_remote_address)
 ######################################
 
 ######################################
-# Route : /v1/retention/events/types
+# Route : /v1/retention/events/types?ids=<event_type_id(s)>,... (optional - max 100)
 # Request type : GET
-# Required parameters : ?id (optional)
+# Required parameters : ?ids (optional)
 # Description : Access all custom event types associated with account.
 # Returns : event types
 # Limits : 120 Requests per minute
@@ -39,18 +40,28 @@ limiter = Limiter(key_func=get_remote_address)
 @router.get('/v1/retention/events/types')
 @limiter.limit("120/minute")
 async def get_custom_event_types(request: Request,
-    id : Optional[str] = None,
+    ids : Optional[str] = None,
     current_account: Account = Depends(decode_account_jwt)):
 
+    identifiers=None
     cursor = 0
-    if id == None:
+
+    if ids == None:
         # Validate pagination headers set
-        cursor, pag_message = await validate_pagination_request(request,id)
+        cursor, pag_message = await validate_pagination_request(request,ids)
         if cursor == None:
             raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
+    else:
+        ids = re.sub(r'(\s|\u180B|\u200B|\u200C|\u200D|\u2060|\uFEFF)+', '',ids)
+        identifiers = ids.split(",")
+        identifiers = list(dict.fromkeys(filter(None, identifiers)))
 
-    event_types, total = EventTypesService(current_account).get_event_types(id_=id, cursor=cursor)
+        if len(identifiers) > Config['MAX_GET_EVENT_TYPES']:
+            raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_GET_EVENT_TYPES"]} identifiers can be provided with the "?ids=" query param per request', 
+                'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
+
+    event_types, total = EventTypesService(current_account).get_event_types(event_type_ids=identifiers, cursor=cursor)
 
 
     return GetEventTypesDTO(event_types,total, cursor).dto()

@@ -32,13 +32,13 @@ class MessagingService():
         self.account = account
 
     async def get_templates(self,
-                    id_ : str = None, 
-                    cursor : int = None) -> Union[dict, int]: 
+                    identifiers : list = None, 
+                    cursor : int = None) -> Union[list, int]: 
         """
         Parameters
         ----------
-        id_ : str
-            template_id or friendly_name
+        identifiers : list
+            list of template_id(s) or friendly_name(s)
         cursor : int
             Pagination cursor
 
@@ -48,17 +48,17 @@ class MessagingService():
         total : int
         """
 
-        if id_ != None and cursor == 0:
-            template = await templatesRepository.get_templates(account_id=self.account.account_id, _id=id_)
-            if not template[0]:
-                raise OctyException(400, 'Invalid template identifier provided', 
-                [{'message' : 'No templates were found with the provided identifier', 
+        if identifiers != None and cursor == 0:
+            templates, total = await templatesRepository.get_templates(account_id=self.account.account_id, identifiers=identifiers)
+            if total<1:
+                raise OctyException(400, 'Invalid template identifier(s) provided', 
+                [{'message' : 'No templates were found with the provided identifier(s)', 
                 'extended_help': Config['MESSAGING_EXTENDED_HELP']}])
             
-            return template[0], 1
+            return templates, total
             
 
-        elif id_ == None and cursor != None:
+        elif identifiers == None and cursor != None:
             
             templates, total = await templatesRepository.get_templates(account_id=self.account.account_id, cursor=cursor)
             if len(templates)<1:

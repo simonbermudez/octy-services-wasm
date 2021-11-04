@@ -38,7 +38,7 @@ class ProfilesService():
                     segments : list, 
                     rfm_values : list, 
                     churn_prob : str, 
-                    id_ : str = None, 
+                    identifiers : list = None, 
                     cursor : int = None) -> Union[dict, int]: 
         """
         A method used to filter and return a list of profiles based on the 
@@ -53,8 +53,8 @@ class ProfilesService():
             of the desired FRM range to filter profiles by
         churn_prob : str
             label representing the desired churn probability to filter profiles by
-        id_ : str
-            profile_id or customer_id
+        identifiers : list
+            list of profile_id(s) or customer_id(s)
         cursor : int
             Pagination cursor
 
@@ -64,17 +64,22 @@ class ProfilesService():
         total : int
         """
 
-        if id_ != None and cursor == 0:
-            profile = profilesRepository.get_profile_by_id(account_id=self.account.account_id, identifier=id_)
-            if not profile:
-                raise OctyException(400, 'Invalid customer identifier provided', 
-                [{'message' : 'No customer profiles were found with the provided identifier', 
+        if identifiers != None and cursor == 0:
+            
+            profiles, _ = profilesRepository.get_profiles_by_identifiers(account_id=self.account_id, 
+                identifiers=identifiers, 
+                tag_statuses=['active'], 
+                ids=False, 
+                internal=False)
+            count = len(profiles)
+            if count<1:
+                raise OctyException(400, 'Invalid customer identifier(s) provided', 
+                [{'message' : 'No customer profiles were found with the provided identifier(s)', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
-            
-            return [profile], 1
-            
 
-        elif id_ == None and cursor != None:
+            return profiles, count
+            
+        elif identifiers == None and cursor != None:
             
             profiles,total = profilesRepository.get_profiles_by_params(account_id=self.account.account_id, 
                                                 cursor=cursor,

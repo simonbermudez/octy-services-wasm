@@ -48,28 +48,49 @@ class _SegmentationRepository(SegmentationInterface):
         """
         return tbl_segments.objects(account_id__exact=account_id).count()
 
-    def get_segment_by_id_name(self, segment_id_name, account_id) -> dict:
+    def get_segment_by_identifiers(self, identifiers : list, account_id : str) -> Union[list, int]:
         """
         Parameters
         ----------
-        segment_id : str
-            Segment identifier
+        identifiers : list
+            Segment identifier(s)
         account_id : str
             Octy account id
 
         Returns
         ----------
-        segment_dict : dict
+        segments : list
+        total : int
         """
-        segments = tbl_segments.objects( (Q(segment_name__exact=segment_id_name) & Q(account_id__exact=account_id) & Q(status__exact='active')) \
-            | (Q(segment_id__exact=segment_id_name) & Q(account_id__exact=account_id) & Q(status__exact='active')))
+        query = [
+            {"account_id" : { "$eq" : account_id}},
+            {"status" : { "$eq" : "active"}}
+        ]
 
-        if segments:
-            segment_dict = json.loads(segments.to_json())
-            segment_dict[0]['segment_id'] = segment_dict[0]['_id']
-            segment_dict = _format_segment(segment_dict[0])
-            return segment_dict
-        return None
+        if identifiers != None:
+            cursor = 0
+            query.append(
+
+                {
+                    "$or" : [
+                        {"_id" : { "$in" : identifiers}},
+                        {"segment_name" : { "$in" : identifiers}}
+                    ]
+                    
+                }
+            
+            )
+
+        results_cursor = tbl_segments._get_collection().find({'$and' : query}).skip(cursor).limit(100)
+        total = tbl_segments._get_collection().find({'$and' : query}).count()
+        raw_res = json.loads(dumps(list(results_cursor), indent = 2))
+        
+        #format segments
+        for segment in raw_res:
+            segment['template_id'] = segment['_id']
+            _format_segment(segment)
+
+        return raw_res, total
 
     def get_segment_by_attr(self, account_id : str, segment : dict) -> dict:
         """

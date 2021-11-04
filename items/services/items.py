@@ -32,13 +32,13 @@ class ItemsService():
         self.account = account
 
     def get_items(self,
-                  id_ : str = None, 
+                  item_ids : list = None, 
                   cursor : int = None) -> Union[dict, int]:
         """
         Parameters
         ----------
-        id_ : str
-            item_id
+        item_ids : list
+            list of item_ids
         cursor : int
             Pagination cursor
 
@@ -47,17 +47,18 @@ class ItemsService():
         items : dict
         total : int
         """
-        if id_ != None and cursor == 0:
-            item = itemsRepository.get_item_by_id(item_id=id_,account_id=self.account.account_id)
-            if not item:
-                raise OctyException(400, 'Invalid item identifier provided', 
-                [{'message' : 'No items were found with the provided identifier', 
+        if item_ids != None and cursor == 0:
+            items = itemsRepository.get_item_by_ids(item_ids=item_ids,account_id=self.account.account_id)
+            count = len(items)
+            if count<1:
+                raise OctyException(400, 'Invalid item identifier(s) provided', 
+                [{'message' : 'No items were found with the provided identifier(s)', 
                 'extended_help': Config['ITEMS_EXTENDED_HELP']}])
             
-            return [item], 1
+            return items, count
             
 
-        elif id_ == None and cursor != None:
+        elif item_ids == None and cursor != None:
             
             items,total = itemsRepository.get_items(account_id=self.account.account_id, 
                                                 cursor=cursor)

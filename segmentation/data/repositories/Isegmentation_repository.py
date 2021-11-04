@@ -19,18 +19,18 @@ class SegmentationInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_segment_by_id_name(self, segment_id_name : str, account_id : str):
+    def get_segment_by_identifiers(self, identifiers : list, account_id : str):
         """
         Parameters
         ----------
-        segment_id_name : str
-            Segment identifier
+        identifiers : list
+            Segment identifier(s)
         account_id : str
             Octy account id
 
         Returns
         ----------
-        :rtype: dict
+        :rtype: list, int
         """
         raise NotImplementedError
         
