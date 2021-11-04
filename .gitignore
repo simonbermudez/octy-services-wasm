@@ -26,3 +26,4 @@ start.sh
 workers/churn_prediction/.vscode/
 workers/recommendation/.vscode/
 *launch.json
+workers/rfm/.vscode/

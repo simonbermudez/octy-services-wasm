@@ -13,7 +13,7 @@ class CreateEventTypes(BaseModel):
     @validator('event_types')
     def length(cls, v):
         if len(v) > Config['MAX_CREATE_EVENT_TYPES']:
-            raise ValueError('You can only create up to 100 custom event types per request.')
+            raise ValueError(f'You can only create up to {Config["MAX_CREATE_EVENT_TYPES"]} custom event types per request.')
         return v
 
 
@@ -23,7 +23,7 @@ class DeleteEventTypes(BaseModel):
     @validator('event_type_ids')
     def length(cls, v):
         if len(v) > Config['MAX_DELETE_EVENT_TYPES']:
-            raise ValueError('You can only delete up to 100 custom event types per request.')
+            raise ValueError(f'You can only delete up to {Config["MAX_DELETE_EVENT_TYPES"]} custom event types per request.')
         return v
 
 ### Get event types internal Input Schema
