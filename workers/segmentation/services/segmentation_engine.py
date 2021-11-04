@@ -220,7 +220,7 @@ class PastSegmentation():
         profile_ids= list(set(profile_ids))
         profiles = await segmentationRepository.get_profiles_by_id(self.account_id, profile_ids)
         if len(profiles)<1:
-            raise Exception(f'No profiles associated with this account. Account ID : {self.account_id}')
+            raise Exception(f'No profiles associated with this account, or existing profiles have conducted no event instances. Account ID : {self.account_id}')
         return profiles
 
     async def _filter_profile_events(self, events : list, profile_id : str) -> list:
@@ -664,7 +664,7 @@ class LiveSegmentation():
     async def _get_profile(self):
         profiles = await segmentationRepository.get_profiles_by_id(self.account_id, [self.event['profile']['profile_id']])
         if len(profiles)<1:
-            raise Exception(f'No profiles associated with this account. Account ID : {self.account_id}')
+            raise Exception(f'No profiles associated with this account, or existing profiles have conducted no event instances. Account ID : {self.account_id}')
         self.profile = profiles[0]
 
     async def _event_sequence_event_property_analysis(self, event_sequence_event : dict) -> bool:
@@ -1060,7 +1060,7 @@ class PendingLiveSegmentation():
     async def _get_profile(self):
         profiles = await segmentationRepository.get_profiles_by_id(self.account_id, [self.profile_id])
         if len(profiles)<1:
-            raise Exception(f'No profiles associated with this account. Account ID : {self.account_id}')
+            raise Exception(f'No profiles associated with this account, or existing profiles have conducted no event instances. Account ID : {self.account_id}')
         self.profile = profiles[0]
 
     async def _get_segment(self):
