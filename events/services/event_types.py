@@ -31,13 +31,13 @@ class EventTypesService():
         self.account = account
 
     def get_event_types(self,
-                    id_ : str = None, 
+                    event_type_ids : list = None, 
                     cursor : int = None) -> Union[dict, int]: 
         """
         Parameters
         ----------
-        id_ : str
-            event_type_id
+        event_type_ids : list
+            event_type_id(s)
         cursor : int
             Pagination cursor
 
@@ -47,17 +47,18 @@ class EventTypesService():
         total : int
         """
 
-        if id_ != None and cursor == 0:
-            event_type =  eventTypesRepository.get_event_type_by_id(account_id=self.account.account_id, event_type_id=id_)
-            if not event_type:
+        if event_type_ids != None and cursor == 0:
+            event_types =  eventTypesRepository.get_event_type_by_ids(account_id=self.account.account_id, event_type_ids=event_type_ids)
+            count = len(event_types)
+            if count<1:
                 raise OctyException(400, 'Invalid event type identifier provided', 
                 [{'message' : 'No custom event types were found with the provided event_type_id', 
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
             
-            return [event_type], 1
+            return event_types, count
             
 
-        elif id_ == None and cursor != None:
+        elif event_type_ids == None and cursor != None:
             
             event_types, total = eventTypesRepository.get_all_event_types(account_id=self.account.account_id, cursor=cursor)
             if len(event_types)<1:

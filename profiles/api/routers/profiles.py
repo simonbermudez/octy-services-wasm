@@ -28,11 +28,11 @@ limiter = Limiter(key_func=get_remote_address)
 ######################################
 
 ######################################
-# Route : /v1/retention/profiles?id=<profile_id/ clients customer_id if reference> (optional)
+# Route : /v1/retention/profiles?ids=<profile_id(s) | customer_id(s)>,... (optional - max 100)
 # Request type : GET
 # Required parameters : null
-# Description : Access all customer profiles. Or all customer profiles associated with a specified profile_id
-# Returns : customer_profile object(s)
+# Description : Access all customer profiles. Or all customer profiles associated with a provided profile identifiers | other attributes
+# Returns : profile object(s)
 # Limits : 120 Requests per minute
 # Requires auth : YES -- Public Key & Secret Key
 ######################################
@@ -40,7 +40,7 @@ limiter = Limiter(key_func=get_remote_address)
 @router.get('/v1/retention/profiles')
 @limiter.limit("120/minute")
 async def get_customer_profiles(request: Request, 
-    id : Optional[str] = None, 
+    ids : Optional[str] = None, 
     rfm : Optional[str] = None, 
     churn_prob : Optional[str] = None, 
     segments : Optional[str] = None,
@@ -66,11 +66,12 @@ async def get_customer_profiles(request: Request,
             except ValueError:
                 return False,[]
         return True, x
-
+    
+    identifiers=None
     rfm_vals=None
-
     cursor = 0
-    if id == None:
+
+    if ids == None:
 
         if rfm != None:
             res,rfm_vals = await validate_arg_format(rfm)
@@ -93,15 +94,23 @@ async def get_customer_profiles(request: Request,
                     segments.remove(s)
 
         # Validate pagination headers set
-        cursor, pag_message = await validate_pagination_request(request,id)
+        cursor, pag_message = await validate_pagination_request(request,ids)
         if cursor == None:
             raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+                'extended_help': Config['PROFILES_EXTENDED_HELP']}])
+    else:
+        ids = re.sub(r'(\s|\u180B|\u200B|\u200C|\u200D|\u2060|\uFEFF)+', '',ids)
+        identifiers = ids.split(",")
+        identifiers = list(dict.fromkeys(filter(None, identifiers)))
+
+        if len(identifiers) > Config['MAX_GET_PROFILES']:
+            raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_GET_PROFILES"]} identifiers can be provided with the "?ids=" query param per request', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
     
     profiles, total = ProfilesService(current_account).get_profiles(segments=segments,
                                                             rfm_values=rfm_vals, 
                                                             churn_prob=churn_prob,
-                                                            id_=id,
+                                                            identifiers=identifiers,
                                                             cursor=cursor)
     return GetProfilesDTO(profiles, total, cursor).dto()
 
@@ -163,7 +172,7 @@ async def delete_customer_profiles(request: Request,  delete_profiles : DeletePr
 
 
 ######################################
-# Route : /v1/retention/profiles/metadata?ids=<profile_id | customer_id>,... (optional - max 100)
+# Route : /v1/retention/profiles/metadata?ids=<profile_id(s) | customer_id(s)>,... (optional - max 100)
 # Request type : GET
 # Required parameters : null
 # Description : Identify current 'ownership' of specified profiles; that is, has each profile been merged, deleted or not.
@@ -182,7 +191,7 @@ async def get_profiles_meta(request: Request, ids : str,
     identifiers = list(dict.fromkeys(filter(None, identifiers)))
 
     if len(identifiers) > Config['MAX_IDENTIFY_PROFILES']:
-        raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_IDENTIFY_PROFILES"]} identifiers can be provided per request', 
+        raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_IDENTIFY_PROFILES"]} identifiers can be provided with the "?ids=" query param per request', 
             'extended_help': Config['PROFILES_EXTENDED_HELP']}])
     elif len(identifiers) < 1:
         raise OctyException(400,'Invalid Parameters', [{'message' : f'A minimum number of {1} identifier must be provided with each request', 

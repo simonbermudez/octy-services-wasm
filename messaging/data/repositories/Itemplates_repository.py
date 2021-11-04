@@ -30,13 +30,13 @@ class TemplatesInterface(ABC):
         """
 
     @abstractmethod
-    def get_templates(self, account_id : str, _id : str, cursor : int):
+    def get_templates(self, account_id : str, identifiers : list, cursor : int):
         """
         Parameters
         ----------
         account_id : str
             Octy account id
-        _id : str
+        identifiers : list
         cursor : int
 
         Returns

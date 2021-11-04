@@ -38,18 +38,31 @@ limiter = Limiter(key_func=get_remote_address)
 @router.get('/v1/retention/messaging/templates')
 @limiter.limit("120/minute")
 async def get_templates(request: Request, 
-    id : Optional[str] = None,
+    ids : Optional[str] = None,
     current_account: Account = Depends(decode_account_jwt)):
-
+    
+    identifiers=None
     cursor = 0
-    if id == None:
+
+    def remove_first_end_spaces(string):
+        return "".join(string.rstrip().lstrip())
+
+    if ids == None:
         # Validate pagination headers set
-        cursor, pag_message = await validate_pagination_request(request,id)
+        cursor, pag_message = await validate_pagination_request(request,ids)
         if cursor == None:
             raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
                 'extended_help': Config['MESSAGING_EXTENDED_HELP']}])
+    else:
+        identifiers = ids.split(",")
+        identifiers = list(dict.fromkeys(filter(None, identifiers)))
+        identifiers = [remove_first_end_spaces(i) for i in identifiers]
+
+        if len(identifiers) > Config['MAX_GET_TEMPLATES']:
+            raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_GET_TEMPLATES"]} identifiers can be provided with the "?ids=" query param per request', 
+                'extended_help': Config['MESSAGING_EXTENDED_HELP']}])
     
-    templates, total = await MessagingService(account=current_account).get_templates(id_=id, cursor=cursor)
+    templates, total = await MessagingService(account=current_account).get_templates(identifiers=identifiers, cursor=cursor)
     return GetTemplatesDTO(templates, total, cursor).dto()
 
 

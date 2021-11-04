@@ -50,26 +50,26 @@ class _ItemsRepository(ItemsInterface):
         """
         return tbl_items.objects(account_id__exact=account_id).count()
 
-    def get_item_by_id(self, item_id : str, account_id : str) -> dict:
+    def get_item_by_ids(self, item_ids : list, account_id : str) -> list:
         """
         Parameters
         ----------
-        item_id : str
-            The item_id of the item that should be returned.
+        item_ids : list
+            List of item_ids.
         account_id : str
             Octy account id
 
         Returns
         ----------
-        results : dict
+        items : list
         """
-        items = tbl_items.objects((Q(item_id__exact=item_id) & Q(account_id__exact=account_id)))
+        item_dicts=[]
+        items = tbl_items.objects((Q(item_id__in=item_ids) & Q(account_id__exact=account_id)))
         if items:
-            item_dict = json.loads(items.to_json())
-            #item_dict[0]['item_id'] = item_dict[0]['_id']
-            item_dict= _format_item(item_dict[0])
-            return item_dict
-        return None
+            item_dicts = json.loads(items.to_json())
+        for item in item_dicts:
+            _format_item(item)
+        return item_dicts
 
     def get_items(self,
                   account_id : str,

@@ -59,32 +59,34 @@ class _TemplatesRepository(TemplatesInterface):
         """
         return tbl_templates.objects(account_id__exact=account_id, status__exact='active').count()
 
-    async def get_templates(self, account_id : str, _id : str = None, cursor : int = 0) -> Union[list, int]:
+    async def get_templates(self, account_id : str, identifiers : list = None, cursor : int = 0) -> Union[list, int]:
         """
         Parameters
         ----------
         account_id : str
             Octy account id
-        _id : str
+        identifiers : list
         cursor : int
 
         Returns
         ----------
         templates : list
+        total : int
         """
         query = [
             {"account_id" : { "$eq" : account_id}},
             {"status" : { "$eq" : "active"}}
         ]
 
-        if _id:
+        if identifiers != None:
             cursor = 0
             query.append(
 
                 {
                     "$or" : [
-                        {"_id" : { "$eq" : _id}},
-                        {"friendly_name" : { "$eq" : _id}}
+                        {"_id" : { "$in" : identifiers}},
+                        {"friendly_name" : { "$in" : identifiers}},
+                        {"template_type" : { "$in" : identifiers}}
                     ]
                     
                 }

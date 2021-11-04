@@ -19,18 +19,18 @@ class ItemsInterface(ABC):
 
 
     @abstractmethod
-    def get_item_by_id(self, item_id : str, account_id : str):
+    def get_item_by_ids(self, item_ids : list, account_id : str):
         """
         Parameters
         ----------
-        item_id : str
-            The item_id of the item that should be returned.
+        item_ids : list
+            List of item_ids.
         account_id : str
             Octy account id
 
         Returns
         ----------
-        :rtype: dict
+        :rtype: list
         """
         raise NotImplementedError
     

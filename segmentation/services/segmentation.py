@@ -339,17 +339,17 @@ class SegmentationService():
         self.account_id = account_id if account_id != None else account.account_id
 
     def get_segments(self,
-                  id : str = None, 
+                  identifiers : list = None, 
                   cursor : int = None, 
                   status='active',
                   segment_type='all',
-                  internal=False) -> Union[dict, int]:
+                  internal=False) -> Union[list, int]:
         
         """
         Parameters
         ----------
-        id : str
-            item_id
+        identifiers : list
+            list of segment identifiers. segment_id(s) or friendly name(s)
         cursor : int
             Pagination cursor
         status : str
@@ -358,20 +358,20 @@ class SegmentationService():
 
         Returns
         ----------
-        segments : dict
+        segments : list
         total : int
         """
-        if id != None and cursor == 0:
-            segment = segmentationRepository.get_segment_by_id_name(segment_id_name=id,account_id=self.account_id)
-            if not segment:
-                raise OctyException(400, 'Invalid segment identifier provided', 
-                [{'message' : 'No segments were found with the provided identifier', 
+        if identifiers != None and cursor == 0:
+            segments, total = segmentationRepository.get_segment_by_identifiers(identifiers=identifiers,account_id=self.account_id)
+            if total<1:
+                raise OctyException(400, 'Invalid segment identifier(s) provided', 
+                [{'message' : 'No segments were found with the provided identifier(s)', 
                 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
             
-            return [segment], 1
+            return segments, total
             
 
-        elif id == None and cursor != None:
+        elif identifiers == None and cursor != None:
             
             segments,total = segmentationRepository.get_segments(account_id=self.account_id, 
                                                 segment_type=segment_type,

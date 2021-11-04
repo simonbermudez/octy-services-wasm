@@ -8,6 +8,7 @@ from services.segmentation import SegmentationService
 
 #python imports
 from typing import Optional
+import re
 
 #external imports
 from fastapi import APIRouter, Request, Depends
@@ -26,7 +27,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 ######################################
-# Route : /v1/retention/segments/<segment_id, segment_name> (optional)
+# Route : /v1/retention/segments/?ids=<segment_id(s) | segment_name(s)>,... (optional - max 100)
 # Request type : GET
 # Required parameters : null
 # Description : Access all created segments summaries. Or all segments associated with a specified segment_id or segment_name
@@ -38,18 +39,31 @@ limiter = Limiter(key_func=get_remote_address)
 @router.get('/v1/retention/segments')
 @limiter.limit("120/minute")
 async def get_segments(request: Request, 
-    id : Optional[str] = None,
+    ids : Optional[str] = None,
     current_account: Account = Depends(decode_account_jwt)):
     
+    identifiers=None
     cursor = 0
-    if id == None:
+
+    def remove_first_end_spaces(string):
+        return "".join(string.rstrip().lstrip())
+
+    if ids == None:
         # Validate pagination headers set
-        cursor, pag_message = await validate_pagination_request(request,id)
+        cursor, pag_message = await validate_pagination_request(request,ids)
         if cursor == None:
             raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
                 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+    else:
+        identifiers = ids.split(",")
+        identifiers = list(dict.fromkeys(filter(None, identifiers)))
+        identifiers = [remove_first_end_spaces(i) for i in identifiers]
+
+        if len(identifiers) > Config['MAX_GET_SEGMENTS']:
+            raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_GET_SEGMENTS"]} identifiers can be provided with the "?ids=" query param per request', 
+                'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
     
-    segments, total = SegmentationService(current_account).get_segments(id=id,cursor=cursor)
+    segments, total = SegmentationService(current_account).get_segments(identifiers=identifiers,cursor=cursor)
 
     return GetSegmentsDTO(segments, total, cursor).dto()
 

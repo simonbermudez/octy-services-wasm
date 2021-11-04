@@ -45,6 +45,6 @@ class DeleteSegments(BaseModel):
     @validator('segments')
     def length(cls, v):
         if len(v) > Config['MAX_DELETE_SEGMENTS']:
-            raise ValueError('You can only delete up to 100 segments per request.')
+            raise ValueError(f'You can only delete up to {Config["MAX_DELETE_SEGMENTS"]} segments per request.')
         return v
 

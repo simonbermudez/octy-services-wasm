@@ -19,18 +19,18 @@ class EventTypesInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_event_type_by_id(self, account_id : str, event_type_id : str):
+    def get_event_type_by_ids(self, account_id : str, event_type_ids : list):
         """
         Parameters
         ----------
         account_id : str
             Octy account id
-        event_type_id : str
-            The event_type_id of the event type that should be returned.
+        event_type_ids : list
+            list of event_type_id(s)
 
         Returns
         ----------
-        :rtype: dict
+        :rtype: list
         """
         raise NotImplementedError
     
