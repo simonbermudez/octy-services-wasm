@@ -12,7 +12,7 @@ import json
 from datetime import datetime as dt
 
 # external imports
-from mongoengine.errors import BulkWriteError
+from pymongo.errors import BulkWriteError
 from mongoengine.queryset.visitor import Q
 from bson.json_util import dumps
 
