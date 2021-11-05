@@ -393,11 +393,11 @@ class ProfilesService():
                 #compare types for each key in both maps, existing_types_map being classed as the truth.
                 for k_v_pair in new_types_map:
                     #check if k_v_pair['key'] exists in existing_types_map, if not pass (this will become the truth value for this new key)
-                    x=next((d for i,d in enumerate(existing_types_map) if k_v_pair['key'] in d['key']),None)
-                    if x != None:
+                    existing_type = next((et for et in existing_types_map if et['key'] == k_v_pair['key']), None)
+                    if existing_type != None:
                         #if it does exist, compare types.
-                        if x['type_'] != k_v_pair['type_']:
-                            return False, f"Invalid type provided for key \'{k_v_pair['key']}\'. Got type {k_v_pair['type_']} expected type {x['type_']}"
+                        if existing_type['type_'] != k_v_pair['type_']:
+                            return False, f"Invalid type provided for key \'{k_v_pair['key']}\'. Got type {k_v_pair['type_']} expected type {existing_type['type_']}"
                     else:
                         profilesRepository.set_profile_key_type(account_id=self.account_id, profile_key_type=k_v_pair)
             else:

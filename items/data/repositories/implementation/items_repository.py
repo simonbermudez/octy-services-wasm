@@ -14,7 +14,6 @@ import copy
 
 # external imports
 from octy_rabbitmq.amqp_publisher import amqpPublisher
-from mongoengine.errors import BulkWriteError
 from mongoengine.queryset.visitor import Q
 from pymongo.errors import BulkWriteError
 
