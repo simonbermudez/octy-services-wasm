@@ -1,5 +1,5 @@
 #module imports 
-from .routers import events, event_types
+from .routers import events, event_types, healthz
 from .routers.error_handlers import add_exception_handlers
 from config import Config
 from data.context.db_context import contextManager
@@ -59,3 +59,4 @@ async def shutdown():
 add_exception_handlers(app)
 app.include_router(events.router)
 app.include_router(event_types.router)
+app.include_router(healthz.router)

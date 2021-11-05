@@ -1,5 +1,5 @@
 #module imports 
-from .routers import admin
+from .routers import admin, healthz
 from .routers.error_handlers import add_exception_handlers
 from data.context.db_context import contextManager
 from config import Config
@@ -26,3 +26,4 @@ async def startup():
 
 add_exception_handlers(app)
 app.include_router(admin.router)
+app.include_router(healthz.router)

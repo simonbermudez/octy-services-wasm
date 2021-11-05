@@ -1,5 +1,5 @@
 #module imports 
-from .routers import profiles
+from .routers import profiles, healthz
 from .routers.error_handlers import add_exception_handlers
 from config import *
 from data.context.db_context import contextManager
@@ -59,3 +59,4 @@ async def shutdown():
 
 add_exception_handlers(app)
 app.include_router(profiles.router)
+app.include_router(healthz.router)
