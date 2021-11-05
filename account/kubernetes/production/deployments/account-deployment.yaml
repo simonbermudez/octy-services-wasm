@@ -47,14 +47,14 @@ spec:
           httpGet:
             path: /healthz
             port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 5
+          initialDelaySeconds: 10
+          periodSeconds: 5
         readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 5
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
         resources:
           requests:
             memory: "64Mi"
