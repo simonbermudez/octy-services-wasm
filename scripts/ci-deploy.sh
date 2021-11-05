@@ -23,6 +23,7 @@ for deploy in $(jq -rc '.deployments[]' ./scripts/deployments.json ); do
         DOCKER_IMAGE_NAME=$(echo "$deploy" | jq .docker_image_name | sed -e 's/^"//' -e 's/"$//')
         DOCKERFILE_PATH=$(echo "$deploy" | jq .dockerfile_path | sed -e 's/^"//' -e 's/"$//')
         K8_DEPLOY_YAML=$(echo "$deploy" | jq .k8_deployment_yaml | sed -e 's/^"//' -e 's/"$//')
+        K8_CONFIGMAP_YAML=$(echo "$deploy" | jq .k8_configmap_yaml | sed -e 's/^"//' -e 's/"$//')
 
         if [[ `python3 ${CHANGE_CHECKER} ${SERVICE_DIR}` == "True" ]]; then
                 echo "${SERVICE_NAME} service"
@@ -35,6 +36,7 @@ for deploy in $(jq -rc '.deployments[]' ./scripts/deployments.json ); do
         DOCKER_IMAGE_NAME=$(echo "$deploy" | jq .docker_image_name | sed -e 's/^"//' -e 's/"$//')
         DOCKERFILE_PATH=$(echo "$deploy" | jq .dockerfile_path | sed -e 's/^"//' -e 's/"$//')
         K8_DEPLOY_YAML=$(echo "$deploy" | jq .k8_deployment_yaml | sed -e 's/^"//' -e 's/"$//')
+        K8_CONFIGMAP_YAML=$(echo "$deploy" | jq .k8_configmap_yaml | sed -e 's/^"//' -e 's/"$//')
 
         if [[ `python3 ${CHANGE_CHECKER} ${SERVICE_DIR}` == "True" ]]; then
                 echo "Changes found in ${SERVICE_NAME} service, Publishing updated ${SERVICE_NAME} service Docker image ..."
@@ -46,6 +48,12 @@ for deploy in $(jq -rc '.deployments[]' ./scripts/deployments.json ); do
                 docker push $DOCKER_IMAGE_NAME:$CIRCLE_SHA1
 
                 echo "Successfully published updated ${SERVICE_NAME} service Docker image!"
+
+                echo "Updating ${SERVICE_NAME} ConfigMap on K8 cluster ..."
+
+                ./kubectl apply -f $K8_CONFIGMAP_YAML
+
+                echo "Successfully updated ${SERVICE_NAME} ConfigMap on K8 cluster!"
 
                 echo "Redeploying ${SERVICE_NAME} service on K8 cluster ..."
 
