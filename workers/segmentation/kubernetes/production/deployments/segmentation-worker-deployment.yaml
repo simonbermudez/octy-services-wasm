@@ -38,6 +38,18 @@ spec:
                 key: segmentation_worker_secrets # The key to fetch.
         ports:
         - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 180
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 180
         resources:
           requests:
             memory: "64Mi"

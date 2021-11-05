@@ -1,4 +1,5 @@
 #module imports 
+from .routers import healthz
 from config import Config
 from data.context.db_context import contextManager
 from amqp.consumer import on_consumer_message_cb
@@ -51,3 +52,5 @@ async def startup():
 async def shutdown():
     # Disconnect from mongoDB
     await contextManager.db_disconnect(logger=logger)
+
+app.include_router(healthz.router)

@@ -1,5 +1,5 @@
 #module imports 
-from .routers import segmentation
+from .routers import segmentation, healthz
 from .routers.error_handlers import add_exception_handlers
 from config import Config
 from data.context.db_context import contextManager
@@ -56,3 +56,4 @@ async def shutdown():
 
 add_exception_handlers(app)
 app.include_router(segmentation.router)
+app.include_router(healthz.router)

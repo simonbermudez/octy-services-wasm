@@ -1,5 +1,5 @@
 #module imports 
-from .routers import account_configurations
+from .routers import account_configurations, healthz
 from .routers import algorithm_configurations
 from .routers.error_handlers import add_exception_handlers
 from config import Config
@@ -38,3 +38,4 @@ async def startup():
 add_exception_handlers(app)
 app.include_router(account_configurations.router)
 app.include_router(algorithm_configurations.router)
+app.include_router(healthz.router)
