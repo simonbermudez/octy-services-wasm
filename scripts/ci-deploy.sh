@@ -51,7 +51,12 @@ for deploy in $(jq -rc '.deployments[]' ./scripts/deployments.json ); do
 
                 echo "Updating ${SERVICE_NAME} ConfigMap on K8 cluster ..."
 
-                ./kubectl apply -f $K8_CONFIGMAP_YAML
+                ./kubectl \
+                        --kubeconfig=/dev/null \
+                        --server=$KUBERNETES_SERVER \
+                        --certificate-authority=cert.crt \
+                        --token=$KUBERNETES_TOKEN \
+                        apply -f $K8_CONFIGMAP_YAML
 
                 echo "Successfully updated ${SERVICE_NAME} ConfigMap on K8 cluster!"
 
