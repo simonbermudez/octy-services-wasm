@@ -98,7 +98,6 @@ class SetAlgorithmConfigsDTO():
                 'request_meta': {'request_status': 'Success',
                                  'message': 'Accepted. Setting algorithm configurations.'},
                 'configurations' : [{
-
                     'algorithm_name' : self.algorithm_name,
                     'configurations' : self.configs
                 }]
