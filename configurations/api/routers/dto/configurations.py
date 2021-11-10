@@ -100,7 +100,7 @@ class SetAlgorithmConfigsDTO():
                 'configurations' : [{
 
                     'algorithm_name' : self.algorithm_name,
-                    'configurations' : [self.configs]
+                    'configurations' : self.configs
                 }]
             }
         )
