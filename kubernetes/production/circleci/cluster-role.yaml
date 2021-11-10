@@ -4,5 +4,5 @@ metadata:
   name: cicd
 rules:
   - apiGroups: ["", "apps", "batch", "extensions"]
-    resources: ["deployments", "services", "replicasets", "pods", "jobs", "cronjobs"]
+    resources: ["deployments", "services", "replicasets", "pods", "jobs", "cronjobs", "configmaps"]
     verbs: ["*"]
