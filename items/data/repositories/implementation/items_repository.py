@@ -196,7 +196,7 @@ class _ItemsRepository(ItemsInterface):
         # determine valid items
         for item in items_batch:
             if item['item_id'] in item_ids:
-                raise OctyException(400,'An error occurred when validating request.', [{'message' : f'Identical item identifers supplied. Found duplicate item_id : {item["item_id"]}', 
+                raise OctyException(400,'An error occurred when validating request.', [{'error_message' : f'Identical item identifers supplied. Found duplicate item_id : {item["item_id"]}', 
                 'extended_help': Config['ITEMS_EXTENDED_HELP']}])
             item_ids.append(item['item_id'])
 

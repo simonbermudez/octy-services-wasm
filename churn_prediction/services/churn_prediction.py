@@ -40,7 +40,7 @@ class ChurnPredictionService():
         training_job = await churnPredictionRepository.get_latest_training_job(account_id=self.account.account_id)
         if not training_job:
             raise OctyException(400,'An error occurred when generating this churn prediction report.', 
-                [{'message' : 'No churn prediction training jobs have been completed. Churn prediction training jobs are automatically run every 24 hours', 
+                [{'error_message' : 'No churn prediction training jobs have been completed. Churn prediction training jobs are automatically run every 24 hours', 
                 'extended_help': Config['CHURN_PREDICTION_EXTENDED_HELP']}])
 
         churn_report = {

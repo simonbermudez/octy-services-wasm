@@ -45,7 +45,7 @@ class RecommendationsService():
         hp_tuning_job = await recommendationsRepository.get_latest_hp_tuning_job(account_id=self.account_id)
         if not hp_tuning_job:
             raise OctyException(400,'An error occurred when getting item recommendations', 
-                [{'message' : 'No recommendations training jobs have been completed. Recommendations training jobs are automatically run every 24 hours', 
+                [{'error_message' : 'No recommendations training jobs have been completed. Recommendations training jobs are automatically run every 24 hours', 
                 'extended_help': Config['RECOMENDATIONS_EXTENDED_HELP']}])
         
         recommendations_cache = await recommendationsRepository.get_cached_recommendations(account_id=self.account_id,

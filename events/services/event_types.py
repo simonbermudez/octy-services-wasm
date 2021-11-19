@@ -52,7 +52,7 @@ class EventTypesService():
             count = len(event_types)
             if count<1:
                 raise OctyException(400, 'Invalid event type identifier provided', 
-                [{'message' : 'No custom event types were found with the provided event_type_id', 
+                [{'error_message' : 'No custom event types were found with the provided event_type_id', 
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
             
             return event_types, count
@@ -63,7 +63,7 @@ class EventTypesService():
             event_types, total = eventTypesRepository.get_all_event_types(account_id=self.account.account_id, cursor=cursor)
             if len(event_types)<1:
                 raise OctyException(400, 'No custom event types found', 
-                [{'message' : 'No custom event types found with the provided query parameters or pagination cursor exhausted', 
+                [{'error_message' : 'No custom event types found with the provided query parameters or pagination cursor exhausted', 
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
             return event_types, total
 
@@ -85,7 +85,7 @@ class EventTypesService():
                               len(event_types.event_types), resource_key=2)
         if not res:
             raise OctyException(400,'Resource limit exceeded', 
-            [{'message' : f'This request could not be completed as the number of event types sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} event types.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+            [{'error_message' : f'This request could not be completed as the number of event types sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} event types.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
 
         event_type_batch = []
         for event_type in event_types.event_types:
@@ -151,7 +151,7 @@ class EventTypesService():
                                                                                   event_type_names=event_type_names)
         if len(found_event_types)<1:
             raise OctyException(400, 'None found!', 
-            [{'message' : 'No custom event types were found with the provided event type names', 
+            [{'error_message' : 'No custom event types were found with the provided event type names', 
             'extended_help': ''}])
         
         return found_event_types, not_found

@@ -52,7 +52,7 @@ class ItemsService():
             count = len(items)
             if count<1:
                 raise OctyException(400, 'Invalid item identifier(s) provided', 
-                [{'message' : 'No items were found with the provided identifier(s)', 
+                [{'error_message' : 'No items were found with the provided identifier(s)', 
                 'extended_help': Config['ITEMS_EXTENDED_HELP']}])
             
             return items, count
@@ -64,7 +64,7 @@ class ItemsService():
                                                 cursor=cursor)
             if len(items)<1:
                 raise OctyException(400, 'No items found', 
-                [{'message' : 'No items found with the provided item identifier or pagination cursor exhausted', 
+                [{'error_message' : 'No items found with the provided item identifier or pagination cursor exhausted', 
                 'extended_help': Config['ITEMS_EXTENDED_HELP']}])
             return items, total
 
@@ -86,7 +86,7 @@ class ItemsService():
                               len(items.items))
         if not res:
             raise OctyException(400,'Resource limit exceeded', 
-            [{'message' : f'This request could not be completed as the number of items sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} items.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+            [{'error_message' : f'This request could not be completed as the number of items sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} items.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
 
         items_batch = []
         for item in items.items:
@@ -189,6 +189,6 @@ class ItemsService():
         items,total = itemsRepository.get_items(account_id=account_id, cursor=cursor, ids=ids, status=status)
         if len(items)<1:
             raise OctyException(400, 'No items found', 
-            [{'message' : 'No items found or pagination cursor exhausted', 
+            [{'error_message' : 'No items found or pagination cursor exhausted', 
             'extended_help': Config['ITEMS_EXTENDED_HELP']}])
         return items, total

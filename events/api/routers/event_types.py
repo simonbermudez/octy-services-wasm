@@ -50,7 +50,7 @@ async def get_custom_event_types(request: Request,
         # Validate pagination headers set
         cursor, pag_message = await validate_pagination_request(request,ids)
         if cursor == None:
-            raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+            raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
     else:
         ids = re.sub(r'(\s|\u180B|\u200B|\u200C|\u200D|\u2060|\uFEFF)+', '',ids)
@@ -58,7 +58,7 @@ async def get_custom_event_types(request: Request,
         identifiers = list(dict.fromkeys(filter(None, identifiers)))
 
         if len(identifiers) > Config['MAX_GET_EVENT_TYPES']:
-            raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_GET_EVENT_TYPES"]} identifiers can be provided with the "?ids=" query param per request', 
+            raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A maximum number of {Config["MAX_GET_EVENT_TYPES"]} identifiers can be provided with the "?ids=" query param per request', 
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
 
     event_types, total = EventTypesService(current_account).get_event_types(event_type_ids=identifiers, cursor=cursor)
@@ -117,7 +117,7 @@ async def get_profiles_internal(request: Request,  event_type_names : GetEventTy
 
     # do not allow more than 200 event types
     if len(event_type_names.event_type_names) > 200:
-        raise OctyException(400,'Exceeded resource request limit', [{'message' : 'can only get 200 event_type_names per request', 
+        raise OctyException(400,'Exceeded resource request limit', [{'error_message' : 'can only get 200 event_type_names per request', 
             'extended_help': ''}])
 
     found_event_types, not_found = EventTypesService(None).get_event_types_internal(account_id=event_type_names.account_id, event_type_names=event_type_names.event_type_names)

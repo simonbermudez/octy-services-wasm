@@ -58,7 +58,7 @@ async def version_info(request : Request, app : Optional[str] = None):
 
     else:
         raise OctyException(400, 'Invalid query string argument',
-                            [{'message': 'invalid \'app\' query parameter provided. Accepted values: \'api\' or \'cli\'',
+                            [{'error_message': 'invalid \'app\' query parameter provided. Accepted values: \'api\' or \'cli\'',
                               'extended_help': ''}])
 
 
@@ -74,7 +74,7 @@ async def version_info_hook(request : Request):
 
     if not "X-Hub-Signature" in request.headers:
         raise OctyException(400, 'Invalid headers provided',
-            [{'message': '', 'extended_help': ''}])
+            [{'error_message': '', 'extended_help': ''}])
     
     wh_payload_bytes = await request.body()
     signature = request.headers['X-Hub-Signature']
@@ -85,7 +85,7 @@ async def version_info_hook(request : Request):
     digest = "sha1=" + hmac_gen.hexdigest()
 
     if not hmac.compare_digest(digest, signature):
-        raise OctyException(401,'Authentication failed', [{'message' : 'Invalid hook secret provided with this request.', 
+        raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid hook secret provided with this request.', 
             'extended_help': ''}])
 
     wh_payload = json.loads(urllib.parse.parse_qs(wh_payload_bytes.decode('utf8').replace("'", '"'))['payload'][0])
@@ -113,7 +113,7 @@ async def version_info_hook(request : Request):
 
     else:
         raise OctyException(400, 'Invalid repo name provided',
-                            [{'message': 'Not interested in releases on this repository',
+                            [{'error_message': 'Not interested in releases on this repository',
                               'extended_help': ''}])
 
 
@@ -134,7 +134,7 @@ async def version_info(request : Request, type : Optional[str] = None):
 
     if type not in ['events', 'items', 'profiles']:
         raise OctyException(400, 'Invalid query string argument',
-                            [{'message': 'invalid \'type\' query parameter provided. Accepted values: \'events\' or \'items\' or \'profiles\'',
+                            [{'error_message': 'invalid \'type\' query parameter provided. Accepted values: \'events\' or \'items\' or \'profiles\'',
                             'extended_help': ''}])
 
     print(Config['RESOURCE_FORMAT_EXAMPLES_DIR'] + type + ".json")

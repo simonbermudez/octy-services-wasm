@@ -52,7 +52,7 @@ class MessagingService():
             templates, total = await templatesRepository.get_templates(account_id=self.account.account_id, identifiers=identifiers)
             if total<1:
                 raise OctyException(400, 'Invalid template identifier(s) provided', 
-                [{'message' : 'No templates were found with the provided identifier(s)', 
+                [{'error_message' : 'No templates were found with the provided identifier(s)', 
                 'extended_help': Config['MESSAGING_EXTENDED_HELP']}])
             
             return templates, total
@@ -63,7 +63,7 @@ class MessagingService():
             templates, total = await templatesRepository.get_templates(account_id=self.account.account_id, cursor=cursor)
             if len(templates)<1:
                 raise OctyException(400, 'No templates found', 
-                [{'message' : 'No templates found with the provided query parameters or pagination cursor exhausted', 
+                [{'error_message' : 'No templates found with the provided query parameters or pagination cursor exhausted', 
                 'extended_help': Config['MESSAGING_EXTENDED_HELP']}])
             return templates, total
 
@@ -85,7 +85,7 @@ class MessagingService():
                               len(templates.templates))
         if not res:
             raise OctyException(400,'Resource limit exceeded', 
-            [{'message' : f'This request could not be completed as the number of templates sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} templates.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+            [{'error_message' : f'This request could not be completed as the number of templates sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} templates.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
 
         templates_batch = []
         for template in templates.templates:
@@ -196,7 +196,7 @@ class MessagingService():
         templates = await templatesRepository.get_all_templates(account_id=self.account.account_id)
         if len(templates) < 1:
             raise OctyException(400, 'Template resource not found', 
-            [{'message' : 'No templates exist for this account', 
+            [{'error_message' : 'No templates exist for this account', 
             'extended_help': Config['MESSAGING_EXTENDED_HELP']}])
         
         #determine if template exists
@@ -204,7 +204,7 @@ class MessagingService():
             t = await self._filter_templates(message.template_id,templates )
             if len(t) == 0:
                 err_templates_ids.append(message.template_id)
-                failed_templates.append({'template_id' : message.template_id, 'reason' : 'No template found with this template_id. All messages using this template_id were not created.'})
+                failed_templates.append({'template_id' : message.template_id, 'error_message' : 'No template found with this template_id. All messages using this template_id were not created.'})
             else:
                 if not message.item_recommendation:
                     continue
@@ -230,7 +230,7 @@ class MessagingService():
                     if i['template_id'] not in err_templates_ids:
                         failed_templates.append({
                             'template_id' : i['template_id'],
-                            'reason' : 'Item recommendations failed to be processed for this template. All messages using this template_id were not created. This is possibly due to no valid profile_id(s) being provided or no trained recommendations models are currently available on this account.'
+                            'error_message' : 'Item recommendations failed to be processed for this template. All messages using this template_id were not created. This is possibly due to no valid profile_id(s) being provided or no trained recommendations models are currently available on this account.'
                         })
                         err_templates_ids.append(i['template_id'])
             else:
@@ -265,12 +265,12 @@ class MessagingService():
                     if message.item_recommendation == True:
                         
                         if 'ITEM_REC' not in  template['content']:
-                            failed_templates.append({'template_id' : message.template_id, 'reason' : 'No \'ITEM_REC\' placeholder set in this template. Either set \'item_recommendation\' to \'false\' or add required placeholder to template.'})
+                            failed_templates.append({'template_id' : message.template_id, 'error_message' : 'No \'ITEM_REC\' placeholder set in this template. Either set \'item_recommendation\' to \'false\' or add required placeholder to template.'})
                             err_templates_ids.append(message.template_id)
                             continue
                     else:
                         if 'ITEM_REC' in  template['content']:
-                            failed_templates.append({'template_id' : message.template_id, 'reason' : '\'ITEM_REC\' placeholder set in this template. Either set \'item_recommendation\' to \'true\' or remove ITEM_REC placeholder from template.'})
+                            failed_templates.append({'template_id' : message.template_id, 'error_message' : '\'ITEM_REC\' placeholder set in this template. Either set \'item_recommendation\' to \'true\' or remove ITEM_REC placeholder from template.'})
                             err_templates_ids.append(message.template_id)
                             continue
 
@@ -280,7 +280,7 @@ class MessagingService():
                         created_messages.append({'template_id' : message.template_id, 'friendly_name' : template['friendly_name'],'title' : template['title'] ,'content' : template['content']})
                         continue
                     elif len(message.data)<1 and len(template['required_data'])>0:
-                        failed_messages.append({'template_id': message.template_id, 'reason' : 'Missing required data for this message.'})
+                        failed_messages.append({'template_id': message.template_id, 'error_message' : 'Missing required data for this message.'})
                         continue
                     for d in message.data:
                         values_dict = {} #init values dict
@@ -291,7 +291,7 @@ class MessagingService():
                                 d['profile_id']
                             except KeyError:
                                 #dummy values are not provided with product recommendations placeholders. 
-                                failed_messages.append({'template_id': message.template_id, 'provided_data' : d, 'reason' : '\'item_recommendation\' parameter set to \'true\' on this message set. Missing required data parameter for this message. \'profile_id\''})
+                                failed_messages.append({'template_id': message.template_id, 'provided_data' : d, 'error_message' : '\'item_recommendation\' parameter set to \'true\' on this message set. Missing required data parameter for this message. \'profile_id\''})
                                 continue
                         
                         #if item_recommendation, get recommendations and append to values dict.
@@ -303,12 +303,12 @@ class MessagingService():
                                     #get item_id from profile_id_template_rec_map
                                     item_id=next(key for key in profile_id_template_rec_map if key['profile_id'] == d['profile_id'])['rec_item_id']
                                     if not item_id:
-                                        failed_messages.append({'template_id': message.template_id, 'profile_id' : d['profile_id'], 'reason' : 'Failed to get recommended item for this profile'})
+                                        failed_messages.append({'template_id': message.template_id, 'profile_id' : d['profile_id'], 'error_message' : 'Failed to get recommended item for this profile'})
                                         continue
                                     #filter item object
                                     rec_items = await self._filter_items(item_id, items)
                                     if len(rec_items)<1:
-                                        failed_messages.append({'template_id': message.template_id, 'profile_id' : d['profile_id'], 'reason' : 'Failed to get recommended item for this profile'})
+                                        failed_messages.append({'template_id': message.template_id, 'profile_id' : d['profile_id'], 'error_message' : 'Failed to get recommended item for this profile'})
                                         continue
                                     values_dict['ITEM_REC'] = rec_items[0]['item_name']
                         
@@ -319,7 +319,7 @@ class MessagingService():
                             try:
                                 d[key]
                             except KeyError:
-                                failed_messages.append({'template_id': message.template_id, 'provided_data' : d, 'reason' : 'Missing required data parameter for this message. \'{}\''.format(key)})
+                                failed_messages.append({'template_id': message.template_id, 'provided_data' : d, 'error_message' : 'Missing required data parameter for this message. \'{}\''.format(key)})
                                 message_failed=True
                                 break
                             

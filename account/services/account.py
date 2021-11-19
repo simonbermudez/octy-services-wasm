@@ -117,7 +117,7 @@ class AccountService:
         accounts, total = accountRepository.get_accounts(account_ids, cursor)
         if len(accounts)<1:
             raise OctyException(400, 'No accounts found', 
-                [{'message' : 'No accounts found with provided params or pagination cursor exhausted', 
+                [{'error_message' : 'No accounts found with provided params or pagination cursor exhausted', 
                 'extended_help': ''}])
         return accounts, total
 

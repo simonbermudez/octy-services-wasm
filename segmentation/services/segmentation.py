@@ -47,12 +47,12 @@ class SegmentValidatation():
     async def _v_num_of_events(self) -> None:
         if len(self.segment.event_sequence) > self.event_sequence_limit:
             raise OctyException(400,'Invalid event sequence provided.', 
-                [{'message' : f'The event sequence provided exceeds the maximun limit of {str(self.event_sequence_limit)} events', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : f'The event sequence provided exceeds the maximun limit of {str(self.event_sequence_limit)} events', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
     
     async def _v_segment_type(self) -> None:
         if self.segment.segment_type not in self.segment_types:
             raise OctyException(400,'Invalid segment subtype provided.', 
-                [{'message' : f'segment_type must be type of \'live\' or \'past\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : f'segment_type must be type of \'live\' or \'past\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
     
     async def _v_segment_duplicates(self) -> None:
         exisitng_segment = segmentationRepository.get_segment_by_attr(self.account.account_id, self.segment)
@@ -61,11 +61,11 @@ class SegmentValidatation():
             # Check for duplicte name
             if exisitng_segment['segment_name'] == self.segment.segment_name:
                 raise OctyException(400,'Duplicate segment name provided.', 
-                    [{'message' : f'Segment with provided name: {self.segment.segment_name} already exists. If you have recently deleted a segment with this name, you must wait up to 72 hours before you are able to create another segment with this name.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : f'Segment with provided name: {self.segment.segment_name} already exists. If you have recently deleted a segment with this name, you must wait up to 72 hours before you are able to create another segment with this name.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
             # duplicate type, sub type, segment_timeframe and event list
             else:
                 raise OctyException(400,'Duplicate segment type, sub type and event sequence provided.', 
-                    [{'message' : f'Segment with provided type: {self.segment.segment_type}, sub type: {self.segment.segment_sub_type} with an identical event sequence, segment_timeframe and profile properties already exists.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : f'Segment with provided type: {self.segment.segment_type}, sub type: {self.segment.segment_sub_type} with an identical event sequence, segment_timeframe and profile properties already exists.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
     async def _v_event_sequence_event_types(self) -> None:
         for _, event in enumerate(self.segment.event_sequence):
@@ -83,12 +83,12 @@ class SegmentValidatation():
                     for k, v in event.event_properties.items():
                         if k not in system_event['event_properties']:
                             raise OctyException(400, f"Invalid event provided within the event sequence of this request. The system event type '{event.event_type}' does not have a key named '{k}' in it's event_properties attribute.", 
-                                [{'message' : 'Invalid event provided.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                                [{'error_message' : 'Invalid event provided.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
                         else:
                             # Check provided data type of event property value
                             if type(v) != type(system_event['event_properties'][k]):
                                 raise OctyException(400, f"Invalid event provided within the event sequence of this request. The system event type '{event.event_type}' event_properties key '{k}' value must be of type : {type(system_event['event_properties'][k])}", 
-                                    [{'message' : 'Invalid event provided.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                                    [{'error_message' : 'Invalid event provided.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
                 
                 continue
             custom_event=next((key for key in found_event_types if key['event_type'] == event.event_type), None)
@@ -98,10 +98,10 @@ class SegmentValidatation():
                     for k,_ in event.event_properties.items():
                         if k not in custom_event['event_properties']:
                             raise OctyException(400, f"Invalid event provided within the event sequence of this request. The custom event type '{event.event_type}' does not have a key named '{k}' in it's event_properties attribute.", 
-                                [{'message' : 'Invalid event provided.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                                [{'error_message' : 'Invalid event provided.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
             else:
                 raise OctyException(400, f'Invalid event provided within the event sequence of this request. Event \'{event.event_type}\' does not exist, with provided event_properties.', 
-                    [{'message' : 'Invalid event provided.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : 'Invalid event provided.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
  
     async def _v_event_sequence_duplicates(self) -> None:
         #Ensure no duplicates are provided in event sequence
@@ -139,7 +139,7 @@ class SegmentValidatation():
                         else:
                             #if event exists with None set as as event_property parameter in event_prop_none_list, return error
                             raise OctyException(400, 'Invalid event sequence provided.', 
-                                [{'message' : 'Duplicate events with matching event properties found in event sequence.', 
+                                [{'error_message' : 'Duplicate events with matching event properties found in event sequence.', 
                                 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
                         continue
 
@@ -158,7 +158,7 @@ class SegmentValidatation():
 
             if len(event_prop_map_dict[key_]) != len(set(event_prop_map_dict[key_])):
                 raise OctyException(400, 'Invalid event sequence provided.', 
-                    [{'message' : 'Duplicate events with matching event properties found in event sequence.', 
+                    [{'error_message' : 'Duplicate events with matching event properties found in event sequence.', 
                     'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
 
@@ -166,33 +166,33 @@ class SegmentValidatation():
     async def _v_past_subtype(self) -> None:
         if self.segment.segment_sub_type not in self.past_segment_sub_types:
             raise OctyException(400,'Invalid segment provided.', 
-                [{'message' : 'Past segments must have a sub type of either 1,2,3 or 4', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'Past segments must have a sub type of either 1,2,3 or 4', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
     async def _v_past_timeframe(self) -> None:
         if self.segment.segment_timeframe < self.past_segment_intervals or self.segment.segment_timeframe > 365:
             raise OctyException(400,'Invalid segment provided.', 
-                [{'message' : f'Past segments must have a timeframe of more than {self.past_segment_intervals} days and less than 365.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : f'Past segments must have a timeframe of more than {self.past_segment_intervals} days and less than 365.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
     async def _v_past_profile_properties(self) -> None:
         if self.segment.profile_property_name != None and self.segment.profile_property_value == None:
             raise OctyException(400,'Invalid segment provided.', 
-                [{'message' : 'profile_property_value must be provided with profile_property_name', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'profile_property_value must be provided with profile_property_name', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
         
         if self.segment.profile_property_name == None and  self.segment.profile_property_value != None:
             raise OctyException(400,'Invalid segment provided.', 
-                [{'message' : 'profile_property_name must be provided with profile_property_value', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'profile_property_name must be provided with profile_property_value', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
         if self.segment.segment_sub_type == 3 or self.segment.segment_sub_type == 4:
             if self.segment.profile_property_name == None or \
                 self.segment.profile_property_value == None:
                 raise OctyException(400,'Invalid segment provided.', 
-                    [{'message' : f'Past segments with a sub type 3 or 4 must have both profile_property_name and profile_property_value parameters provided', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : f'Past segments with a sub type 3 or 4 must have both profile_property_name and profile_property_value parameters provided', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
                 
         if self.segment.segment_sub_type == 1 or self.segment.segment_sub_type == 2:
             if self.segment.profile_property_name != None or \
                 self.segment.profile_property_value != None:
                 raise OctyException(400,'Invalid segment provided.', 
-                    [{'message' : f'Past segments with a sub type 1 or 2 must not have either profile_property_name or profile_property_value parameters provided', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : f'Past segments with a sub type 1 or 2 must not have either profile_property_name or profile_property_value parameters provided', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
                 
     async def _v_past_event_sequence_event_timeframes(self) -> None:
         # Assess event sequence event timeframes
@@ -200,32 +200,32 @@ class SegmentValidatation():
             # exp_timeframe must not be more than 0
             if event.exp_timeframe != 0:
                 raise OctyException(400,'Invalid event provided.', 
-                    [{'message' : 'The \'exp_timeframe\' parameter within each \'event_sequence\'>>\'event\' object MUST be set to 0 if the \'segment_type\' parameter is set to \'past\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : 'The \'exp_timeframe\' parameter within each \'event_sequence\'>>\'event\' object MUST be set to 0 if the \'segment_type\' parameter is set to \'past\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
         
     async def _v_past_event_sequence(self) -> None:
         # Must be at least one action. First event should always be an action
         if self.segment.event_sequence[0].action_inaction != 'action':
             raise OctyException(400,'Invalid event sequence provided.', 
-                [{'message' : 'The first event \'action_inaction\' parameter in a segments event sequence must be of type \'action\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'The first event \'action_inaction\' parameter in a segments event sequence must be of type \'action\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
         # Must be an inaction. This inaction must be at the last index if subtype 2 or 4
         if self.segment.segment_sub_type == 2 or self.segment.segment_sub_type == 4:
             if self.segment.event_sequence[self.last_idx].action_inaction != 'inaction':
                 raise OctyException(400,'Invalid event sequence provided.', 
-                    [{'message' : 'The last event \'action_inaction\' parameter in segments with sub type 2 or 4 must be of type \'inaction\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : 'The last event \'action_inaction\' parameter in segments with sub type 2 or 4 must be of type \'inaction\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
             # Must not be more than one inaction event in event sequence
             filtered = await self._filter_action_inaction('inaction', self.segment.event_sequence)
             if len(filtered) > 1:
                 raise OctyException(400,'Invalid event sequence provided.', 
-                    [{'message' : 'Segments can contain no more than one single \'inaction\' event in their event sequence.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : 'Segments can contain no more than one single \'inaction\' event in their event sequence.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
         else:
             # must NOT be any inactions if subtype 1 or 3
             inaction_event = next((event for event in self.segment.event_sequence if event.action_inaction == 'inaction'), None)
             if inaction_event:
                 raise OctyException(400,'Invalid event sequence provided.', 
-                    [{'message' : 'Sub type 1 & 3 segments can not contain inaction events in their event sequence.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : 'Sub type 1 & 3 segments can not contain inaction events in their event sequence.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
         await self._v_event_sequence_event_types()
         await self._v_event_sequence_duplicates()
@@ -236,17 +236,17 @@ class SegmentValidatation():
     async def _v_live_subtype(self) -> None:
         if self.segment.segment_sub_type not in self.live_segment_sub_types:
             raise OctyException(400,'Invalid segment provided.', 
-                [{'message' : 'Live segments must have a sub type of either 1 or 2', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'Live segments must have a sub type of either 1 or 2', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
     async def _v_live_timeframe(self) -> None:
         if self.segment.segment_timeframe != 0:
             raise OctyException(400,'Invalid segment provided.', 
-                [{'message' : 'When creating a \'live-segment\' definition, the \'segment_timeframe\' parameter must have a value of 0', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'When creating a \'live-segment\' definition, the \'segment_timeframe\' parameter must have a value of 0', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
             
     async def _v_live_profile_properties(self) -> None:
         if self.segment.profile_property_name != None or self.segment.profile_property_value != None:
             raise OctyException(400,'Invalid segment provided.', 
-                [{'message' : 'profile_property_name or profile_property_value protperties must not be provided when creating a live segment', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'profile_property_name or profile_property_value protperties must not be provided when creating a live segment', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
     async def _v_live_event_sequence_event_timeframes(self) -> None:
         # Assess event sequence event timeframes
@@ -254,36 +254,36 @@ class SegmentValidatation():
             if idx != self.num_of_events-1:
                 if event.exp_timeframe < 2:
                     raise OctyException(400,'Invalid event provided.', 
-                        [{'message' : 'The \'exp_timeframe\' parameter within the first \'event_sequence\'>>\'event\' object MUST be set to \'2\' or more (minutes).', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                        [{'error_message' : 'The \'exp_timeframe\' parameter within the first \'event_sequence\'>>\'event\' object MUST be set to \'2\' or more (minutes).', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
             last_event = self.segment.event_sequence[self.last_idx]
             if last_event.exp_timeframe > 0:
                 raise OctyException(400,'Invalid event provided.', 
-                    [{'message' : 'The \'exp_timeframe\' parameter within the last \'event_sequence\'>>\'event\' object MUST be set to 0.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : 'The \'exp_timeframe\' parameter within the last \'event_sequence\'>>\'event\' object MUST be set to 0.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
     async def _v_live_event_sequence(self) -> None:
         # Must be at least one action. First event should always be an action
         if self.segment.event_sequence[0].action_inaction != 'action':
             raise OctyException(400,'Invalid event sequence provided.', 
-                [{'message' : 'The first event \'action_inaction\' parameter in a segments event sequence must be of type \'action\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'The first event \'action_inaction\' parameter in a segments event sequence must be of type \'action\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
         # Must not be more than one action event in event sequence
         filtered = await self._filter_action_inaction('action', self.segment.event_sequence)
         if len(filtered) > 1:
             raise OctyException(400,'Invalid event sequence provided.', 
-                [{'message' : 'Live segments can contain no more than one single \'action\' event in their event sequence.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'Live segments can contain no more than one single \'action\' event in their event sequence.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
             
         if self.segment.segment_sub_type == 2:
             # must be an inaction. This inaction must be at the last index if subtype 2
             if self.segment.event_sequence[self.last_idx].action_inaction != 'inaction':
                 raise OctyException(400,'Invalid event sequence provided.', 
-                    [{'message' : 'The last event \'action_inaction\' parameter in segments with sub type 2 , must be of type \'inaction\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : 'The last event \'action_inaction\' parameter in segments with sub type 2 , must be of type \'inaction\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
         else:
             # must NOT be any inactions if subtype 1
             inaction_event = next((event for event in self.segment.event_sequence if event.action_inaction == 'inaction'), None)
             if inaction_event:
                 raise OctyException(400,'Invalid event sequence provided.', 
-                    [{'message' : 'Sub type 1 segments can not contain inaction events in their event sequence.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                    [{'error_message' : 'Sub type 1 segments can not contain inaction events in their event sequence.', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
         await self._v_event_sequence_event_types()
         await self._v_event_sequence_duplicates()
@@ -365,7 +365,7 @@ class SegmentationService():
             segments, total = segmentationRepository.get_segment_by_identifiers(identifiers=identifiers,account_id=self.account_id)
             if total<1:
                 raise OctyException(400, 'Invalid segment identifier(s) provided', 
-                [{'message' : 'No segments were found with the provided identifier(s)', 
+                [{'error_message' : 'No segments were found with the provided identifier(s)', 
                 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
             
             return segments, total
@@ -380,7 +380,7 @@ class SegmentationService():
                                                 internal=internal)
             if len(segments)<1:
                 raise OctyException(400, 'No segments found', 
-                    [{'message' : 'No segments found with the provided segment identifier or pagination cursor exhausted', 
+                    [{'error_message' : 'No segments found with the provided segment identifier or pagination cursor exhausted', 
                     'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
             return segments, total
 
@@ -418,7 +418,7 @@ class SegmentationService():
                               segmentationRepository.get_segment_count(self.account.account_id), 1)
         if not res:
             raise OctyException(400,'Resource limit exceeded', 
-            [{'message' : f'This request could not be completed as this request exceeds the allowed number of segments : {counts["limit"]}. This account can create another {counts["remainder"]} segment(s).', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+            [{'error_message' : f'This request could not be completed as this request exceeds the allowed number of segments : {counts["limit"]}. This account can create another {counts["remainder"]} segment(s).', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
         
         segment = await SegmentValidatation(account=self.account, segment=segment).validate()
 
@@ -532,7 +532,7 @@ class SegmentationService():
                                                 cursor=0)
         if len(segments)<1:
             raise OctyException(400,'No segments found', 
-                [{'message' : 'No active segments found associated with this account', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'No active segments found associated with this account', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
             
         for segment_id in de_duped_segment_ids:
 
@@ -554,7 +554,7 @@ class SegmentationService():
 
         if len(deleted_segments) < 1:
             raise OctyException(400,'Invalid segment id provided', 
-                [{'message' : 'No segments found with provided segment_ids', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
+                [{'error_message' : 'No segments found with provided segment_ids', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
 
         #Delete segment definition
         await segmentationRepository.delete_segments(self.account_id, deleted_segments)

@@ -51,7 +51,7 @@ class EventsService():
         count_res, counts = assess_resource_limit(self.account.account_configurations['li'],event_count,1,resource_key=3)
         if not count_res:
             raise OctyException(400,'Resource limit exceeded', 
-                [{'message' : f'This request could not be completed as the number of events sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} events.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+                [{'error_message' : f'This request could not be completed as the number of events sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} events.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
         
 
         # get latest events matching this event types
@@ -65,7 +65,7 @@ class EventsService():
 
         if len(invalid_profiles)> 0 or len(valid_profiles)<1:
             raise OctyException(400,'Invalid event data provided', 
-                [{'message' : 'Unknown profile_id supplied with this event instance', 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
+                [{'error_message' : 'Unknown profile_id supplied with this event instance', 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
         
 
         # verify event
@@ -73,7 +73,7 @@ class EventsService():
         if res==False:
             if 'server error' in err_msg[1]:
                 raise Exception(500)
-            raise OctyException(400, err_msg[1], [{'message' : err_msg[0], 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
+            raise OctyException(400, err_msg[1], [{'error_message' : err_msg[0], 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
 
         event_id = generate_uid('event')
         created_event = {
@@ -164,13 +164,13 @@ class EventsService():
                               len(events.events),resource_key=3)
         if not res:
             raise OctyException(400,'Resource limit exceeded', 
-            [{'message' : f'This request could not be completed as the number of events sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} events.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+            [{'error_message' : f'This request could not be completed as the number of events sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} events.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
 
         # verify provided profile ids exists
         valid_profiles, invalid_profiles = await eventsRepository.get_profile_ids(account_id=self.account.account_id, profile_ids=profile_ids)
         if len(valid_profiles)<1:
                 raise OctyException(400,'Invalid event data provided', 
-                    [{'message' : 'Unknown profile_id supplied with this event instance', 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
+                    [{'error_message' : 'Unknown profile_id supplied with this event instance', 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
 
         for event in events.events:
             
@@ -454,6 +454,6 @@ class EventsService():
         events, total = await eventsRepository.get_events(self.account_id, timeframe, cursor, event_sequence_event, profile_ids, event_type)
         if len(events) < 1:
             raise OctyException(400, 'No events found', 
-                [{'message' : 'No events found with provided params or pagination cursor exhausted', 
+                [{'error_message' : 'No events found with provided params or pagination cursor exhausted', 
                 'extended_help': ''}])
         return events, total

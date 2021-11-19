@@ -405,7 +405,7 @@ class _ProfilesRepository(ProfilesInterface):
         # determine valid profiles
         for profile in profiles_batch:
             if profile['profile_id'] in profile_ids:
-                raise OctyException(400,'An error occurred when validating request.', [{'message' : f'Identical profile identifers supplied. Found duplicate profile_id : {profile["profile_id"]}', 
+                raise OctyException(400,'An error occurred when validating request.', [{'error_message' : f'Identical profile identifers supplied. Found duplicate profile_id : {profile["profile_id"]}', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
             profile_ids.append(profile['profile_id'])
 

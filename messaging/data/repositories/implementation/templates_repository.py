@@ -181,7 +181,7 @@ class _TemplatesRepository(TemplatesInterface):
         # determine valid profiles
         for template in templates_batch:
             if template['template_id'] in template_ids:
-                raise OctyException(400,'An error occurred when validating request.', [{'message' : f'Identical template identifers supplied. Found duplicate template_id : {template["template_id"]}', 
+                raise OctyException(400,'An error occurred when validating request.', [{'error_message' : f'Identical template identifers supplied. Found duplicate template_id : {template["template_id"]}', 
                 'extended_help': Config['MESSAGING_EXTENDED_HELP']}])
             template_ids.append(template['template_id'])
 
