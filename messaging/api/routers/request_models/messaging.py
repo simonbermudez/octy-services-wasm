@@ -60,8 +60,14 @@ class CreateTemplatesChild(BaseModel):
     template_type : str
     title : str
     content : str
-    required_data : List[str]
-    default_values : Dict[str, str]
+    required_data : Optional[List[str]] = []
+    @validator("required_data", pre=True, always=True)
+    def set_required_data(cls, required_data):
+        return required_data or []
+    default_values : Optional[Dict[str, str]] = {}
+    @validator("default_values", pre=True, always=True)
+    def set_default_values(cls, default_values):
+        return default_values or {}
     metadata : Optional[Dict[str, Any]]
     @validator('metadata')
     def metadata_validation(cls, v):
@@ -85,8 +91,14 @@ class UpdateTemplatesChild(BaseModel):
     template_type : str
     title : str
     content : str
-    required_data : List[str]
-    default_values : Dict[str, str]
+    required_data : Optional[List[str]] = []
+    @validator("required_data", pre=True, always=True)
+    def set_required_data(cls, required_data):
+        return required_data or []
+    default_values : Optional[Dict[str, str]] = {}
+    @validator("default_values", pre=True, always=True)
+    def set_default_values(cls, default_values):
+        return default_values or {}
     metadata : Optional[Dict[str, Any]]
     @validator('metadata')
     def metadata_validation(cls, v):
