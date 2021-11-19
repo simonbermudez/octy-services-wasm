@@ -89,7 +89,7 @@ class _AccountRepository(AccountInterface):
         try:
             new_account.save()
         except NotUniqueError as err:
-            raise OctyException(400, 'Duplicate entry', [{'message' : str(err), 'extended_help': ''}])
+            raise OctyException(400, 'Duplicate entry', [{'error_message' : str(err), 'extended_help': ''}])
 
         _cache_account_data(pk=pk, account_data=new_account.to_json())
 

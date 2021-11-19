@@ -74,7 +74,7 @@ class ProfilesService():
             count = len(profiles)
             if count<1:
                 raise OctyException(400, 'Invalid customer identifier(s) provided', 
-                [{'message' : 'No customer profiles were found with the provided identifier(s)', 
+                [{'error_message' : 'No customer profiles were found with the provided identifier(s)', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
 
             return profiles, count
@@ -88,7 +88,7 @@ class ProfilesService():
                                                 churn_prob=churn_prob)
             if len(profiles)<1:
                 raise OctyException(400, 'No customer profiles found', 
-                [{'message' : 'No customer profiles found with the provided query parameters or pagination cursor exhausted', 
+                [{'error_message' : 'No customer profiles found with the provided query parameters or pagination cursor exhausted', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
             return profiles, total
 
@@ -183,7 +183,7 @@ class ProfilesService():
                               len(profiles.profiles))
         if not res:
             raise OctyException(400,'Resource limit exceeded', 
-            [{'message' : f'This request could not be completed as the number of profiles sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} profiles.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+            [{'error_message' : f'This request could not be completed as the number of profiles sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} profiles.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
 
         profiles_batch = []
         for profile in profiles.profiles:
@@ -201,7 +201,7 @@ class ProfilesService():
         #validate client provided keys
         res, error = self._validate_profile_key_types(profiles_batch)
         if not res:
-            raise OctyException(400,'An error occurred when validating keys.', [{'message' : error, 
+            raise OctyException(400,'An error occurred when validating keys.', [{'error_message' : error, 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
 
         created, failed = profilesRepository.create_profiles(profiles_batch)
@@ -255,7 +255,7 @@ class ProfilesService():
             #validate client provided keys
             res, error = self._validate_profile_key_types(profiles_batch)
             if not res:
-                raise OctyException(400,'An error occurred when validating keys.', [{'message' : error, 
+                raise OctyException(400,'An error occurred when validating keys.', [{'error_message' : error, 
                     'extended_help': Config['PROFILES_EXTENDED_HELP']}])
 
         updated, failed = await profilesRepository.update_profiles(profiles_batch, internal=internal)
@@ -479,6 +479,6 @@ class ProfilesService():
 
         if len(profiles)<1:
             raise OctyException(400, 'No profiles found', 
-            [{'message' : 'No profiles found or pagination cursor exhausted', 
+            [{'error_message' : 'No profiles found or pagination cursor exhausted', 
             'extended_help': ''}])
         return profiles, not_found ,total

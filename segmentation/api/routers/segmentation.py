@@ -52,7 +52,7 @@ async def get_segments(request: Request,
         # Validate pagination headers set
         cursor, pag_message = await validate_pagination_request(request,ids)
         if cursor == None:
-            raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+            raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
                 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
     else:
         identifiers = ids.split(",")
@@ -60,7 +60,7 @@ async def get_segments(request: Request,
         identifiers = [remove_first_end_spaces(i) for i in identifiers]
 
         if len(identifiers) > Config['MAX_GET_SEGMENTS']:
-            raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_GET_SEGMENTS"]} identifiers can be provided with the "?ids=" query param per request', 
+            raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A maximum number of {Config["MAX_GET_SEGMENTS"]} identifiers can be provided with the "?ids=" query param per request', 
                 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
     
     segments, total = SegmentationService(current_account).get_segments(identifiers=identifiers,cursor=cursor)

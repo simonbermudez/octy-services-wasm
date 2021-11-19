@@ -76,13 +76,13 @@ async def get_customer_profiles(request: Request,
         if rfm != None:
             res,rfm_vals = await validate_arg_format(rfm)
             if res==False:
-                raise OctyException(400,'Invalid query string argument', [{'message' : 'rfm argument provided in an invalid format. Required format : int-int', 
+                raise OctyException(400,'Invalid query string argument', [{'error_message' : 'rfm argument provided in an invalid format. Required format : int-int', 
                     'extended_help': Config['PROFILES_EXTENDED_HELP']}])
         
         if churn_prob != None:
             try:
                 int(churn_prob)
-                raise OctyException(400,'Invalid query string argument', [{'message' : 'churn_prob argument provided in an invalid format. Required format : string (low, mid, high, very-high)', 
+                raise OctyException(400,'Invalid query string argument', [{'error_message' : 'churn_prob argument provided in an invalid format. Required format : string (low, mid, high, very-high)', 
                     'extended_help': Config['PROFILES_EXTENDED_HELP']}])
             except ValueError:
                 pass
@@ -96,7 +96,7 @@ async def get_customer_profiles(request: Request,
         # Validate pagination headers set
         cursor, pag_message = await validate_pagination_request(request,ids)
         if cursor == None:
-            raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+            raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
     else:
         ids = re.sub(r'(\s|\u180B|\u200B|\u200C|\u200D|\u2060|\uFEFF)+', '',ids)
@@ -104,7 +104,7 @@ async def get_customer_profiles(request: Request,
         identifiers = list(dict.fromkeys(filter(None, identifiers)))
 
         if len(identifiers) > Config['MAX_GET_PROFILES']:
-            raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_GET_PROFILES"]} identifiers can be provided with the "?ids=" query param per request', 
+            raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A maximum number of {Config["MAX_GET_PROFILES"]} identifiers can be provided with the "?ids=" query param per request', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
     
     profiles, total = ProfilesService(current_account).get_profiles(segments=segments,
@@ -191,10 +191,10 @@ async def get_profiles_meta(request: Request, ids : str,
     identifiers = list(dict.fromkeys(filter(None, identifiers)))
 
     if len(identifiers) > Config['MAX_IDENTIFY_PROFILES']:
-        raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_IDENTIFY_PROFILES"]} identifiers can be provided with the "?ids=" query param per request', 
+        raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A maximum number of {Config["MAX_IDENTIFY_PROFILES"]} identifiers can be provided with the "?ids=" query param per request', 
             'extended_help': Config['PROFILES_EXTENDED_HELP']}])
     elif len(identifiers) < 1:
-        raise OctyException(400,'Invalid Parameters', [{'message' : f'A minimum number of {1} identifier must be provided with each request', 
+        raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A minimum number of {1} identifier must be provided with each request', 
             'extended_help': Config['PROFILES_EXTENDED_HELP']}])
 
     
@@ -226,13 +226,13 @@ async def get_profiles_internal(request: Request,  profiles : GetProfilesInterna
     # Validate pagination headers set
         cursor, pag_message = await validate_pagination_request(request, None)
         if cursor == None:
-            raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+            raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
                 'extended_help': ''}])
 
     else:
         # do not allow more than 2000 profile ids
         if len(profiles.profiles) > 2000:
-            raise OctyException(400,'Exceeded resource request limit', [{'message' : 'can only get 2000 profiles per request', 
+            raise OctyException(400,'Exceeded resource request limit', [{'error_message' : 'can only get 2000 profiles per request', 
                 'extended_help': ''}])
 
 

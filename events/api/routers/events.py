@@ -85,7 +85,7 @@ async def get_events_internal(request: Request,  e : GetEventsInternal):
     # Validate pagination headers set
     cursor, pag_message = await validate_pagination_request(request, None)
     if cursor == None:
-        raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+        raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
             'extended_help': ''}])
     events, total = await EventsService(account_id=e.account_id)\
         .get_events(timeframe=e.timeframe, 

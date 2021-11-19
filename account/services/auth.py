@@ -46,33 +46,33 @@ class AuthService:
         try:
             token =  request.headers['authorization']
         except KeyError:
-            raise OctyException(400,'Missing header',[{'message' : '[Authorization] : [Basic ...] header must be provided in request headers.', 
+            raise OctyException(400,'Missing header',[{'error_message' : '[Authorization] : [Basic ...] header must be provided in request headers.', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
         
         res,pk,sk = basic_auth_parse(token)
         if res == False:
-            raise OctyException(401,'Authentication failed', [{'message' : 'Please provide public and secret keys, encoded as a basic authorization token, within the \'Authorization\' header of this request.', 
+            raise OctyException(401,'Authentication failed', [{'error_message' : 'Please provide public and secret keys, encoded as a basic authorization token, within the \'Authorization\' header of this request.', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         if pk == "" or pk == None:
             _log_failed_auth(request, False)
-            raise OctyException(401,'Authentication failed', [{'message' : 'Please provide your Octy public key (username), encoded as a basic authorization token, within the Authorization header of this request.', 
+            raise OctyException(401,'Authentication failed', [{'error_message' : 'Please provide your Octy public key (username), encoded as a basic authorization token, within the Authorization header of this request.', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         if sk == "" or sk == None:
             _log_failed_auth(request, False)
-            raise OctyException(401,'Authentication failed', [{'message' : 'Please provide your Octy secret key (password), encoded as a basic authorization token, within the Authorization header of this request.', 
+            raise OctyException(401,'Authentication failed', [{'error_message' : 'Please provide your Octy secret key (password), encoded as a basic authorization token, within the Authorization header of this request.', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         # Assert the formats of each supplied key to ensure we have one pk and one sk
         if not re.match(r'[p][k][_][a-zA-Z0-9]',pk):
             _log_failed_auth(request, False)
-            raise OctyException(401,'Authentication failed', [{'message' : 'Invalid public_key or secret_key provided', 
+            raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         if not re.match(r'[s][k][_][a-zA-Z0-9]',sk):
             _log_failed_auth(request, False)
-            raise OctyException(401,'Authentication failed', [{'message' : 'Invalid public_key or secret_key provided', 
+            raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
     async def authenticatation(self, request : Request) -> str:
@@ -94,7 +94,7 @@ class AuthService:
         valid_pk, valid_sk, account = authRepository.verify_account_keys(pk, sk)
         if not valid_pk or not valid_sk:
             _log_failed_auth(request, valid_pk)
-            raise OctyException(401,'Authentication failed', [{'message' : 'Invalid public_key or secret_key provided', 
+            raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
         return await authRepository.generate_authorization_token(account=account)
 

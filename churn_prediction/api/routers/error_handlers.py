@@ -98,7 +98,7 @@ If you entered the URL manually please check your spelling and try again.'
         err_template['error']['reason'] = f'You have exceeded the total \
 number of allowed requests to this endpoint: {exc.detail}'
         err_template['error']['errors'] = [{
-            "message": "Too many requests",
+            "error_message": "Too many requests",
             "extended_help": Config['RATE_LIMIT_EXTENDED_HELP']
         }]
 
@@ -115,7 +115,7 @@ number of allowed requests to this endpoint: {exc.detail}'
         err_template['error']['code'] = 500
         err_template['error']['reason'] = 'Internal Server Error'
         err_template['error']['errors'] = [{
-            "message": "Unexpected error occurred when attempting to process this request",
+            "error_message": "Unexpected error occurred when attempting to process this request",
             "extended_help": Config['SERVER_ERROR_EXTENDED_HELP']
         }]
 

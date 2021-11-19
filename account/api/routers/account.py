@@ -62,7 +62,7 @@ async def get_accounts_internal(request: Request,  a : GetAccountsInternal):
     # Validate pagination headers set
     cursor, pag_message = await validate_pagination_request(request, None)
     if cursor == None:
-        raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+        raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
             'extended_help': ''}])
     accounts, total = accountService.get_accounts_internal(account_ids=a.account_ids, cursor=cursor)
     return GetAccountsInternalDTO(accounts, total).dto()

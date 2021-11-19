@@ -49,7 +49,7 @@ async def get_items(request: Request,
         # Validate pagination headers set
         cursor, pag_message = await validate_pagination_request(request,ids)
         if cursor == None:
-            raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+            raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
                 'extended_help': Config['ITEMS_EXTENDED_HELP']}])
     else:
         ids = re.sub(r'(\s|\u180B|\u200B|\u200C|\u200D|\u2060|\uFEFF)+', '',ids)
@@ -57,7 +57,7 @@ async def get_items(request: Request,
         identifiers = list(dict.fromkeys(filter(None, identifiers)))
 
         if len(identifiers) > Config['MAX_GET_ITEMS']:
-            raise OctyException(400,'Invalid Parameters', [{'message' : f'A maximum number of {Config["MAX_GET_ITEMS"]} identifiers can be provided with the "?ids=" query param per request', 
+            raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A maximum number of {Config["MAX_GET_ITEMS"]} identifiers can be provided with the "?ids=" query param per request', 
                 'extended_help': Config['ITEMS_EXTENDED_HELP']}])
     
     items, total = ItemsService(current_account).get_items(item_ids=identifiers,cursor=cursor)
@@ -143,7 +143,7 @@ async def get_items_internal(request: Request,  account_id : str, ids : bool, st
     # Validate pagination headers set
     cursor, pag_message = await validate_pagination_request(request, None)
     if cursor == None:
-        raise OctyException(400,'Missing Parameters', [{'message' : pag_message, 
+        raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
             'extended_help': Config['ITEMS_EXTENDED_HELP']}])
     
     items, total = ItemsService(None).get_items_internal(account_id=account_id,cursor=cursor, ids=bool(ids), status=status)

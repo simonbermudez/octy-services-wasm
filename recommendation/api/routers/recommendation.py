@@ -39,7 +39,7 @@ async def get_recomendations(request: Request,  getRecomendations : GetRecomenda
     current_account: Account = Depends(decode_account_jwt)):
     if len(getRecomendations.profile_ids) > Config['MAX_REC_PREDICTIONS']:
         raise OctyException(400,'Recommendation request limit exceeded.', 
-            [{'message' : f'A maximum number of {Config["MAX_REC_PREDICTIONS"]} profile ids per recommendations request allowed.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+            [{'error_message' : f'A maximum number of {Config["MAX_REC_PREDICTIONS"]} profile ids per recommendations request allowed.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
     recommendations, training_job_meta = await RecommendationsService(account=current_account, account_id=None)\
         .get_recommendations(profile_ids=getRecomendations.profile_ids)
     return GetRecommendationsDTO(recommendations=recommendations, training_job_meta=training_job_meta).dto()
@@ -65,7 +65,7 @@ async def get_recomendations(request: Request,  getRecomendations : GetRecomenda
 async def get_recomendations(request: Request,  getRec : GetRecomendationsInternal):
     if len(getRec.profile_ids) > Config['MAX_REC_PREDICTIONS']:
         raise OctyException(400,'Recommendation request limit exceeded.', 
-            [{'message' : f'A maximum number of {Config["MAX_REC_PREDICTIONS"]} profile ids per recommendations request allowed.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+            [{'error_message' : f'A maximum number of {Config["MAX_REC_PREDICTIONS"]} profile ids per recommendations request allowed.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
     recommendations, training_job_meta = await RecommendationsService(account=None, account_id=getRec.account_id)\
         .get_recommendations(profile_ids=getRec.profile_ids)
     return GetRecommendationsDTO(recommendations=recommendations, training_job_meta=training_job_meta).dto()
