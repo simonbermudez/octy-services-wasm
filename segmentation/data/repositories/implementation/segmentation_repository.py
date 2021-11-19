@@ -87,7 +87,7 @@ class _SegmentationRepository(SegmentationInterface):
         
         #format segments
         for segment in raw_res:
-            segment['template_id'] = segment['_id']
+            segment['segment_id'] = segment['_id']
             _format_segment(segment)
 
         return raw_res, total
