@@ -187,7 +187,7 @@ class EventsService():
                             'event_type' : event.event_type,
                             'event_properties' : event.event_properties,
                             'profile_id' : event.profile_id,
-                            'error' : 'Incorrect date format supplied, should be YYYY-MM-DD HH:MM:SS'
+                            'error_message' : 'Incorrect date format supplied, should be YYYY-MM-DD HH:MM:SS'
                         })
                         continue
             except KeyError:
