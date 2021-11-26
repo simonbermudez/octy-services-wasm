@@ -59,8 +59,6 @@ spec:
         - name: account-service
           port: 1024
     - match: Path(`/v1/admin/application/resources/format`)
-      middlewares:
-        - name: trusted-app-auth
       kind: Rule
       services:
         - name: admin-service
@@ -71,8 +69,6 @@ spec:
         - name: admin-service
           port: 1025
     - match: Path(`/v1/admin/application/versioning`)
-      middlewares:
-        - name: trusted-app-auth
       kind: Rule
       services:
         - name: admin-service
@@ -213,7 +209,6 @@ spec:
           port: 1024
     - match: Path(`/v1/admin/application/resources/format`)
       middlewares:
-        - name: trusted-app-auth
         - name: https-only
       kind: Rule
       services:
@@ -229,7 +224,6 @@ spec:
     - match: Path(`/v1/admin/application/versioning`)
       middlewares:
         - name: https-only
-        - name: trusted-app-auth
       kind: Rule
       services:
         - name: admin-service
