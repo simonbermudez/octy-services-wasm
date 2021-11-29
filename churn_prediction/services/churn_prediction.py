@@ -37,8 +37,8 @@ class ChurnPredictionService():
         ----------
         churn_report : dict
         """
-        training_job = await churnPredictionRepository.get_latest_training_job(account_id=self.account.account_id)
-        if not training_job:
+        hp_tuning_job = await churnPredictionRepository.get_latest_hp_tuning_job(account_id=self.account.account_id)
+        if not hp_tuning_job:
             raise OctyException(400,'An error occurred when generating this churn prediction report.', 
                 [{'error_message' : 'No churn prediction training jobs have been completed. Churn prediction training jobs are automatically run every 24 hours', 
                 'extended_help': Config['CHURN_PREDICTION_EXTENDED_HELP']}])
@@ -57,13 +57,13 @@ class ChurnPredictionService():
                 }
             }
 
-        meta = training_job[0]['model_meta_data']
+        meta = hp_tuning_job[0]['best_model_meta_data']
         churn_rates = self.account.churn_info
 
 
         # Populate churn report
-        churn_report['training_job_data']['training_job_id'] = training_job[0]['_id']
-        churn_report['training_job_data']['training_job_date'] = int_to_dt(training_job[0]['updated_at']['$date'], as_str=True)
+        churn_report['training_job_data']['training_job_id'] = hp_tuning_job[0]['best_model_training_job_id']
+        churn_report['training_job_data']['training_job_date'] = int_to_dt(hp_tuning_job[0]['updated_at']['$date'], as_str=True)
         churn_report['training_job_data']['model_accuracy'] = meta['eval_score']
 
         churn_report['churn_data']['current_churn_percentage'] = round(churn_rates['churn_percentage'],1)
