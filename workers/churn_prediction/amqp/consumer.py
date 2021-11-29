@@ -67,7 +67,7 @@ def handle_message(payload, main_loop) -> None:
                                     algorithm_configurations=job_payload.account_data.algorithm_configurations,
                                     webhook_url=job_payload.account_data.webhook_url,
                                     hyperparam_tuning_job_id=job_payload.job_data.hyperparam_tuning_job_id,
-                                    previous_churn_percentage=job_payload.job_data.previous_churn_percentage,
+                                    previous_churn_percentage=job_payload.account_data.churn_percentage,
                                     loop=main_loop).run())
     except Exception as ex:
         logger.error(f'Error running churn prediction job: {ex}')

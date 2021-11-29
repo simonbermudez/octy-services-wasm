@@ -6,11 +6,11 @@ class AccountData(BaseModel):
     account_id : str
     webhook_url : Optional[str]
     bucket : str
+    churn_percentage : Any # int or float
     algorithm_configurations : Dict
 
 class ChurnCompleteJobData(BaseModel):
     hyperparam_tuning_job_id : str
-    previous_churn_percentage : Any # int or float
 
 # ------------------------------
 
