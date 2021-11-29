@@ -66,7 +66,7 @@ class ChurnPredictionService():
         churn_report['training_job_data']['training_job_date'] = int_to_dt(training_job[0]['updated_at']['$date'], as_str=True)
         churn_report['training_job_data']['model_accuracy'] = meta['eval_score']
 
-        churn_report['churn_data']['current_churn_percentage'] = round(churn_rates['churn_precentage'],1)
+        churn_report['churn_data']['current_churn_percentage'] = round(churn_rates['churn_percentage'],1)
         churn_report['churn_data']['churn_direction_indication'] = churn_rates['churn_indicator']
         if churn_rates['churn_difference'] != 0.0:
             churn_report['churn_data']['churn_percentage_difference'] = round(churn_rates['churn_difference'],1)

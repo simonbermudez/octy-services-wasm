@@ -40,7 +40,7 @@ class AlgorithmConfigurations(EmbeddedDocument):
 
     
 class ChurnInfo(EmbeddedDocument):
-    churn_precentage = FloatField(default=0.0,required=True)
+    churn_percentage = FloatField(default=0.0,required=True)
     churn_indicator = StringField(default='stalled',required=True) # positive, negative, stalled
     churn_difference = FloatField(default=0.0,required=True)
     features = ListField(default=[],required=False)

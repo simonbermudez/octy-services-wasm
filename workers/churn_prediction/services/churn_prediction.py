@@ -134,7 +134,7 @@ class ChurnPredictionTraining():
                             'account_attributes' : [
                                 'account_configurations.webhook_url',
                                 'bucket',
-                                'churn_info.churn_precentage'
+                                'churn_info.churn_percentage'
                             ],
                             'algorithm_configuration_idxs' : [
                                 1
@@ -904,7 +904,7 @@ class ChurnPredictionCompleteTrainingJob():
             payload={
                 'account_id' : self.account_id,
                 'churn_info' : {
-                    'churn_precentage' : self.current_churn,
+                    'churn_percentage' : self.current_churn,
                     'churn_indicator' : churn_indicator,
                     'churn_difference' : churn_diff,
                     'features' : self.features

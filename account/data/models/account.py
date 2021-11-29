@@ -9,7 +9,7 @@ class algorithmConfig(BaseModel):
 
 
 class churnInfo(BaseModel):
-    churn_precentage : float
+    churn_percentage : float
     churn_indicator : str
     churn_difference : float
     features : Optional[List[Any]] = None

@@ -181,7 +181,7 @@ class _AccountRepository(AccountInterface):
 
 
         elif action == 'churn-info':
-            a.churn_info.churn_precentage = account.churn_info.churn_precentage
+            a.churn_info.churn_percentage = account.churn_info.churn_percentage
             a.churn_info.churn_indicator = account.churn_info.churn_indicator
             a.churn_info.churn_difference = account.churn_info.churn_difference
             a.churn_info.features = account.churn_info.features
