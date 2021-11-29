@@ -206,7 +206,7 @@ class OctyJobQueue():
             # let them re-run, but increment failed count
             ex = 'Pending jobs found, but no accounts were returned from account service. Trying again.'
             for octy_job in self.pending_jobs:
-                octyJobsRepository.update_octy_job([
+                await octyJobsRepository.update_octy_job([
                     {
                         'account_id' : octy_job['account_id'],
                         'octy_job_id' : octy_job['_id'],
