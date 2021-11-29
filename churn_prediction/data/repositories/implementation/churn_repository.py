@@ -33,7 +33,7 @@ class _ChurnPredictionRepository(ChurnPredInterface):
     """
     def __init__(self): pass
 
-    async def get_latest_training_job(self, account_id : str) -> dict:
+    async def get_latest_hp_tuning_job(self, account_id : str) -> dict:
         """
         Parameters
         ----------
@@ -41,15 +41,15 @@ class _ChurnPredictionRepository(ChurnPredInterface):
 
         Returns
         ----------
-        training_job : dict
+        hp_tuning_job : dict
         """
         query = {'$and' : [
             {"account_id" : { "$eq" : account_id}},
             {"status" : { "$eq" : 'Completed'}},
         ]}
-        results_cursor = tbl_training_jobs._get_collection().find(query).sort('updated_at', -1).limit(1)
-        training_job = json.loads(dumps(list(results_cursor), indent = 2))
-        return training_job
+        results_cursor = tbl_hparam_tuning_jobs._get_collection().find(query).sort('updated_at', -1).limit(1)
+        hp_tuning_job = json.loads(dumps(list(results_cursor), indent = 2))
+        return hp_tuning_job
     
 
 churnPredictionRepository = _ChurnPredictionRepository()
