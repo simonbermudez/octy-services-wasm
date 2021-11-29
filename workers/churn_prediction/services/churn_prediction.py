@@ -181,6 +181,12 @@ class ChurnPredictionTraining():
                                                                 self.profiles_ids, 
                                                                 self.data_timeframe, 
                                                                 'complaint')
+
+        if len(charged_events_data)< Config['MIN_NUM_CHARGED_EVENTS']:
+            raise Exception('Not enough charged event instances found to conduct model training.')
+        if len(complaints_events_data)< Config['MIN_NUM_COMPLAINTS']:
+            raise Exception('Not enough complaint event instances found to conduct model training.')
+        
         self.charged_events_df = pd.DataFrame(charged_events_data)
         self.complaints_events_df = pd.DataFrame(complaints_events_data)
         self.complaints_events_df = self.complaints_events_df.drop(['account_id','event_type_id','created_at','event_id'], axis = 1)
