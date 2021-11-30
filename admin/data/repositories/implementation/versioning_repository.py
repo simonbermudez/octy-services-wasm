@@ -48,8 +48,12 @@ class _VersioningRepository(VersioningInterface):
         version_data['version_tag'] = data['tag_name']
         version_data['version_name'] = data['name']
         version_data['version_int'] = version_data['version_tag']
-        for char in "v . - b e t a": 
-            version_data['version_int'] = version_data['version_int'].replace(char, "")
+        if 'beta' in version_data['version_tag']:
+            for char in "v . - b e t a": 
+                version_data['version_int'] = version_data['version_int'].replace(char, "")
+        elif 'alpha' in version_data['version_tag']:
+            for char in "v . - a l p h a": 
+                version_data['version_int'] = version_data['version_int'].replace(char, "")
         version_data['version_int'] = int(version_data['version_int'])
         version_data['change_log'] = data['body']
         version_data['assets'] = data['assets']
