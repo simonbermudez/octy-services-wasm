@@ -17,7 +17,7 @@ import sentry_sdk
 
 
 app = FastAPI()
-logger = logging.getLogger('uvicorn')
+logger = logging.getLogger('uvicorn.error')
 
 
 class HealthCheckFilter(logging.Filter):

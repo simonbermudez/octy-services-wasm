@@ -18,7 +18,7 @@ import sentry_sdk
 
 
 app = FastAPI()
-logger = logging.getLogger('uvicorn')
+logger = logging.getLogger('uvicorn.error')
 octy_job_queue = OctyJobQueue(logger, 2)
 
 class HealthCheckFilter(logging.Filter):
