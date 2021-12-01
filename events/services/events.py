@@ -170,7 +170,7 @@ class EventsService():
         valid_profiles, invalid_profiles = await eventsRepository.get_profile_ids(account_id=self.account.account_id, profile_ids=profile_ids)
         if len(valid_profiles)<1:
                 raise OctyException(400,'Invalid event data provided', 
-                    [{'error_message' : 'Unknown profile_id supplied with this event instance', 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
+                    [{'error_message' : 'No valid profile_id(s) were supplied with event instance(s)', 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
 
         for event in events.events:
             
