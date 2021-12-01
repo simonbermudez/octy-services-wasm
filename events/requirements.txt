@@ -22,6 +22,7 @@ pycparser==2.20
 pydantic==1.8.1
 PyJWT==2.0.1
 pymongo==3.11.3
+PyYAML==6.0
 redis==3.5.3
 requests==2.25.1
 sentry-sdk==1.0.0

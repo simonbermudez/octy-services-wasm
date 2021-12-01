@@ -7,8 +7,8 @@ WORKDIR /configurations
 COPY "./configurations" .
 RUN pip install -r ./requirements.txt
 ARG git_token
-RUN pip install git+https://$git_token@github.com/Octy-ai/octy-rabbitmq-lib.git@1.1.0
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+RUN pip install git+https://$git_token@github.com/Octy-ai/octy-rabbitmq-lib.git@1.2.0
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--log-config", "api/log-conf.yml"]
 
 # Development > local
 #LWhen CD to this directory
@@ -19,4 +19,4 @@ CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
 # WORKDIR /configurations
 # COPY . /configurations
 # RUN pip install -r /configurations/requirements.txt
-# CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+# CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--log-config", "api/log-conf.yml"]

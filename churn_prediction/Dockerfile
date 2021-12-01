@@ -6,7 +6,7 @@ RUN mkdir -p /churn_prediction
 WORKDIR /churn_prediction
 COPY "./churn_prediction" .
 RUN pip install -r ./requirements.txt
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--log-config", "api/log-conf.yml"]
 
 # Development > local
 #LWhen CD to this directory
@@ -17,4 +17,4 @@ CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
 # WORKDIR /churn_prediction
 # COPY . /churn_prediction
 # RUN pip install -r /churn_prediction/requirements.txt
-# CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+# CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--log-config", "api/log-conf.yml"]
