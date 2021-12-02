@@ -12,7 +12,7 @@ from datetime import datetime as dt
 import time
 
 # external imports
-from mongoengine.errors import BulkWriteError
+from mongoengine.errors import BulkWriteError, OperationError
 from mongoengine.queryset.visitor import Q
 from pymongo.errors import BulkWriteError
 from bson.json_util import dumps
@@ -324,8 +324,11 @@ class _SegmentationRepository(SegmentationInterface):
         ----------
         None
         """
-        tbl_segments.objects(Q(account_id__exact=account_id) \
-            & Q(segment_id__exact=segment_id)).update(set__profile_ids=profile_ids)
+        try:
+            tbl_segments.objects(Q(account_id__exact=account_id) \
+                & Q(segment_id__exact=segment_id)).update(set__profile_ids=profile_ids)
+        except OperationError as e:
+            raise Exception(f"[toxic]:: {e}")
 
     async def delete_segments(self, account_id : str, segment_ids : list) -> None:
         """

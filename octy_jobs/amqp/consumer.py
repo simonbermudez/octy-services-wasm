@@ -12,17 +12,17 @@ import logging
 # external imports
 from aio_pika.exceptions import MessageProcessError
 
-logger = logging.getLogger('uvicorn')
+logger = logging.getLogger('uvicorn.error')
 sem = threading.BoundedSemaphore(10)
 
 
-def ack_message(payload, did_succeed : bool = True, requeue : bool = True) -> None:
+def ack_message(payload, did_succeed : bool=True, requeue : bool=True) -> None:
     try:
         if did_succeed:
             payload.ack()
         else:
             payload.reject(requeue=requeue)
-        logger.info("Acknowledged message!")
+        logger.info("Acknowledged message! Requeued message: {requeue}")
     except MessageProcessError:
         logger.error("Failed to acknowledge message!")
         payload.reject(requeue=False)
@@ -61,9 +61,9 @@ def handle_message(payload, main_loop) -> None:
             loop.run_until_complete(OctyJobQueueService(delete_jobs.account_id)\
                 .delete_octy_jobs(octy_job_ids=octy_job_ids, alt_identifiers=alt_identifiers))
     except Exception as ex:
-        logger.error(f'Error updating or deleting octy jobs: {ex}')
+        logger.error(f'Error creating or deleting octy jobs: {ex}')
         # Requeue failed message
-        cb = functools.partial(ack_message, payload, False, True)
+        cb = functools.partial(ack_message, payload, did_succeed=False, requeue=False if '[toxic]::' in str(ex) else True)
         main_loop.call_soon_threadsafe(cb)
         loop.close() # Close this threads loop
         sem.release()

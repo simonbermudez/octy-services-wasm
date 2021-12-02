@@ -157,7 +157,10 @@ class _AccountRepository(AccountInterface):
             ----------
             None
         """
-        a = tbl_accounts.objects.get(account_id__exact=account.account_id)
+        try:
+            a = tbl_accounts.objects.get(account_id__exact=account.account_id)
+        except DoesNotExist as e:
+            raise Exception(f"[toxic]:: {e}")
 
         if action == 'account-config':
             a.account_configurations.contact_name = account.contact_name

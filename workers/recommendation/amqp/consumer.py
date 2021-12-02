@@ -12,17 +12,17 @@ import logging
 # external imports
 from aio_pika.exceptions import MessageProcessError
 
-logger = logging.getLogger('uvicorn')
+logger = logging.getLogger('uvicorn.error')
 sem = threading.BoundedSemaphore(10)
 
 
-def ack_message(payload, did_succeed : bool = True, requeue : bool = True) -> None:
+def ack_message(payload, did_succeed : bool=True, requeue : bool=True) -> None:
     try:
         if did_succeed:
             payload.ack()
         else:
             payload.reject(requeue=requeue)
-        logger.info("Acknowledged message!")
+        logger.info("Acknowledged message! Requeued message: {requeue}")
     except MessageProcessError:
         logger.error("Failed to acknowledge message!")
         payload.reject(requeue=False)
