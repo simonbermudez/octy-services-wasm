@@ -5,6 +5,7 @@ from config import Config
 class VersioningDTO():
     def __init__(self, application_type : str, versions : list):
         self.application_type = application_type
+        [v.update({"change_log" : "*REDACTED*", "release_id" : "*REDACTED*"}) for v in versions]
         self.versions = versions
 
     def dto(self) -> JSONResponse:
