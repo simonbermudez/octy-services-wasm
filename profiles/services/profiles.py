@@ -261,7 +261,8 @@ class ProfilesService():
         updated, failed = await profilesRepository.update_profiles(profiles_batch, internal=internal)
 
         if len(updated) < 1:
-            raise OctyException(400, 'No profiles updated!', failed)
+            ex = 'No profiles updated!' if not internal else '[toxic]:: No profiles updated!'
+            raise OctyException(400, ex, failed)
 
         return updated, failed
 
@@ -294,7 +295,8 @@ class ProfilesService():
         deleted , failed = await profilesRepository.delete_profiles(profiles_batch)
 
         if len(deleted) < 1:
-            raise OctyException(400, 'No profiles deleted!', failed)
+            ex = 'No profiles deleted!' if not identification_job else '[toxic]:: No profiles deleted!'
+            raise OctyException(400, ex, failed)
         return deleted, failed
 
     def _validate_profile_key_types(self,new_customer_profiles : dict) -> Union[bool, str]:

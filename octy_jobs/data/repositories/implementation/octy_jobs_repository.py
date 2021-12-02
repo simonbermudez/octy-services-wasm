@@ -169,7 +169,10 @@ class _OctyJobsRepository(OctyJobsInterface):
                         {  "account_id" : { "$in" : account_ids }  }
                     ]
                 }).remove()
-        bulk_operation.execute()
+        try:
+            bulk_operation.execute()
+        except Exception as ex: 
+            raise Exception(f"[toxic]:: Exception occurred when deleting octy job : {str(ex)}")
 
     async def get_octy_jobs(self, cursor : int) -> list:
         """

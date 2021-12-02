@@ -591,7 +591,10 @@ class _ProfilesRepository(ProfilesInterface):
                             }
                     }
                 )
-            bulk_operation.execute()
+            try:
+                bulk_operation.execute()
+            except Exception as e:
+                raise Exception(f"[toxic]:: {e}")
 
         elif action == 'delete':
             for seg in segment_ids:
@@ -636,7 +639,10 @@ class _ProfilesRepository(ProfilesInterface):
                         }
                 }
             )
-        bulk_operation.execute()
+        try:
+            bulk_operation.execute()
+        except Exception as e:
+            raise Exception(f"[toxic]:: {e}")
 
     async def update_segment_tags(self, account_id : str, profile_id : str, segment_tags : list) -> None:
         """
@@ -653,32 +659,6 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         None
         """
-        # bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
-        # for seg in segment_tags:
-        #     # find all segment tags in profiles and update status to 'pending deletion'
-
-        #     bulk_operation.find({
-        #         '$and' : [
-        #             {"account_id" : { "$eq" : account_id} },
-        #             {"_id" : { "$eq" : profile_id} },
-        #             {"segment_tags.segment_id" : { "$eq" : seg['segment_id']} },
-        #             {
-        #                 '$or' : [
-        #                     {"segment_tags.status" : { "$eq" : "active"}},
-        #                     {"segment_tags.status" : { "$eq" : "pending"}}
-        #                 ]
-        #             }
-        #         ]
-        #     }).update(
-        #         {
-        #             "$set" : 
-        #                 {   
-        #                     "segment_tags.$.status":seg['status'],
-        #                     "segment_tags.$.updated_at":dt.now()
-        #                 }
-        #         }
-        #     )
-        # bulk_operation.execute()
         profile = tbl_profiles.objects( ( Q(profile_id__exact=profile_id) & Q(account_id__exact=account_id) )).first()
         if profile:
             for segment_tag in segment_tags:
@@ -723,7 +703,10 @@ class _ProfilesRepository(ProfilesInterface):
                     }
                 }
             )
-        bulk_operation.execute()
+        try:
+            bulk_operation.execute()
+        except Exception as e:
+            raise Exception(f"[toxic]:: {e}")
         #, "status" :"pending_deletion"
             
     def set_profile_key_type(self, account_id : str, profile_key_type : dict) -> None:

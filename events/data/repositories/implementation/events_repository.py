@@ -334,8 +334,8 @@ class _EventsRepository(EventsInterface):
                 )
         try:
             bulk_operation.execute()
-        except BulkWriteError as bwe:
-            raise Exception(f"Exception occurred when updating event instances : {str(bwe)}")
+        except BulkWriteError as bwe: 
+            raise Exception(f"[toxic]:: Exception occurred when updating event instances : {str(bwe)}")
 
     async def delete_profile_events(self, account_id : str, profile_id : str) -> None:
         """
