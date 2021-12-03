@@ -22,7 +22,7 @@ def ack_message(payload, did_succeed : bool=True, requeue : bool=True) -> None:
             payload.ack()
         else:
             payload.reject(requeue=requeue)
-        logger.info(f"Acknowledged message! Did succeed: {did_succeed} Requeued message: {requeue}")
+        logger.info(f"Acknowledged message! Did succeed: {did_succeed} Requeued message: {False if did_succeed else requeue}")
     except MessageProcessError:
         logger.error("Failed to acknowledge message!")
         payload.reject(requeue=False)
