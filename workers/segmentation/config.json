@@ -24,6 +24,10 @@
         {
             "QUEUE" : "grouped-segmentation-operations-queue",
             "ROUTING_KEY" : "grouped.segmentation.operations.cmd"
+        },
+        {
+            "QUEUE" : "capture-billing-units-queue",
+            "ROUTING_KEY" : "account.billing.cmd.capture"
         }
     ],
     "AMQP_CONSUMERS" : [

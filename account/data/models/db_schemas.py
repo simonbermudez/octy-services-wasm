@@ -16,6 +16,8 @@ class Keys(EmbeddedDocument):
     public_key = StringField(unique=True)
     secret_key = StringField(unique=True)
 class AccountConfigurations(EmbeddedDocument):
+    account_type = StringField(required=True)
+    account_currency = StringField(required=True)
     contact_name = StringField(required=True)
     contact_surname = StringField(required=True)
     contact_email_address = StringField(required=True)

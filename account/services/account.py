@@ -94,6 +94,8 @@ class AccountService:
         return {
             'account_id': new_account.account_id,
             'account_name' : new_account.account_name,
+            'account_type' : new_account.account_type,
+            'account_currency' : new_account.account_currency,
             'contact_email_address' : new_account.account_configurations.contact_email_address,
             'pk' : new_account.keys.public_key,
             'notification_sent' : notification_sent

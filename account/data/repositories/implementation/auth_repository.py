@@ -110,6 +110,8 @@ class _AuthRepository(AuthInterface):
                 "b" : account['bucket'],
                 "pe" : account['permissions'],
                 "a_cf" : {
+                    "a_t" : account['account_configurations']['account_type'],
+                    "a_c": account['account_configurations']['account_currency'],
                     "c_n": account['account_configurations']['contact_name'],
                     "c_s": account['account_configurations']['contact_surname'],
                     "c_e": account['account_configurations']['contact_email_address'],

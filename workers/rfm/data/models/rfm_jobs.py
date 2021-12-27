@@ -5,6 +5,8 @@ from typing import Optional
 class AccountData(BaseModel):
     account_id : str
     webhook_url : Optional[str]
+    account_type : str
+    account_currency : str
     bucket : str
 
 class RFMCompleteJobData(BaseModel):

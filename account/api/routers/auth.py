@@ -25,7 +25,7 @@ limiter = Limiter(key_func=get_remote_address)
 # Required parameters : null
 # Description : Create new Octy account
 # Returns : Auth status, Authorization/ account info fat jwt token
-# Limits : 600 Requests per minute
+# Limits : 10000 Requests per minute
 # Requires auth : YES -- Public Key & Secret Key
 ######################################
 

@@ -324,7 +324,7 @@ class _RFMRepository(RFMInterface):
             ]
         )
 
-    async def get_cloud_training_status(self, training_job_id : str) -> str:
+    async def get_cloud_training_status_time(self, training_job_id : str) -> Union[str, int]:
         """
         Parameters
         ----------
@@ -333,8 +333,10 @@ class _RFMRepository(RFMInterface):
         Returns
         ----------
         status : str
+        total hours
         """
-        return self.s3_client.describe_training_job(TrainingJobName=training_job_id)['TrainingJobStatus']
+        job = self.s3_client.describe_training_job(TrainingJobName=training_job_id)
+        return job['TrainingJobStatus'], job['TrainingTimeInSeconds'] / 3600
 
     async def update_training_job_ref(self, account_id : str, training_job_id : str, status : str) -> None:
         """

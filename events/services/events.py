@@ -6,6 +6,7 @@ from api.routers.request_models.account import Account
 from api.routers.error_handlers import *
 from utils.utils import *
 from config import Config
+from .billing import BillingUnits
 
 # python imports
 from typing import *
@@ -33,6 +34,7 @@ class EventsService():
     def __init__(self, account : Account = None, account_id : str = None): 
         self.account = account
         self.account_id = account_id if account_id != None else account.account_id
+        self.b = BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='events_data')
     
     async def create_event(self, event : CreateEvent) -> dict:
         """
@@ -86,6 +88,9 @@ class EventsService():
         }
 
         await eventsRepository.create_event(self.account.account_id, created_event)
+
+        await self.b.track_data_units(created_event)
+        await self.b.complete_data_units('MB')
 
         # NOTE: Only create octy job for this event if event_type is in an active live segment event sequence.
         segments = await eventsRepository.get_live_segment_definitions(self.account.account_id)
@@ -235,6 +240,9 @@ class EventsService():
             # raise OctyException(400,'Invalid events data provided. No events were created.', 
             # [{'message' : f'No events were created, due to invalid event data being provided. Please ensure required event properties with values of the correct data type are provided with each event.', 'extended_help': Config['EVENTS_EXTENDED_HELP']}])
             raise OctyException(400,'Invalid events data provided. No events were created.', invalid_events)
+        
+        await self.b.track_data_units(valid_events)
+        await self.b.complete_data_units('MB')
         
         await eventsRepository.batch_create_events(self.account.account_id, valid_events)
 

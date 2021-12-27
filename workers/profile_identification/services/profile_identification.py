@@ -1,5 +1,6 @@
 # module imports
 from data.repositories.implementation.profiles_iden_repository import profilesIdenRepository
+from .billing import BillingUnits
 from utils.utils import *
 from config import Config
 
@@ -27,13 +28,14 @@ class ProfileIdentification():
         - Identifying & Merging authenticated and anonymous profiles (profiles creating during unauthenticated sessions).
         ...
     """
-    def __init__(self, account_id : str, webhook_url : str, authenticated_id_key : str,  octy_job_id : str, loop : Any): 
+    def __init__(self, account_id : str, webhook_url : str, account_type : str, account_currency : str, authenticated_id_key : str,  octy_job_id : str, loop : Any): 
         self.account_id = account_id
         self.webhook_url = webhook_url
         self.authenticated_id_key = authenticated_id_key
         self.octy_job_id = octy_job_id
         self.loop = loop
-        self.logger = logging.getLogger('uvicorn')
+        self.b = BillingUnits(account_id=account_id,account_type=account_type, account_currency=account_currency, process_name='profile_identification', loop=loop)
+        self.logger = logging.getLogger('uvicorn.error')
         self.profiles = list()
         self.profiles_df = None
         self.group_profiles_df = None
@@ -150,6 +152,7 @@ class ProfileIdentification():
                 'status' : 'failed'
             })
         except Exception as err:
+            self.b.complete_compute_units()
             capture_exception(err)
             self.logger.critical(f'Error occurred when attempting to dispose of job. {err}')
 
@@ -488,10 +491,13 @@ class ProfileIdentification():
     # Entry point
     async def run(self) -> None: 
         try:
+            self.b.track_compute_units('hours')
             await self._merge_profiles()
             await self._complete_job()
+            self.b.complete_compute_units()
             self.logger.info('Completed Job!')
         except Exception as e:
             capture_exception(e)
             self.logger.critical(e)
+            self.b.complete_compute_units()
             await self._dispose_job(ex=str(e))

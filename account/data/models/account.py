@@ -24,6 +24,8 @@ class UpdateAccount(BaseModel):
             return valid.email
         except EmailNotValidError:
             raise ValueError('Invalid contact email address provided.')
+    account_type : Optional[str] = None
+    account_currency : Optional[str] = None
     contact_name : Optional[str] = None
     contact_surname : Optional[str] = None
     webhook_url : Optional[HttpUrl] = None

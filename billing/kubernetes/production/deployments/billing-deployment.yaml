@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-deploy
+  namespace: octy-production
+  labels:
+    app: billing-app
+spec:
+  selector:
+    matchLabels:
+      app: billing-app
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: billing-app
+    spec:
+      containers:
+      - name: billing-app
+        image: benpayflic/octy-billing-service:$COMMIT_SHA1
+        imagePullPolicy: Always
+        env:
+          - name: BILLING_CONFIG # name that can be refefenced in app
+            valueFrom:
+              configMapKeyRef:
+                name: billing-config  # The ConfigMap this value comes from.
+                key: billing_config # The key to fetch.
+          - name: BILLING_SECRETS # name that can be refefenced in app
+            valueFrom:
+              secretKeyRef:
+                name: billing-secrets # The Secret this value comes from.
+                key: billing_secrets # The key to fetch.
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 180
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 180
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+      imagePullSecrets:
+      - name: docker-hub-key

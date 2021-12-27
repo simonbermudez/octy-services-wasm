@@ -518,7 +518,7 @@ class _ChurnPredictionRepository(ChurnPredInterface):
 
         return hpt_job['BestTrainingJob']['TrainingJobStatus']
 
-    async def get_best_training_job(self, hyperparam_tuning_job_id : str) -> str:
+    async def get_best_training_job(self, hyperparam_tuning_job_id : str) -> Union[dict, int]:
         """
         Parameters
         ----------
@@ -527,8 +527,12 @@ class _ChurnPredictionRepository(ChurnPredInterface):
         Returns
         ----------
         best_training_job : dict
+        training_compute_units (hyper parameter tuning job total hours) : int
         """
-        job = self.s3_client.describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=hyperparam_tuning_job_id)['BestTrainingJob']
+        hp_job = self.s3_client.describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=hyperparam_tuning_job_id)
+        diff =  hp_job['HyperParameterTuningEndTime'] - hp_job['CreationTime']
+        training_compute_units = diff.total_seconds() / 3600
+        job = hp_job['BestTrainingJob']
         return {
             'training_job_name': job['TrainingJobName'],
             'training_job_arn': job['TrainingJobArn'],
@@ -539,7 +543,7 @@ class _ChurnPredictionRepository(ChurnPredInterface):
             'tuned_hyper_parameters': job['TunedHyperParameters'],
             'final_hyper_parameter_tuning_job_objective_metric': job['FinalHyperParameterTuningJobObjectiveMetric'],
             'objective_status': job['ObjectiveStatus']
-        }
+        }, training_compute_units if training_compute_units >= 1 else 1
 
     async def cache_dataset(self, account_id : str, hyperparam_tuning_job_id : str, dataset : object) -> None:
         """

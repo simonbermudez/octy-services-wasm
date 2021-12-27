@@ -3,8 +3,10 @@ from fastapi.responses import JSONResponse
 
 ### Create Account DTO
 class CreateAccountDTO():
-    def __init__(self, account_name, contact_email_address, pk, notification_sent):
+    def __init__(self, account_name, account_type, account_currency, contact_email_address, pk, notification_sent):
         self.account_name = account_name
+        self.account_type = account_type
+        self.account_currency = account_currency
         self.contact_email_address = contact_email_address
         self.pk = pk
         self.notification_sent = notification_sent
@@ -15,6 +17,8 @@ class CreateAccountDTO():
             content={
                     'request_meta' : { 'request_status' : 'Success' , 'message' : 'Account created!'},
                     'account_name' : self.account_name,
+                    'account_type' : self.account_type,
+                    'account_currency' : self.account_currency,
                     'pk' : self.pk,
                     'notification_sent' : self.notification_sent,
                     'sent_to' : self.contact_email_address

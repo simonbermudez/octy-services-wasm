@@ -5,6 +5,7 @@ from api.routers.request_models.account import Account
 from api.routers.error_handlers import *
 from utils.utils import *
 from config import Config
+from .billing import BillingUnits
 
 # python imports
 from typing import *
@@ -30,6 +31,7 @@ class ItemsService():
     """
     def __init__(self, account : Account): 
         self.account = account
+        self.b = BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='items_data')
 
     def get_items(self,
                   item_ids : list = None, 
@@ -68,7 +70,7 @@ class ItemsService():
                 'extended_help': Config['ITEMS_EXTENDED_HELP']}])
             return items, total
 
-    def create_items(self, items : CreateItems) -> Union[list, list]:
+    async def create_items(self, items : CreateItems) -> Union[list, list]:
         """
         Parameters
         ----------
@@ -107,9 +109,12 @@ class ItemsService():
         if len(created) < 1:
             raise OctyException(400, 'No items created!', failed)
 
+        await self.b.track_data_units(created)
+        await self.b.complete_data_units('MB')
+
         return created, failed
     
-    def update_items(self, items : UpdateItems) -> Union[list, list]:
+    async def update_items(self, items : UpdateItems) -> Union[list, list]:
         """
         Parameters
         ----------
@@ -139,6 +144,9 @@ class ItemsService():
 
         if len(updated) < 1:
             raise OctyException(400, 'No items updated!', failed)
+
+        await self.b.track_data_units(updated)
+        await self.b.complete_data_units('MB')
 
         return updated, failed
 

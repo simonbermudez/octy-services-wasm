@@ -47,6 +47,10 @@
         {
             "QUEUE" : "octy-job-delete-queue",
             "ROUTING_KEY" : "octy.job.cmd.delete"
+        },
+        {
+            "QUEUE" : "capture-billing-units-queue",
+            "ROUTING_KEY" : "account.billing.cmd.capture"
         }
     ],
     "AMQP_CONSUMERS" : [

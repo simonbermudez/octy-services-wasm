@@ -1,6 +1,7 @@
 # module imports
 from data.repositories.implementation.churn_repository import churnPredictionRepository
 from data.repositories.implementation.bucket_repository import bucketRepository
+from .billing import BillingUnits
 from utils.utils import *
 from config import Config
 
@@ -45,13 +46,14 @@ class ChainedAssignment:
 
 class ChurnPredictionTraining():
 
-    def __init__(self, account_id : str, octy_job_id : str, bucket : str, algorithm_configurations : dict, loop : Any):
+    def __init__(self, account_id : str, account_type : str, account_currency : str, octy_job_id : str, bucket : str, algorithm_configurations : dict, loop : Any):
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.algorithm_configurations = algorithm_configurations
         self.loop = loop
-        self.logger = logging.getLogger('uvicorn')
+        self.b = BillingUnits(account_id=account_id, account_type=account_type, account_currency=account_currency, process_name='churn_prediction_training', loop=loop)
+        self.logger = logging.getLogger('uvicorn.error')
         self.hyperparam_tuning_job_id = generate_uid('hp-t-job')
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
         self.model_meta = {}
@@ -108,6 +110,7 @@ class ChurnPredictionTraining():
                 'status' : 'failed'
             })
         except Exception as err:
+            self.b.complete_compute_units()
             capture_exception(err)
             self.logger.critical(f'Error occurred when attempting to dispose of job. {str(err)}')
 
@@ -604,6 +607,7 @@ class ChurnPredictionTraining():
         await self._create_csv_objects()
 
         for csv_object in self.csv_objects:
+            self.b.track_data_units(csv_object)
             #determine size of file
             file_size = sys.getsizeof(csv_object['data'])
             if file_size  < int(Config['MIN_FILE_SIZE']):
@@ -658,6 +662,9 @@ class ChurnPredictionTraining():
                 }
                 )
             self.total_bytes += file_size
+        
+        self.b.complete_data_units('MB')
+        self.logger.info('Uploaded training job resources!')
 
     # Training Job public methods
     async def _start_cloud_hparam_tuning_job(self) -> None:
@@ -688,6 +695,7 @@ class ChurnPredictionTraining():
     # Entry point
     async def run(self) -> None: 
         try:
+            self.b.track_compute_units('hours')
             # Build training data sets
             await self._build_training_dataset()
 
@@ -698,16 +706,20 @@ class ChurnPredictionTraining():
             await self._start_cloud_hparam_tuning_job()
   
             await self._complete_job()
+            self.b.complete_compute_units()
 
         except Exception as e:
             capture_exception(e)
             self.logger.critical(str(e))
+            self.b.complete_compute_units()
             await self._dispose_job(ex=str(e))
 
 
 class ChurnPredictionCompleteTrainingJob():
 
     def __init__(self, account_id : str, 
+                account_type : str, 
+                account_currency : str,
                 octy_job_id : str, 
                 bucket : str, 
                 hyperparam_tuning_job_id : str, 
@@ -722,11 +734,12 @@ class ChurnPredictionCompleteTrainingJob():
         self.algorithm_configurations = algorithm_configurations
         self.hyperparam_tuning_job_id = hyperparam_tuning_job_id
         self.loop = loop
+        self.b = BillingUnits(account_id=account_id, account_type=account_type, account_currency=account_currency, process_name='churn_prediction_completion', loop=loop)
         self.best_training_job = None
         self.hp_tuning_job = None
         self.webhook_url = webhook_url
         self.previous_churn_percentage = previous_churn_percentage
-        self.logger = logging.getLogger('uvicorn')
+        self.logger = logging.getLogger('uvicorn.error')
         self.amqp_message_size_limit = 104857600 #100 MB AMQP message limit
         self.model_meta = None
         self.trained_model = None
@@ -735,6 +748,7 @@ class ChurnPredictionCompleteTrainingJob():
         self.cached_df = None
         self.X_pred_cols = None
         self.predictions_df = None
+        self.training_compute_units = 0
 
     
     async def _get_cloud_hp_tuning_status(self) -> str:
@@ -842,6 +856,7 @@ class ChurnPredictionCompleteTrainingJob():
 
             await self._job_failed_webhook()
         except Exception as err:
+            self.b.complete_compute_units()
             capture_exception(err)
             self.logger.critical(f'Error occurred when attempting to destroy job. {str(err)}')
 
@@ -853,7 +868,7 @@ class ChurnPredictionCompleteTrainingJob():
             hyperparam_tuning_job_id=self.hyperparam_tuning_job_id, status='in_progress')
         
         # get best job
-        self.best_training_job = await churnPredictionRepository\
+        self.best_training_job, self.training_compute_units = await churnPredictionRepository\
             .get_best_training_job(hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
 
         
@@ -1054,6 +1069,7 @@ class ChurnPredictionCompleteTrainingJob():
                 await self._re_schedule_job()
             
             elif self.status == 'Completed':
+                self.b.track_compute_units('hours')
                 await self._get_job_artifacts()
                 await self._churn_calculations()
                 await self._get_cached_dataset()
@@ -1061,6 +1077,7 @@ class ChurnPredictionCompleteTrainingJob():
                 await self._assign_churn_scores()
                 await self._destroy_dataset_cache()
                 await self._job_success()
+                self.b.complete_compute_units(additional_unit_hours=self.training_compute_units)
 
             elif self.status == 'Failed':
                 await self._destroy_job()
@@ -1076,4 +1093,5 @@ class ChurnPredictionCompleteTrainingJob():
         except Exception as e:
             self.logger.critical(str(e))
             capture_exception(e)
+            self.b.complete_compute_units(additional_unit_hours=self.training_compute_units)
             await self._re_schedule_job()

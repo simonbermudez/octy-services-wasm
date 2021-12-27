@@ -185,6 +185,7 @@ class ChurnPredInterface(ABC):
         Returns
         ----------
         best_training_job : dict
+        training_compute_units (hyper parameter tuning job total hours) : int
         """
         raise NotImplementedError
 

@@ -186,6 +186,7 @@ class RecommendationsInterface(ABC):
         Returns
         ----------
         best_training_job : dict
+        hyper parameter tuning job total hours : int
         """
         raise NotImplementedError
     

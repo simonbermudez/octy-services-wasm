@@ -47,6 +47,10 @@
         {
             "QUEUE" : "profiles-update-queue",
             "ROUTING_KEY" : "profiles.cmd.update"
+        },
+        {
+            "QUEUE" : "capture-billing-units-queue",
+            "ROUTING_KEY" : "account.billing.cmd.capture"
         }
     ],
     "AMQP_CONSUMERS" : [

@@ -1,6 +1,7 @@
 # module imports
 from data.repositories.implementation.rfm_repository import rfmRepository
 from data.repositories.implementation.bucket_repository import bucketRepository
+from .billing import BillingUnits
 from utils.utils import *
 from config import Config
 
@@ -29,12 +30,13 @@ from kneed import KneeLocator
 
 class RFMAnalysis():
 
-    def __init__(self, account_id : str, octy_job_id : str, bucket : str, loop : Any):
+    def __init__(self, account_id : str, account_type : str, account_currency : str, octy_job_id : str, bucket : str, loop : Any):
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.loop = loop
-        self.logger = logging.getLogger('uvicorn')
+        self.b = BillingUnits(account_id=account_id, account_type=account_type, account_currency=account_currency, process_name='rfm_analysis', loop=loop)
+        self.logger = logging.getLogger('uvicorn.error')
         self.training_job_id = generate_uid('training-job')
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
         self.training_df = None
@@ -206,6 +208,7 @@ class RFMAnalysis():
     async def _upload_resources(self) -> None:
         self.logger.info('Uploading training job resources')
         for csv_object in self.csv_objects:
+            self.b.track_data_units(csv_object)
             #determine size of file
             file_size = sys.getsizeof(csv_object['data'])
             if file_size  < int(Config['MIN_FILE_SIZE']):
@@ -261,6 +264,8 @@ class RFMAnalysis():
                 )
             self.total_bytes += file_size
 
+        self.b.complete_data_units('MB')
+        self.logger.info('Uploaded training job resources!')
     #**
     async def _create_training_job_ref(self) -> None:
         await rfmRepository.create_training_job_ref(training_job_id=self.training_job_id,
@@ -312,6 +317,7 @@ class RFMAnalysis():
                 'status' : 'failed'
             })
         except Exception as err:
+            self.b.complete_compute_units()
             capture_exception(err)
             self.logger.critical(f'Error occurred when attempting to dispose of job. {str(err)}')
 
@@ -355,6 +361,7 @@ class RFMAnalysis():
 
     async def run(self) -> None: 
         try:
+            self.b.track_compute_units('hours')
             # Build training data sets
             await self._build_training_df()
             await self._training_df_validation()
@@ -373,28 +380,34 @@ class RFMAnalysis():
 
             await self._complete_job()
 
+            self.b.complete_compute_units()
+            self.logger.info('Completed Job!')
+
         except Exception as e:
             capture_exception(e)
             self.logger.critical(str(e))
+            self.b.complete_compute_units()
             await self._dispose_job(ex=str(e))
 
 
 class RFMCompleteAnalysis():
 
-    def __init__(self, account_id : str, octy_job_id : str, bucket : str, training_job_id : str, webhook_url : str, loop : Any):
+    def __init__(self, account_id : str, account_type : str, account_currency : str, octy_job_id : str, bucket : str, training_job_id : str, webhook_url : str, loop : Any):
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.training_job_id = training_job_id
         self.webhook_url = webhook_url
         self.loop = loop
-        self.logger = logging.getLogger('uvicorn')
+        self.b = BillingUnits(account_id=account_id, account_type=account_type, account_currency=account_currency, process_name='rfm_analysis_completion', loop=loop)
+        self.logger = logging.getLogger('uvicorn.error')
         self.rfm_scores_df = None
         self.amqp_message_size_limit = 104857600 #100 MB AMQP message limit
+        self.training_compute_units = 0
 
     async def _get_cloud_training_status(self) -> str:
         self.logger.info('Getting cloud training status')
-        status = await rfmRepository.get_cloud_training_status(training_job_id=self.training_job_id)
+        status, self.training_compute_units = await rfmRepository.get_cloud_training_status_time(training_job_id=self.training_job_id)
         return status
     
     async def _send_http_request(self, url : str, payload : dict) -> None:
@@ -494,6 +507,7 @@ class RFMCompleteAnalysis():
 
             await self._job_failed_webhook()
         except Exception as err:
+            self.b.complete_compute_units()
             capture_exception(err)
             self.logger.critical(f'Error occurred when attempting to destroy job. {str(err)}')
 
@@ -557,9 +571,11 @@ class RFMCompleteAnalysis():
                 await self._re_schedule_job()
             
             elif self.status == 'Completed':
+                self.b.track_compute_units('hours')
                 await self._get_job_artifacts()
                 await self._assign_rfm_scores()
                 await self._job_success()
+                self.b.complete_compute_units(additional_unit_hours=self.training_compute_units)
 
             elif self.status == 'Failed':
                 await self._destroy_job()
@@ -573,4 +589,5 @@ class RFMCompleteAnalysis():
         except Exception as e:
             self.logger.critical(str(e))
             capture_exception(e)
+            self.b.complete_compute_units(additional_unit_hours=self.training_compute_units)
             await self._re_schedule_job()

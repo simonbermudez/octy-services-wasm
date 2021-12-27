@@ -58,10 +58,12 @@ class _AccountRepository(AccountInterface):
             secret_key = ph.hash(secret_key)
         )
         account_configurations = AccountConfigurations(
+            account_type=account.account_type,
+            account_currency = account.account_currency,
             contact_name = account.contact_name,
             contact_surname = account.contact_surname,
             contact_email_address = account.contact_email_address,
-            webhook_url = account.webhook_url
+            webhook_url = account.webhook_url,
         )
 
         # create algorithm configs base models for each required configuration
