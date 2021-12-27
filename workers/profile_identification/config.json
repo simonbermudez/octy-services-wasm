@@ -31,6 +31,10 @@
         {
             "QUEUE" : "segment-profiles-update-queue",
             "ROUTING_KEY" : "segment.profiles.cmd.update"
+        },
+        {
+            "QUEUE" : "capture-billing-units-queue",
+            "ROUTING_KEY" : "account.billing.cmd.capture"
         }
     ],
 

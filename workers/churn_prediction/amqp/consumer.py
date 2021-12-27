@@ -54,7 +54,9 @@ def handle_message(payload, main_loop) -> None:
 
     try:
         if routing_key == 'churn.training.cmd.run':
-            loop.run_until_complete(ChurnPredictionTraining(account_id=job_payload.account_data.account_id, 
+            loop.run_until_complete(ChurnPredictionTraining(account_id=job_payload.account_data.account_id,
+                                    account_type=job_payload.account_data.account_type, 
+                                    account_currency=job_payload.account_data.account_currency, 
                                     octy_job_id=job_payload.octy_job_id,
                                     bucket=job_payload.account_data.bucket,
                                     algorithm_configurations=job_payload.account_data.algorithm_configurations,
@@ -62,6 +64,8 @@ def handle_message(payload, main_loop) -> None:
         
         elif routing_key == 'churn.training.complete.cmd.run':
             loop.run_until_complete(ChurnPredictionCompleteTrainingJob(account_id=job_payload.account_data.account_id,
+                                    account_type=job_payload.account_data.account_type, 
+                                    account_currency=job_payload.account_data.account_currency, 
                                     octy_job_id=job_payload.octy_job_id,
                                     bucket=job_payload.account_data.bucket,
                                     algorithm_configurations=job_payload.account_data.algorithm_configurations,

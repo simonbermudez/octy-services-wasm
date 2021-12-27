@@ -1,6 +1,7 @@
 # module imports
 from data.repositories.implementation.recommendation_repository import recommendationsRepository
 from data.repositories.implementation.bucket_repository import bucketRepository
+from .billing import BillingUnits
 from utils.utils import *
 from config import Config
 
@@ -25,13 +26,14 @@ import numpy as np
 
 class RecommenderTraining():
 
-    def __init__(self, account_id : str, octy_job_id : str, bucket : str, algorithm_configurations : dict, loop : Any):
+    def __init__(self, account_id : str, account_type : str, account_currency : str, octy_job_id : str, bucket : str, algorithm_configurations : dict, loop : Any):
         self.account_id = account_id
         self.octy_job_id = octy_job_id
         self.bucket = bucket
         self.algorithm_configurations = algorithm_configurations
         self.loop = loop
-        self.logger = logging.getLogger('uvicorn')
+        self.b = BillingUnits(account_id=account_id, account_type=account_type, account_currency=account_currency, process_name='recommender_training', loop=loop)
+        self.logger = logging.getLogger('uvicorn.error')
         self.hyperparam_tuning_job_id = generate_uid('hp-t-job')
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
         self.profiles_ids = []
@@ -288,6 +290,7 @@ class RecommenderTraining():
     async def _upload_resources(self) -> None:
         self.logger.info('Uploading training job resources...')
         for csv_object in self.csv_objects:
+            self.b.track_data_units(csv_object)
             #determine size of file
             file_size = sys.getsizeof(csv_object['data'])
             if file_size  < int(Config['MIN_FILE_SIZE']):
@@ -342,6 +345,8 @@ class RecommenderTraining():
                 }
                 )
             self.total_bytes += file_size
+        
+        self.b.complete_data_units('MB')
         self.logger.info('Uploaded training job resources!')
 
     async def _create_hparam_tuning_job_ref(self) -> None:
@@ -406,6 +411,7 @@ class RecommenderTraining():
                 'status' : 'failed'
             })
         except Exception as err:
+            self.b.complete_compute_units()
             capture_exception(err)
             self.logger.critical(f'Error occurred when attempting to dispose of job. {err}')
 
@@ -449,6 +455,7 @@ class RecommenderTraining():
 
     async def run(self) -> None: 
         try:
+            self.b.track_compute_units('hours')
             # Build training data sets
             await self._build_profiles_dataset()
             await self._build_items_dataset()
@@ -471,17 +478,19 @@ class RecommenderTraining():
 
             await self._complete_job()
 
+            self.b.complete_compute_units()
             self.logger.info('Completed Job!')
 
         except Exception as e:
             capture_exception(e)
             self.logger.critical(e)
+            self.b.complete_compute_units()
             await self._dispose_job(ex=str(e))
 
 
 class RecommenderCompleteTrainingJob():
 
-    def __init__(self, account_id : str, algorithm_configurations : dict, octy_job_id : str, hyperparam_tuning_job_id : str, bucket : str, webhook_url : str, loop : Any):
+    def __init__(self, account_id : str, account_type : str, account_currency : str, algorithm_configurations : dict, octy_job_id : str, hyperparam_tuning_job_id : str, bucket : str, webhook_url : str, loop : Any):
         self.account_id = account_id
         self.algorithm_configurations = algorithm_configurations
         self.octy_job_id = octy_job_id
@@ -489,7 +498,8 @@ class RecommenderCompleteTrainingJob():
         self.bucket = bucket
         self.webhook_url = webhook_url
         self.loop = loop
-        self.logger = logging.getLogger('uvicorn')
+        self.b = BillingUnits(account_id=account_id, account_type=account_type, account_currency=account_currency, process_name='recommender_completion', loop=loop)
+        self.logger = logging.getLogger('uvicorn.error')
         self.status = 'InProgress'
         self.data_timeframe = Config['DATA_SET_TIMEFRAME']
         self.num_rec = 25 # number of recommendations per profile
@@ -511,6 +521,7 @@ class RecommenderCompleteTrainingJob():
         self.users_embeddings = None
         self.items_biases = None
         self.items_embeddings = None
+        self.training_compute_units = 0
 
         item_stop_list = copy.deepcopy(self.algorithm_configurations['item_id_stop_list']) if self.algorithm_configurations['item_id_stop_list'] != None else []
         self.base_item_stop_list = []
@@ -621,6 +632,7 @@ class RecommenderCompleteTrainingJob():
 
             await self._job_failed_webhook()
         except Exception as err:
+            self.b.complete_compute_units()
             capture_exception(err)
             self.logger.critical(f'Error occurred when attempting to destroy job. {str(err)}')
 
@@ -633,7 +645,7 @@ class RecommenderCompleteTrainingJob():
             hyperparam_tuning_job_id=self.hyperparam_tuning_job_id, status='in_progress')
         
         # get best job
-        self.best_training_job = await recommendationsRepository\
+        self.best_training_job, self.training_compute_units = await recommendationsRepository\
             .get_best_training_job(hyperparam_tuning_job_id=self.hyperparam_tuning_job_id)
         
         model_location =  f"{Config['REC_MODELS_DIR']}/{self.best_training_job['training_job_name']}/output/model.tar.gz"
@@ -785,6 +797,7 @@ class RecommenderCompleteTrainingJob():
         self.logger.info(f'Cached item recommendations!')
 
     async def _make_predictions(self) -> None:
+        self.b.track_compute_units('hours')
         await self._get_job_artifacts()
         await self._get_lfm_idx_mappings()
         await self._get_items()
@@ -795,6 +808,7 @@ class RecommenderCompleteTrainingJob():
         await self._apply_prediction_scores()
         await self._cache_item_recommendations()
         await self._job_success()
+        self.b.complete_compute_units(additional_unit_hours=self.training_compute_units)
 
 
     async def run(self) :
@@ -825,4 +839,5 @@ class RecommenderCompleteTrainingJob():
         except Exception as e:
             self.logger.critical(str(e))
             capture_exception(e)
+            self.b.complete_compute_units(additional_unit_hours=self.training_compute_units)
             await self._re_schedule_job()

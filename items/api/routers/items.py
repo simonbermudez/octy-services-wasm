@@ -80,7 +80,7 @@ async def get_items(request: Request,
 async def create_items(request: Request, 
     create_items : CreateItems,
     current_account: Account = Depends(decode_account_jwt)):
-    created, failed = ItemsService(current_account).create_items(create_items)
+    created, failed = await ItemsService(current_account).create_items(create_items)
     return CreateItemsDTO(created, failed).dto()
 
 
@@ -99,7 +99,7 @@ async def create_items(request: Request,
 async def update_items(request: Request, 
     update_items : UpdateItems,
     current_account: Account = Depends(decode_account_jwt)):
-    updated, failed = ItemsService(current_account).update_items(update_items)
+    updated, failed = await ItemsService(current_account).update_items(update_items)
     return UpdateItemsDTO(updated, failed).dto()
 
 

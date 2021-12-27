@@ -5,6 +5,8 @@ from typing import Dict
 class AccountData(BaseModel):
     account_id : str
     webhook_url : str
+    account_type : str
+    account_currency : str
     bucket : str
     algorithm_configurations : Dict
 

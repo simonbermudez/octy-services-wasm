@@ -5,6 +5,8 @@ from typing import Optional, Dict, List, Any
 class AccountData(BaseModel):
     account_id : str
     webhook_url : str
+    account_type : Optional[str]
+    account_currency : Optional[str]
 
 class SegmentData(BaseModel):
     segmentation_type : str

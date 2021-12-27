@@ -129,7 +129,7 @@ async def get_customer_profiles(request: Request,
 @limiter.limit("120/minute")
 async def create_customer_profiles(request: Request, profiles : CreateProfiles,
     current_account: Account = Depends(decode_account_jwt)):
-    created, failed = ProfilesService(current_account).create_profiles(profiles)
+    created, failed = await ProfilesService(current_account).create_profiles(profiles)
     return CreateProfilesDTO(created, failed).dto()
 
 

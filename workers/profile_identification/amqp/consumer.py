@@ -53,6 +53,8 @@ def handle_message(payload, main_loop) -> None:
         if routing_key == 'profile.identification.cmd.run':
             loop.run_until_complete(ProfileIdentification(account_id=job_payload.account_data.account_id, 
                     webhook_url=job_payload.account_data.webhook_url,
+                    account_type=job_payload.account_data.account_type,
+                    account_currency=job_payload.account_data.account_currency,
                     authenticated_id_key=job_payload.account_data.authenticated_id_key,
                     octy_job_id=job_payload.octy_job_id,
                     loop=main_loop).run())

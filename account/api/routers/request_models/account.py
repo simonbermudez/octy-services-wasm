@@ -15,6 +15,14 @@ class CreateAccount(BaseModel):
         except EmailNotValidError:
             raise ValueError('Invalid contact email address provided.')
     account_name : str
+    account_type : str
+    @validator('account_type')
+    def allowed_account_types(cls, value, **kwargs):
+        allowed = ["startup", "pro", "enterprise"]
+        if value not in allowed:
+            raise ValueError('Invalid account type provided. Allowed permissions : \'startup\', \'pro\' or \'enterprise\'')
+        return value
+    account_currency : str
     contact_name : str
     contact_surname : str
     webhook_url : HttpUrl

@@ -20,6 +20,15 @@
 
         },
         {
+            "service_name" : "billing",
+            "service_directory" : "./billing",
+            "docker_image_name" : "benpayflic/octy-billing-service",
+            "dockerfile_path" : "./billing/Dockerfile",
+            "k8_deployment_yaml" : "./billing/kubernetes/production/deployments/billing-deployment.yaml",
+            "k8_configmap_yaml" : "./billing/kubernetes/production/configMaps/billing-configmap.yaml"
+
+        },
+        {
             "service_name" : "churn_prediction",
             "service_directory" : "./churn_prediction",
             "docker_image_name" : "benpayflic/octy-churn-prediction-service",

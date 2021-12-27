@@ -23,7 +23,7 @@ limiter = Limiter(key_func=get_remote_address)
 ######################################
 # Route : /v1/admin/account/create
 # Request type : POST
-# Required parameters : email address [string], account name [string], access_level [int],
+# Required parameters : email address [string], account name [string], account_type [str], account_currency [str],
 #   contact_surname [string], contact_name [string], webhook_url [string], algorithm_tags [list]
 # Description : Create new Octy account
 # Returns : Created account object
@@ -37,6 +37,8 @@ limiter = Limiter(key_func=get_remote_address)
 async def create_new_account(request: Request, account: CreateAccount):
     new_account = await accountService.create_account(account)
     return CreateAccountDTO(new_account['account_name'],
+                            new_account['account_type'],
+                            new_account['account_currency'],
                             new_account['contact_email_address'],
                             new_account['pk'],
                             new_account['notification_sent'],).dto()

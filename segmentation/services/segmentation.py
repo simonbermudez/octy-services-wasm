@@ -444,7 +444,9 @@ class SegmentationService():
                         'required_configurations' :
                             { 
                                 'account_attributes' : [
-                                    'account_configurations.webhook_url'
+                                    'account_configurations.webhook_url',
+                                    'account_configurations.account_type',
+                                    'account_configurations.account_currency',
                                 ],
                                 'algorithm_configuration_idxs' : [
                                 ]

@@ -54,7 +54,9 @@ def handle_message(payload, main_loop) -> None:
 
     try:
         if routing_key == 'past.segmentation.cmd.run':
-            loop.run_until_complete(PastSegmentation(account_id=payload_data.account_data.account_id, 
+            loop.run_until_complete(PastSegmentation(account_id=payload_data.account_data.account_id,
+                                account_type=payload_data.account_data.account_type,
+                                account_currency=payload_data.account_data.account_currency,
                                 webhook_url=payload_data.account_data.webhook_url, 
                                 octy_job_id=payload_data.octy_job_id,
                                 segment_id=payload_data.job_data.segment_data.segment_id,

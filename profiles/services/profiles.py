@@ -5,6 +5,7 @@ from api.routers.request_models.account import Account
 from api.routers.error_handlers import *
 from utils.utils import *
 from config import Config
+from .billing import BillingUnits
 
 # python imports
 from typing import *
@@ -33,6 +34,7 @@ class ProfilesService():
     def __init__(self, account : Account, account_id : str = None): 
         self.account = account
         self.account_id = account_id if account_id != None else account.account_id
+        self.b = BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='profiles_data')
 
     def get_profiles(self, 
                     segments : list, 
@@ -165,7 +167,7 @@ class ProfilesService():
             })
         return identifiers_meta
 
-    def create_profiles(self, profiles : CreateProfiles) -> Union[list, list]:
+    async def create_profiles(self, profiles : CreateProfiles) -> Union[list, list]:
         """
         Parameters
         ----------
@@ -208,6 +210,9 @@ class ProfilesService():
 
         if len(created) < 1:
             raise OctyException(400, 'No profiles created!', failed)
+
+        await self.b.track_data_units(created)
+        await self.b.complete_data_units('MB')
 
         return created, failed
 
@@ -263,6 +268,9 @@ class ProfilesService():
         if len(updated) < 1:
             ex = 'No profiles updated!' if not internal else '[toxic]:: No profiles updated!'
             raise OctyException(400, ex, failed)
+
+        await self.b.track_data_units(updated)
+        await self.b.complete_data_units('MB')
 
         return updated, failed
 

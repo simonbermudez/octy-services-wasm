@@ -115,7 +115,7 @@ class RFMInterface(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def get_cloud_training_status(self, training_job_id : str):
+    def get_cloud_training_status_time(self, training_job_id : str):
         """
         Parameters
         ----------
@@ -124,6 +124,7 @@ class RFMInterface(ABC):
         Returns
         ----------
         :rtype: str
+        :rtype: int
         """
         raise NotImplementedError
     

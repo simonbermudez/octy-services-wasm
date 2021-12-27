@@ -55,6 +55,8 @@ def handle_message(payload, main_loop) -> None:
     try:
         if routing_key == 'rec.training.cmd.run':
             loop.run_until_complete(RecommenderTraining(account_id=payload_data.account_data.account_id, 
+                                    account_type=payload_data.account_data.account_type, 
+                                    account_currency=payload_data.account_data.account_currency,
                                     octy_job_id=payload_data.octy_job_id,
                                     bucket=payload_data.account_data.bucket,
                                     algorithm_configurations=payload_data.account_data.algorithm_configurations,
@@ -62,6 +64,8 @@ def handle_message(payload, main_loop) -> None:
             
         elif routing_key == 'rec.training.complete.cmd.run':
             loop.run_until_complete(RecommenderCompleteTrainingJob(account_id=payload_data.account_data.account_id,
+                                    account_type=payload_data.account_data.account_type, 
+                                    account_currency=payload_data.account_data.account_currency,
                                     webhook_url=payload_data.account_data.webhook_url,
                                     octy_job_id=payload_data.octy_job_id,
                                     bucket=payload_data.account_data.bucket,

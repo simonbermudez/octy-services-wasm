@@ -1,5 +1,6 @@
 # module imports
 from data.repositories.implementation.segmentation_repository import segmentationRepository
+from .billing import BillingUnits
 from utils.utils import *
 from config import Config
 
@@ -25,23 +26,17 @@ class PastSegmentation():
         Handles:
         - Past segmentation
         ...
-
-        Parameters
-        ----------
-        account_id : str
-        webhook_url : str
-        octy_job_id : str
-        segment_id : str
     """
-    def __init__(self, account_id : str, webhook_url : str, octy_job_id : str, segment_id : str, loop : Any):
+    def __init__(self, account_id : str, account_type : str, account_currency : str, webhook_url : str, octy_job_id : str, segment_id : str, loop : Any):
         self.account_id = account_id
         self.webhook_url = webhook_url
         self.octy_job_id = octy_job_id
         self.segment_id = segment_id
         self.loop = loop
+        self.b = BillingUnits(account_id=account_id, account_type=account_type, account_currency=account_currency, process_name='past_segmentation', loop=loop)
         self.gsdo = {"account_id": self.account_id, "operations" :[]} # Grouped Segmentation Database Operations
         self.gsdo_size_limit = 104857600 #100 MB AMQP message limit
-        self.logger = logging.getLogger('uvicorn')
+        self.logger = logging.getLogger('uvicorn.error')
         self.matching_profile_ids = []
         self.segment = None
 
@@ -75,8 +70,10 @@ class PastSegmentation():
                 'message' : str(message),
                 'status' : status
             })
+            self.b.complete_compute_units()
         except Exception as err:
             capture_exception(err)
+            self.b.complete_compute_units()
             self.logger.critical(f'Error occurred when attempting to exit segmentation process. {str(err)}')
     
     async def _send_http_request(self, url : str, payload : dict) -> None:
@@ -310,6 +307,7 @@ class PastSegmentation():
 
     async def run(self) -> None:
         try:
+            self.b.track_compute_units('hours')
             await self._get_segment()
             segment_customer_count = 0
 
@@ -408,7 +406,7 @@ class LiveSegmentation():
         self.loop = loop
         self.gsdo = {"account_id": self.account_id, "operations" :[]} # Grouped Segmentation Database Operations
         self.gsdo_size_limit = 104857600 #100 MB AMQP message limit
-        self.logger = logging.getLogger('uvicorn')
+        self.logger = logging.getLogger('uvicorn.error')
         self.live_validation_octy_job_time_buffer = 2 # number of minutes to add to live_validation_octy_job timeframe
         self.es_event_property_map = {}
         self.profile = None
@@ -886,7 +884,7 @@ class PendingLiveSegmentation():
         self.loop = loop
         self.gsdo = {"account_id": self.account_id, "operations" :[]} # Grouped Segmentation Database Operations
         self.gsdo_size_limit = 104857600 #100 MB AMQP message limit
-        self.logger = logging.getLogger('uvicorn')
+        self.logger = logging.getLogger('uvicorn.error')
         self.profile = None
         self.segment = None
         self.found_past_inaction_events = []

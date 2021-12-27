@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service
+  namespace: octy-production
+  labels:
+    app: billing-app
+spec:
+  type: ClusterIP
+  selector:
+    app: billing-app
+  ports:
+    - protocol: TCP
+      name: http
+      port: 1040
+      targetPort: 8080
