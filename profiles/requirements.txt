@@ -15,6 +15,7 @@ idna==3.1
 limits==1.5.1
 mongoengine==0.23.0
 multidict==5.1.0
+numpy==1.20.2
 pamqp==2.3.0
 pika==1.2.0
 pycparser==2.20

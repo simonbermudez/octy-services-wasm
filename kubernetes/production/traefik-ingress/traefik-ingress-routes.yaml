@@ -58,6 +58,13 @@ spec:
       services:
         - name: account-service
           port: 1024
+    - match: Path(`/v1/admin/billing/units`)
+      middlewares:
+        - name: admin-auth
+      kind: Rule
+      services:
+        - name: billing-service
+          port: 1040
     - match: Path(`/v1/admin/application/resources/format`)
       kind: Rule
       services:
