@@ -9,7 +9,7 @@ from utils.utils import *
 
 # python imports
 import re
-
+from datetime import datetime as dt
 
 # external imports
 from fastapi import Request, HTTPException
@@ -96,10 +96,46 @@ class AuthService:
             _log_failed_auth(request, valid_pk)
             raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
+
+        # assess api request limits
+        limit_not_exceeded = await _assess_request_limit(account)
+        if not limit_not_exceeded:
+            raise OctyException(400,'limit exceeded', [{'error_message' : 'You have exceeded this accounts monthly API request limit. To increase this limit, please contact us at support@octy.ai', 
+                'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+
+        # update account cache. increment request count
+
         return await authRepository.generate_authorization_token(account=account)
 
 
 # Helpers
+
+async def _assess_request_limit(account : dict) -> bool:
+    """
+    A function used to determine if this request should be processed in accordance with this accounts
+    api request limits.
+    """
+    created_at = int_to_dt(account['created_at']['$date'], as_str=False)
+    now = dt.now()
+    delta = now - created_at
+    month_number = round(delta.days / 30)
+    month = next((u for u in account['api_usage'] if u['month'] == month_number), None)
+    if month != None:
+        if month['request_count']+1 >= Config['MAX_TOTAL_MONTHLY_API_REQUESTS'][account['account_configurations']['account_type']]:
+            return False
+        for acc in account['api_usage']:
+            if acc['month'] == month['month']:
+                acc['request_count'] += 1
+                break
+        await accountRepository.update_account_cache(account)
+    else:
+        account['api_usage'].append({
+            'month' : month_number,
+            'request_count' : 1
+        })
+        await accountRepository.update_account_cache(account)
+    return True
+
 def _log_failed_auth(request : Request, valid_pk : bool) -> None:
     """
         A function used to log failed authentication requests.

@@ -79,3 +79,17 @@ class AccountInterface(ABC):
             :rtype: None
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def update_account_cache(self, account : dict):
+        """
+            Parameters
+            ----------
+            account : dict
+                Octy account
+
+            Returns
+            ----------
+            :rtype: None
+        """
+        raise NotImplementedError

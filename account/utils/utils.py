@@ -32,6 +32,23 @@ def dt_to_int(dt : datetime) -> int:
     """
     return int(dt.strftime("%Y%m%d%H%M%S"))
 
+def int_to_dt(dt_int : int, as_str : bool) -> object:
+    """
+        A utility function used to convert a integer datetime to datetime object or formatted string.
+
+        Parameters
+        ----------
+        dt_int : int
+
+        Returns
+        ----------
+        datetime or formatted str
+    """
+    date_obj = datetime.fromtimestamp(dt_int / 1e3)
+    if as_str:
+      return date_obj.strftime('%a, %d %b %Y %H:%M:%S GMT')
+
+    return date_obj
 
 def generate_uid(prefix : str) -> str:
     """
