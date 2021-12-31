@@ -93,7 +93,16 @@ class _AccountRepository(AccountInterface):
         except NotUniqueError as err:
             raise OctyException(400, 'Duplicate entry', [{'error_message' : str(err), 'extended_help': ''}])
 
-        _cache_account_data(pk=pk, account_data=new_account.to_json())
+        a = json.loads(new_account.to_json())
+        # add top level API usage property to account cache only.
+        a['api_usage'] = [
+            {
+                'month' : 0,
+                'request_count' : 0
+            }
+        ]
+
+        _cache_account_data(pk=pk, account_data=json.dumps(a))
 
         return new_account, secret_key
 
@@ -215,6 +224,19 @@ class _AccountRepository(AccountInterface):
         ctx.redis_conn.delete(f'pk:{a.keys.public_key}')
         # Delete account from mongo DB
         a.delete()
+
+    async def update_account_cache(self, account : dict) -> None:
+        """
+            Parameters
+            ----------
+            account : dict
+                Octy account
+
+            Returns
+            ----------
+            :rtype: None
+        """
+        _cache_account_data(pk=account['keys']['public_key'], account_data=json.dumps(account))
 
 # Private functions
 
