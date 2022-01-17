@@ -75,10 +75,31 @@ class _VersioningRepository(VersioningInterface):
             ----------
             :rtype: object
         """
+        alpha_versions = []
+        beta_versions = []
+        stable_versions = []
+        sorted_versions = []
+
+        def sort_versions(versions : list) -> list:
+            versions_sorted_by_date = sorted(versions, key=operator.itemgetter('updated_at'), reverse=True)
+            versions_sorted_by_version = sorted(versions_sorted_by_date, key=operator.itemgetter('version_int'), reverse=True)
+            return versions_sorted_by_version
+
         versions = json.loads(json.dumps([json.loads(s) for s in 
          list(ctx.redis_conn.smembers(key))]))
-        versions_sorted_by_date = sorted(versions, key=operator.itemgetter('updated_at'), reverse=True)
-        versions_sorted_by_version = sorted(versions_sorted_by_date, key=operator.itemgetter('version_int'), reverse=True)
-        return versions_sorted_by_version
+        
+        for version in versions:
+            if 'alpha' in version['version_tag']:
+                alpha_versions.append(version)
+            elif 'beta' in version['version_tag']:
+                beta_versions.append(version)
+            else:
+                stable_versions.append(version)
+
+        sorted_versions.extend(sort_versions(stable_versions))
+        sorted_versions.extend(sort_versions(beta_versions))
+        sorted_versions.extend(sort_versions(alpha_versions))
+
+        return sorted_versions
 
 versioningRepository = _VersioningRepository()
