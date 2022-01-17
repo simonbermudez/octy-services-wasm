@@ -115,7 +115,10 @@ async def _assess_request_limit(account : dict) -> bool:
     A function used to determine if this request should be processed in accordance with this accounts
     api request limits.
     """
-    created_at = int_to_dt(account['created_at']['$date'], as_str=False)
+    try:
+        created_at = int_to_dt(account['created_at']['$date'], as_str=False)
+    except:
+        created_at = str_to_dt(account['created_at'])
     now = dt.now()
     delta = now - created_at
     month_number = round(delta.days / 30)

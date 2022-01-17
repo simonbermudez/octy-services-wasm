@@ -4,7 +4,7 @@
 #python imports
 from os import execlp
 from uuid import uuid4
-from datetime import datetime
+from datetime import date, datetime
 import json
 import base64
 from typing import Union
@@ -49,6 +49,21 @@ def int_to_dt(dt_int : int, as_str : bool) -> object:
       return date_obj.strftime('%a, %d %b %Y %H:%M:%S GMT')
 
     return date_obj
+
+def str_to_dt(dt_str : str) -> object:
+    """
+        A utility function used to convert a string datetime to datetime object.
+
+        Parameters
+        ----------
+        dt_str : str
+
+        Returns
+        ----------
+        datetime
+    """
+    datetime_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%S.%f')
+    return datetime_obj
 
 def generate_uid(prefix : str) -> str:
     """
@@ -200,3 +215,21 @@ def loadF(path : str) -> object:
         K8s Config or Secret : object
     """
     return json.load(f_.open(path,"r"))
+
+def json_serial(obj):
+    """
+        JSON serializer for objects not 
+        serializable by default json code
+
+        Parameters
+        ----------
+        obj : Any
+            Object to serialize to json
+
+        Returns
+        ----------
+        K8s Config or Secret : object
+    """
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))

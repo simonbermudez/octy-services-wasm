@@ -10,6 +10,7 @@ import data.context.db_context as ctx
 # python imports
 from typing import *
 import json
+from datetime import datetime as dt
 
 # external imports
 from mongoengine.errors import NotUniqueError, DoesNotExist
@@ -64,6 +65,7 @@ class _AccountRepository(AccountInterface):
             contact_surname = account.contact_surname,
             contact_email_address = account.contact_email_address,
             webhook_url = account.webhook_url,
+            limits = [Config['RESOURCE_LIMITS'][account.account_type]]
         )
 
         # create algorithm configs base models for each required configuration
@@ -76,6 +78,7 @@ class _AccountRepository(AccountInterface):
             config_json = {}
         )
 
+        account_id=generate_uid('account')
         new_account = tbl_accounts(
             account_id=generate_uid('account'),
             account_name=account.account_name,
@@ -102,7 +105,11 @@ class _AccountRepository(AccountInterface):
             }
         ]
 
-        _cache_account_data(pk=pk, account_data=json.dumps(a))
+        try:
+            _cache_account_data(pk=pk, account_data=json.dumps(a))
+        except:
+            new_account = tbl_accounts.objects.get(account_id__exact=account_id)
+            new_account.delete()
 
         return new_account, secret_key
 
@@ -181,6 +188,7 @@ class _AccountRepository(AccountInterface):
             a.account_configurations.authenticated_id_key=account.authenticated_id_key
 
             a.last_updated_action = 'updated account configurations'
+            a.updated_at = dt.now()
 
         elif action == 'algorithm-config':
             #NOTE: rec configs at index 0, churn configs at index 1
@@ -192,6 +200,7 @@ class _AccountRepository(AccountInterface):
             a.algorithm_configurations[idx].config_json = account.algorithm_configurations.config_json
 
             a.last_updated_action = 'updated algorithm configurations'
+            a.updated_at = dt.now()
 
 
         elif action == 'churn-info':
@@ -201,10 +210,23 @@ class _AccountRepository(AccountInterface):
             a.churn_info.features = account.churn_info.features
 
             a.last_updated_action = 'updated churn info'
+            a.updated_at = dt.now()
 
         a.save()
 
-        _cache_account_data(pk=a.keys.public_key, account_data=a.to_json())
+        res = ctx.redis_conn.get(f'pk:{a.keys.public_key}')
+        if not res:
+            raise Exception(f"[toxic]:: Account not found in DB cache!")
+        acc_cache = json.loads(res)
+
+        acc = json.loads(json.dumps(a.to_mongo(), default=json_serial))
+        # add top level API usage property to account cache only.
+        try:
+            acc['api_usage'] = acc_cache['api_usage']
+        except KeyError as e:
+            raise Exception(f"[toxic]:: {e}")
+
+        _cache_account_data(pk=a.keys.public_key, account_data=json.dumps(acc))
 
     def delete_account(self, account_id : str) -> None:
         """

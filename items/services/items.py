@@ -31,7 +31,7 @@ class ItemsService():
     """
     def __init__(self, account : Account): 
         self.account = account
-        self.b = BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='items_data')
+        self.b = None if self.account is None else BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='items_data')
 
     def get_items(self,
                   item_ids : list = None, 
