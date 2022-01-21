@@ -456,8 +456,10 @@ class SegmentationService():
                         'fail_threshold' : 0
                     },
                     'job_data' : {
-                        'segmentation_type' : 'past',
-                        'segment_id' : seg['segment_id']
+                        'segment_data' : {
+                            'segmentation_type' : 'past',
+                            'segment_id' : seg['segment_id']
+                        }
                     }
             })
             #Return response from segmentation engine initalisation, not completion

@@ -151,10 +151,13 @@ class ProfileIdentification():
                 'message' : f'Profile identification job failed. EX :: {ex}',
                 'status' : 'failed'
             })
+            self.b.complete_compute_units()
         except Exception as err:
             self.b.complete_compute_units()
             capture_exception(err)
             self.logger.critical(f'Error occurred when attempting to dispose of job. {err}')
+
+        raise Exception(ex)
 
     async def _complete_job(self) -> None:
 
@@ -205,6 +208,8 @@ class ProfileIdentification():
         self.profiles.extend(churned_profiles_data)
         # drop profiles that do not have self.authenticated_id_key set in their profile_data attribute
         self.profiles[:] = [d for d in self.profiles if d['profile_data'].get(self.authenticated_id_key)]
+        if len(self.profiles)< 3:
+            await self._dispose_job(ex=str(Exception(f"Less than three profiles were found with the set authenticated_id_key : {self.authenticated_id_key} set in their profile_data attribute.")))
         self.profiles_df = pd.json_normalize(self.profiles)
 
     # Dataframe shaping private methods
@@ -304,7 +309,7 @@ class ProfileIdentification():
                 segment_tags.append(
                     {
                         'segment_id': tag['segment_id'],
-                        'segment_name': tag['segment_tag'],
+                        'segment_tag': tag['segment_tag'],
                         'status': 'active',
                     })
 

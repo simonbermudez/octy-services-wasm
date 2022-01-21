@@ -12,8 +12,8 @@ except TypeError:
 #     "ENV" : "profiles.development",
 
 #     "AUTH_EXTENDED_HELP" : "https://octy.ai/docs/api#authentication",
-#     "INVALID_JSON_EXTENDED_HELP" : "https://octy.ai/docs/invalid_json",
-#     "SERVER_ERROR_EXTENDED_HELP" : "https://octy.ai/docs/server_error",
+#     "ERRORS_OVERVIEW_EXTENDED_HELP" : "https://octy.ai/docs/api#errors",
+#     "ERRORS_OVERVIEW_EXTENDED_HELP" : "https://octy.ai/docs/api#errors",
 #     "RATE_LIMIT_EXTENDED_HELP" : "https://octy.ai/docs/api#limits",
 #     "PROFILES_EXTENDED_HELP" : "https://octy.ai/docs/api#ProfileObject",
 

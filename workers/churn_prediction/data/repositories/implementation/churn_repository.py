@@ -238,10 +238,11 @@ class _ChurnPredictionRepository(ChurnPredInterface):
             print('Took', t1 - t0, 'seconds')
 
         body = json.loads(response.text)
-        for segment in body['segments']:
-            segments.append(
-                segment
-            )
+        if response.status_code < 202:
+            for segment in body['segments']:
+                segments.append(
+                    segment
+                )
 
         return segments
 

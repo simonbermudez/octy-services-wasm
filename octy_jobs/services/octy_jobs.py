@@ -9,6 +9,7 @@ from datetime import datetime as dt
 import asyncio
 from functools import reduce
 import os
+import numbers
 
 # external imports
 from octy_rabbitmq.amqp_publisher import amqpPublisher
@@ -224,10 +225,17 @@ class OctyJobQueue():
         return reduce(lambda d, key: d.get(key, default) if isinstance(d, dict) else default, keys.split("."), dictionary)
 
     async def _validate_account_attr(self, account, key) -> Union[bool, str]: # result & location : 'tl' or 'nest'
+        val = self._deep_get(account,key)
         if '.' in key:
-            return bool(self._deep_get(account,key)), 'nest'
+            if not isinstance(val, numbers.Number):
+                return bool(self._deep_get(account,key)), 'nest'
+            else:
+                return True, 'nest'
         try:
-            return bool(account[key]), 'tl'
+            if not isinstance(val, numbers.Number):
+                return bool(account[key]), 'tl'
+            else:
+                return True, 'tl'
         except KeyError:
             pass
 
@@ -340,7 +348,7 @@ class OctyJobQueue():
                 if res:
                     await amqpPublisher.send_message(routing_key=job['job_meta']['amqp_routing_key'], payload=payload)
                 else:
-                    self.logger.warning(f'Job failed to be processed due to missing attributes. Account ID : {account["account_id"]} Job type : {job["job_meta"]["job_type"]}')
+                    self.logger.warning(f'Job failed to be processed due to missing attributes. Account ID : {account["_id"]} Job type : {job["job_meta"]["job_type"]}')
                     continue
 
                 # update job to 'processing' to ensure future ticks do not run it again

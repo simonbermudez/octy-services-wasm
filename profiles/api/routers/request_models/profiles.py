@@ -16,6 +16,17 @@ def disallow_null_values(value : dict, attribute : str):
 ### Create customer profiles Input Schema
 class CreateProfilesChild(BaseModel):
     customer_id : str
+    @validator('customer_id')
+    def validate_customer_id(cls, value, **kwargs):
+        # length
+        if len(value) > 60 or len(value) < 1:
+            raise ValueError('Customer identifiers must be at least 1 character long and less than 60 characters long.')
+        # allowed characters
+        disallowed_characters = [',', '"', "'", "."]
+        found_characters = [c for c in disallowed_characters if c in value]
+        if len(found_characters) > 0:
+            raise ValueError(f'Illegal character(s) found in provided customer identifier : {found_characters}')
+        return value
     profile_data : Dict
     @validator('profile_data')
     def profiledata(cls, v):
@@ -42,6 +53,17 @@ class SegmentTags(BaseModel):
 class UpdateProfilesChild(BaseModel):
     profile_id : str
     customer_id : str
+    @validator('customer_id')
+    def validate_customer_id(cls, value, **kwargs):
+        # length
+        if len(value) > 60 or len(value) < 1:
+            raise ValueError('Customer identifiers must be at least 1 character long and less than 60 characters long.')
+        # allowed characters
+        disallowed_characters = [',', '"', "'", "."]
+        found_characters = [c for c in disallowed_characters if c in value]
+        if len(found_characters) > 0:
+            raise ValueError(f'Illegal character(s) found in provided customer identifier : {found_characters}')
+        return value
     profile_data : Dict
     @validator('profile_data')
     def profiledata(cls, v):

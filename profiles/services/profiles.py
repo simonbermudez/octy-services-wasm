@@ -34,7 +34,7 @@ class ProfilesService():
     def __init__(self, account : Account, account_id : str = None): 
         self.account = account
         self.account_id = account_id if account_id != None else account.account_id
-        self.b = BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='profiles_data')
+        self.b = None if self.account is None else BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='profiles_data')
 
     def get_profiles(self, 
                     segments : list, 
@@ -268,9 +268,10 @@ class ProfilesService():
         if len(updated) < 1:
             ex = 'No profiles updated!' if not internal else '[toxic]:: No profiles updated!'
             raise OctyException(400, ex, failed)
-
-        await self.b.track_data_units(updated)
-        await self.b.complete_data_units('MB')
+            
+        if not internal:
+            await self.b.track_data_units(updated)
+            await self.b.complete_data_units('MB')
 
         return updated, failed
 
@@ -293,18 +294,27 @@ class ProfilesService():
                 "profile_id" : p,
                 "account_id" : self.account_id
             })
-            if not identification_job:
-                loop.create_task(amqpPublisher.send_message(routing_key='events.cmd.delete',
-                    payload={
-                        'account_id' : self.account.account_id,
-                        'profile_id' : p
-                    }))
 
         deleted , failed = await profilesRepository.delete_profiles(profiles_batch)
 
         if len(deleted) < 1:
             ex = 'No profiles deleted!' if not identification_job else '[toxic]:: No profiles deleted!'
             raise OctyException(400, ex, failed)
+
+        if not identification_job:
+            if loop:
+                loop.create_task(amqpPublisher.send_message(routing_key='events.cmd.delete',
+                    payload={
+                        'account_id' : self.account.account_id,
+                        'profile_id' : p
+                    }))
+            else:
+                await amqpPublisher.send_message(routing_key='events.cmd.delete',
+                    payload={
+                        'account_id' : self.account.account_id,
+                        'profile_id' : p
+                    })
+                    
         return deleted, failed
 
     def _validate_profile_key_types(self,new_customer_profiles : dict) -> Union[bool, str]:

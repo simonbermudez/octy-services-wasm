@@ -116,7 +116,7 @@ number of allowed requests to this endpoint: {exc.detail}'
         err_template['error']['reason'] = 'Internal Server Error'
         err_template['error']['errors'] = [{
             "error_message": "Unexpected error occurred when attempting to process this request",
-            "extended_help": Config['SERVER_ERROR_EXTENDED_HELP']
+            "extended_help": Config['ERRORS_OVERVIEW_EXTENDED_HELP']
         }]
 
         return JSONResponse(
