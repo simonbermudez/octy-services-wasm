@@ -650,7 +650,9 @@ class LiveSegmentation():
                             'segment_id' : segment_id
                         },
                         'event_data' : {
-                            'profile_id' : self.profile['profile_id'],
+                            'profile' : {
+                                'profile_id' : self.profile['profile_id']
+                            },
                             'event_timeframe' : 5
                         },
                         'validation_job' : True,

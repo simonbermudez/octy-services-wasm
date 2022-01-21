@@ -27,7 +27,7 @@ def decode_account_jwt(request : Request):
         request.headers['X-AUTH-JWT']
     except KeyError:
         raise OctyException(400,'Missing header',[{'error_message' : '[X-AUTH-JWT] : auth-token header must be provided in request headers.', 
-            'extended_help': Config['INVALID_JSON_EXTENDED_HELP']}])
+            'extended_help': Config['ERRORS_OVERVIEW_EXTENDED_HELP']}])
 
     with open('keys/octy-public-key.pub', 'rb') as f:
         public_key = f.read()
@@ -69,10 +69,10 @@ async def validate_post_headers(request : Request) -> None:
     try:
         if request.headers['content-type'] != "application/json":
             raise OctyException(400,'Missing header',[{'error_message' : '[Content-Type] : [application/json] header must be provided in request headers.', 
-            'extended_help': Config['INVALID_JSON_EXTENDED_HELP']}])
+            'extended_help': Config['ERRORS_OVERVIEW_EXTENDED_HELP']}])
     except KeyError:
         raise OctyException(400,'Missing header',[{'error_message' : '[Content-Type] : [application/json] header must be provided in request headers.', 
-            'extended_help': Config['INVALID_JSON_EXTENDED_HELP']}])
+            'extended_help': Config['ERRORS_OVERVIEW_EXTENDED_HELP']}])
         
         
     try:

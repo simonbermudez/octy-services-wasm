@@ -27,6 +27,17 @@ class EventSequenceEvent(BaseModel):
 
 class CreateSegment(BaseModel):
     segment_name : str
+    @validator('segment_name')
+    def validate_segment_name(cls, value, **kwargs):
+        # length
+        if len(value) > 60 or len(value) < 1:
+            raise ValueError('Segment names must be at least 1 character long and less than 60 characters long.')
+        # allowed characters
+        disallowed_characters = [',', '"', "'", ".", " "]
+        found_characters = [c for c in disallowed_characters if c in value]
+        if len(found_characters) > 0:
+            raise ValueError(f'Illegal character(s) found in provided segment name : {found_characters}')
+        return value
     segment_type : str
     segment_sub_type : int
     segment_timeframe : int

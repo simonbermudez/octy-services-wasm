@@ -5,6 +5,17 @@ from config import Config
 ### Create items Input Schema
 class CreateItem(BaseModel):
     item_id : str
+    @validator('item_id')
+    def validate_item_id(cls, value, **kwargs):
+        # length
+        if len(value) > 60 or len(value) < 1:
+            raise ValueError('Item identifiers must be at least 1 character long and less than 60 characters long.')
+        # allowed characters
+        disallowed_characters = [',', '"', "'", "."]
+        found_characters = [c for c in disallowed_characters if c in value]
+        if len(found_characters) > 0:
+            raise ValueError(f'Illegal character(s) found in provided item identifier : {found_characters}')
+        return value
     item_category : str
     item_name : str
     item_description : str
@@ -27,6 +38,17 @@ class CreateItems(BaseModel):
 ### Update items Input Schema
 class UpdateItem(BaseModel):
     item_id : str
+    @validator('item_id')
+    def validate_item_id(cls, value, **kwargs):
+        # length
+        if len(value) > 60 or len(value) < 1:
+            raise ValueError('Item identifiers must be at least 1 character long and less than 60 characters long.')
+        # allowed characters
+        disallowed_characters = [',', '"', "'", "."]
+        found_characters = [c for c in disallowed_characters if c in value]
+        if len(found_characters) > 0:
+            raise ValueError(f'Illegal character(s) found in provided item identifier : {found_characters}')
+        return value
     item_category : str
     item_name : str
     item_description : str

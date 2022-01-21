@@ -57,6 +57,17 @@ def _metadata_validation(val):
 ### Create messaging templates Input Schema
 class CreateTemplatesChild(BaseModel):
     friendly_name : str
+    @validator('friendly_name')
+    def validate_friendly_name(cls, value, **kwargs):
+        # length
+        if len(value) > 60 or len(value) < 1:
+            raise ValueError('Message template friendly names must be at least 1 character long and less than 60 characters long.')
+        # allowed characters
+        disallowed_characters = [',', '"', "'", "."]
+        found_characters = [c for c in disallowed_characters if c in value]
+        if len(found_characters) > 0:
+            raise ValueError(f'Illegal character(s) found in provided message template friendly name : {found_characters}')
+        return value
     template_type : str
     title : str
     content : str
@@ -88,6 +99,17 @@ class CreateTemplates(BaseModel):
 class UpdateTemplatesChild(BaseModel):
     template_id : str
     friendly_name : str
+    @validator('friendly_name')
+    def validate_friendly_name(cls, value, **kwargs):
+        # length
+        if len(value) > 60 or len(value) < 1:
+            raise ValueError('Message template friendly names must be at least 1 character long and less than 60 characters long.')
+        # allowed characters
+        disallowed_characters = [',', '"', "'", "."]
+        found_characters = [c for c in disallowed_characters if c in value]
+        if len(found_characters) > 0:
+            raise ValueError(f'Illegal character(s) found in provided message template friendly name : {found_characters}')
+        return value
     template_type : str
     title : str
     content : str

@@ -34,7 +34,7 @@ class EventsService():
     def __init__(self, account : Account = None, account_id : str = None): 
         self.account = account
         self.account_id = account_id if account_id != None else account.account_id
-        self.b = BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='events_data')
+        self.b = None if self.account is None else BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='events_data')
     
     async def create_event(self, event : CreateEvent) -> dict:
         """

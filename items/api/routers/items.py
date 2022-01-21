@@ -52,9 +52,12 @@ async def get_items(request: Request,
             raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
                 'extended_help': Config['ITEMS_EXTENDED_HELP']}])
     else:
-        ids = re.sub(r'(\s|\u180B|\u200B|\u200C|\u200D|\u2060|\uFEFF)+', '',ids)
+        def remove_first_end_spaces(string):
+            return "".join(string.rstrip().lstrip())
+
         identifiers = ids.split(",")
         identifiers = list(dict.fromkeys(filter(None, identifiers)))
+        identifiers = [remove_first_end_spaces(i) for i in identifiers]
 
         if len(identifiers) > Config['MAX_GET_ITEMS']:
             raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A maximum number of {Config["MAX_GET_ITEMS"]} identifiers can be provided with the "?ids=" query param per request', 
