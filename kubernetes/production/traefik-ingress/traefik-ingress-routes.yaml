@@ -10,39 +10,39 @@ spec:
   routes:
 
     ##### INTERNAL ROUTES **DELETE** ######
-    - match: Path(`/v1/internal/accounts`)
-      kind: Rule
-      services:
-        - name: account-service
-          port: 1024
-    - match: Path(`/v1/internal/items`)
-      kind: Rule
-      services:
-        - name: items-service
-          port: 1028
-    - match: Path(`/v1/internal/profiles`)
-      kind: Rule
-      services:
-        - name: profiles-service
-          port: 1027
+    # - match: Path(`/v1/internal/accounts`)
+    #   kind: Rule
+    #   services:
+    #     - name: account-service
+    #       port: 1024
+    # - match: Path(`/v1/internal/items`)
+    #   kind: Rule
+    #   services:
+    #     - name: items-service
+    #       port: 1028
+    # - match: Path(`/v1/internal/profiles`)
+    #   kind: Rule
+    #   services:
+    #     - name: profiles-service
+    #       port: 1027
 
-    - match: Path(`/v1/internal/events`)
-      kind: Rule
-      services:
-        - name: events-service
-          port: 1029
+    # - match: Path(`/v1/internal/events`)
+    #   kind: Rule
+    #   services:
+    #     - name: events-service
+    #       port: 1029
     
-    - match: Path(`/v1/internal/segments`)
-      kind: Rule
-      services:
-        - name: segmentation-service
-          port: 1030
+    # - match: Path(`/v1/internal/segments`)
+    #   kind: Rule
+    #   services:
+    #     - name: segmentation-service
+    #       port: 1030
 
-    - match: Path(`/v1/internal/jobs/callback`)
-      kind: Rule
-      services:
-        - name: octy-jobs-service
-          port: 1034
+    # - match: Path(`/v1/internal/jobs/callback`)
+    #   kind: Rule
+    #   services:
+    #     - name: octy-jobs-service
+    #       port: 1034
     ############## **DELETE** ##############
 
 
@@ -59,6 +59,13 @@ spec:
         - name: account-service
           port: 1024
     - match: Path(`/v1/admin/billing/units`)
+      middlewares:
+        - name: admin-auth
+      kind: Rule
+      services:
+        - name: billing-service
+          port: 1040
+    - match: Path(`/v1/admin/billing/subscriptions`)
       middlewares:
         - name: admin-auth
       kind: Rule
@@ -152,51 +159,51 @@ spec:
   routes:
     
     ##### INTERNAL ROUTES **DELETE** ######
-    - match: Path(`/v1/internal/accounts`)
-      middlewares:
-        - name: https-only
-      kind: Rule
-      services:
-        - name: account-service
-          port: 1024
-    - match: Path(`/v1/internal/items`)
-      middlewares:
-        - name: https-only
-      kind: Rule
-      services:
-        - name: items-service
-          port: 1028
-    - match: Path(`/v1/internal/profiles`)
-      middlewares:
-        - name: https-only
-      kind: Rule
-      services:
-        - name: profiles-service
-          port: 1027
+    # - match: Path(`/v1/internal/accounts`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: account-service
+    #       port: 1024
+    # - match: Path(`/v1/internal/items`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: items-service
+    #       port: 1028
+    # - match: Path(`/v1/internal/profiles`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: profiles-service
+    #       port: 1027
 
-    - match: Path(`/v1/internal/events`)
-      middlewares:
-        - name: https-only
-      kind: Rule
-      services:
-        - name: events-service
-          port: 1029
+    # - match: Path(`/v1/internal/events`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: events-service
+    #       port: 1029
     
-    - match: Path(`/v1/internal/segments`)
-      middlewares:
-        - name: https-only
-      kind: Rule
-      services:
-        - name: segmentation-service
-          port: 1030
+    # - match: Path(`/v1/internal/segments`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: segmentation-service
+    #       port: 1030
 
-    - match: Path(`/v1/internal/jobs/callback`)
-      middlewares:
-        - name: https-only
-      kind: Rule
-      services:
-        - name: octy-jobs-service
-          port: 1034
+    # - match: Path(`/v1/internal/jobs/callback`)
+    #   middlewares:
+    #     - name: https-only
+    #   kind: Rule
+    #   services:
+    #     - name: octy-jobs-service
+    #       port: 1034
     ############## **DELETE** ##############
 
     - match: Path(`/v1/admin/account/create`)
@@ -215,6 +222,13 @@ spec:
         - name: account-service
           port: 1024
     - match: Path(`/v1/admin/billing/units`)
+      middlewares:
+        - name: https-only
+      kind: Rule
+      services:
+        - name: billing-service
+          port: 1040
+    - match: Path(`/v1/admin/billing/subscriptions`)
       middlewares:
         - name: https-only
       kind: Rule

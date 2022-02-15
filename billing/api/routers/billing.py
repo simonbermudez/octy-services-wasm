@@ -4,6 +4,7 @@ from .utils import *
 from .request_models.billing import *
 from services.billing import BillingService
 from .dto.billing import *
+from config import Config
 
 #python imports
 from typing import Optional
@@ -74,3 +75,40 @@ async def get_billable_units(request : Request,
                     created_at_lower_range,
                     int(cursor))
     return GetBillableUnitsDTO(units, total, int(cursor)).dto()
+
+
+######################################
+# Route : /v1/admin/billing/units
+# Request type : GET
+# Required parameters : (listed below)
+# Description : Return subscription plans based on provided filter parameters.
+# Returns : filtered subscription plans
+# Limits : --
+# Requires auth : YES -- Admin Public Key & Admin Secret Key
+######################################
+
+@router.get('/v1/admin/billing/subscriptions')
+async def get_subscription_plans(request : Request,
+                    account_types : Optional[str] = None):
+
+    def _str_to_list(str_l) -> list or None:
+        if str_l:
+            str_params = re.sub(r'(\s|\u180B|\u200B|\u200C|\u200D|\u2060|\uFEFF)+', '', str_l)
+            params = str_params.split(",")
+            params = list(dict.fromkeys(filter(None, params)))
+            return params
+        return None
+
+    subscriptions = list()
+    if account_types:
+        for account_type in _str_to_list(account_types):
+            try:
+                plan = next((p for p in Config['SUBSCRIPTIONS'] if p['plan'] == account_type), None)
+                if plan:
+                    subscriptions.append(plan)
+            except Exception: pass
+    else:
+        subscriptions = [sub for sub in Config['SUBSCRIPTIONS']]
+    
+    return GetSubscriptionPlansDTO(subscriptions).dto()
+

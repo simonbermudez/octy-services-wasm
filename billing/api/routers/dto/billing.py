@@ -17,3 +17,17 @@ class GetBillableUnitsDTO():
             },
             headers={'cursor' : str(self.cursor+len(self.units))}
         )
+
+### Get Subscription plans DTO
+class GetSubscriptionPlansDTO():
+    def __init__(self, subscriptions):
+        self.subscriptions = subscriptions
+
+    def dto(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=200,
+            content={
+                    'request_meta' : { 'request_status' : 'Success' , 'message' : ''},
+                    'subscriptions' : self.subscriptions
+            }
+        )
