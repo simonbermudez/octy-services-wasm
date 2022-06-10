@@ -50,7 +50,7 @@ class _AccountRepository(AccountInterface):
             New tbl_account object : object
             Secret key : str
         """
-        # Argon2 encrypt secret key
+        # Argon2 hash secret key
         ph = PasswordHasher()
         secret_key = generate_uid('sk')
         pk = generate_uid('pk')

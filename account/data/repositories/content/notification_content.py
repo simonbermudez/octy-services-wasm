@@ -21,20 +21,21 @@ Example webhook payload :
 #ACCOUNT CREATION
 
 ACCOUNT_SUBJECT='Your Octy account has been created.'
-ACCOUNT_BODY="Dear {first_name},\n\n\
-If we haven't already been introduced, my name is Ben.\n\
-As the founder, I would like personally thank you for making an account with Octy. I am very happy you made the step to make the most of your data using Octy's toolchains.\n\n\
-This email contains sensitive information, specifically your API keys.\n\
-Your API keys should be kept secure and only provided to trusted third parties or individuals as they grant access to all resources associated with your account.\n\n\
+ACCOUNT_BODY="Hello {first_name},\n\n\
+Thank you for starting your Octy journey. I'm so glad you're here.\n\
+As the company founder, I wanted to personally thank you for making an account with us. I'm very happy you made the step to make the most of your data using Octy's toolchains.\n\n\
+This email contains sensitive information: your API keys.\n\
+You'll need to keep these secure and only provide them to trusted third parties or individuals as they grant access to all resources associated with your account.\n\n\
 Step one: Safely store your API keys\n\
 Step two: Go to our Docs [{link}] to get started with integrating Octy with your systems.\n\
-Step three: Delete this email to ensure your API Keys exist in a secure place only.\n\n\
+Step three: Delete this email so that no one gets their hands on your API keys but you!\n\n\
+==================================================== \n\
 YOUR API KEYS:\n\
 PUBLIC KEY: {pk}\n\
 SECRET KEY: {sk}\n\n\
-If you have any questions, queries or issues, you can open a support ticket at support@octy.ai\n\n\
+==================================================== \n\n\
+You can contact us at support@octy.ai if you have any questions.\n\
 Ben"
-
 
 #AUTH SECURITY WARNING
 
