@@ -1,45 +1,27 @@
 from fastapi import Query
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, validator
 from typing import Optional, Dict, List, Any
 from config import Config
 import re
 
-def _content_validation(v):
+
+def _template_content_validation(v):
     for t in v:
         required_data = []
-        default_values = []
-        content_placeholders = []
-
-        for r in t.required_data:
-            if r != 'ITEM_REC': #default values do not need to be set for ITEM_REC placeholders.
-                required_data.append(r)
-
-        for key, _ in t.default_values.items():
-            default_values.append(key)
-
-
-        placeholders = re.finditer(r"\{(.*?)\}", t.content, re.MULTILINE | re.DOTALL)
-
-        for _, match in enumerate(placeholders):
+        placeholder_tags = re.finditer(r"\{\{(.*?)\}\}", t.content, re.MULTILINE | re.DOTALL)
+        for _, match in enumerate(placeholder_tags):
             for _ in range(0, len(match.groups())):
-                content_placeholders.append(match.group(1))
+                    required_data.append(match.group(1))
 
-        if 'ITEM_REC' in content_placeholders:
-            content_placeholders.remove('ITEM_REC')
+        if len(required_data) > Config['MAX_REQUIRED_DATA']:
+            raise ValueError(f"Template : {t.friendly_name}. A maximum number of {Config['MAX_REQUIRED_DATA']} placeholder tags allowed per template.")        
 
-        # Ensure content contains each of the required data point placeholders
-        y = list(set(required_data) - set(content_placeholders))
-        if y != []:
-            raise ValueError(f'Template : {t.friendly_name}. Please ensure the placeholders set in the content parameter match the values provided in the required data field. Found mismatches : {y}')
+        default_value_keys = [key for key, _ in t.default_values.items()]
 
-        z = list(set(content_placeholders) - set(required_data))
-        if z != []:
-            raise ValueError(f'Template : {t.friendly_name}. Please ensure the placeholders set in the content parameter match the values provided in the required data field. Found mismatches : {z}')
-
-        # Check there is a default value for each required data point
-        x = list(set(required_data) - set(default_values))
-        if x != []:
-            raise ValueError(f'Template : {t.friendly_name}. Please provide default values for the following required data placeholders : {x}')
+        df_rd = list(set(default_value_keys) - set(required_data))
+        rd_df = list(set(required_data) - set(default_value_keys))
+        if df_rd != [] or rd_df != []:
+            raise ValueError(f"Template : {t.friendly_name}. Please ensure the placeholder tags set in the 'content' parameter match the values provided in the 'default_values' parameter. Found mismatches : {df_rd if df_rd != [] else rd_df}")    
     return v
 
 def _metadata_validation(val):
@@ -71,10 +53,6 @@ class CreateTemplatesChild(BaseModel):
     template_type : str
     title : str
     content : str
-    required_data : Optional[List[str]] = []
-    @validator("required_data", pre=True, always=True)
-    def set_required_data(cls, required_data):
-        return required_data or []
     default_values : Optional[Dict[str, str]] = {}
     @validator("default_values", pre=True, always=True)
     def set_default_values(cls, default_values):
@@ -93,7 +71,7 @@ class CreateTemplates(BaseModel):
         return v
     @validator('templates')
     def content_validation(cls, v):
-        return _content_validation(v)
+        return _template_content_validation(v)
 
 ### Update messaging templates Input Schema
 class UpdateTemplatesChild(BaseModel):
@@ -113,10 +91,6 @@ class UpdateTemplatesChild(BaseModel):
     template_type : str
     title : str
     content : str
-    required_data : Optional[List[str]] = []
-    @validator("required_data", pre=True, always=True)
-    def set_required_data(cls, required_data):
-        return required_data or []
     default_values : Optional[Dict[str, str]] = {}
     @validator("default_values", pre=True, always=True)
     def set_default_values(cls, default_values):
@@ -135,9 +109,9 @@ class UpdateTemplates(BaseModel):
         return v
     @validator('templates')
     def content_validation(cls, v):
-        return _content_validation(v)
+        return _template_content_validation(v)
 
-
+### Delete messaging templates Input Schema
 class DeleteTemplates(BaseModel):
     template_ids : List[str]
     @validator('template_ids')
@@ -149,8 +123,7 @@ class DeleteTemplates(BaseModel):
 ### Generate content Input Schema
 class GenerateContentChild(BaseModel):
     template_id : str
-    item_recommendation : bool
-    data : List[Dict[str, str]]
+    data : List[Dict[str, Optional[str]]] 
 
 class GenerateContent(BaseModel):
     messages : List[GenerateContentChild]
@@ -159,3 +132,127 @@ class GenerateContent(BaseModel):
         if len(v) > Config['MESSAGE_GEN_LIMIT']:
             raise ValueError('You can only generate up to 100 messagess per request.')
         return v
+    @validator('messages')
+    def content_validation(cls, v):
+        return ValidateMessageContent(v).validate()
+
+class ValidateMessageContent:
+
+    def __init__(self, value):
+        self.value = value
+        self.message_profiles = []
+        self.data_profiles = list()
+        self.templates = list()
+    
+    def validate(self):
+        for midx, message in enumerate(self.value):
+            self.templates.append(message.template_id)
+            is_rec = False
+            err = self._validate_data_count(message.data)
+            if err != '':
+                raise ValueError(f"loc: messages : {midx}{err}")
+
+            for didx, d in enumerate(message.data):
+                self.data_profiles *= 0
+                for k in d.keys():
+                    if "." in k: # Assume its an item_rec key as no others are allowed '.' character
+                        is_rec = True
+                        err = self._validate_item_rec_key_structure(k)
+                        if err != '':
+                            raise ValueError(f"loc: messages : {midx} -> data: {didx}{err}")
+                        err = self._validate_contains_profile_id(k, d[k])
+                        if err != '':
+                            raise ValueError(f"loc: messages : {midx} -> data: {didx}{err}")
+                        if "item_price" in k:
+                            err = self._validate_item_price_params(d[k])
+                            if err != '':
+                                raise ValueError(f"loc: messages : {midx} -> data: {didx}{err}")
+                if is_rec:
+                    err = self._validate_data_matching_profiles()
+                    if err != '':
+                        raise ValueError(f"loc: messages : {midx} -> data: {didx}{err}")
+            if is_rec:
+                err = self._validate_duplicate_message_data_profiles(len(message.data))
+                if err != '':
+                    raise ValueError(f"loc: messages : {midx} {err}")
+            self.message_profiles *= 0
+        err = self._validate_duplicate_templates()
+        if err != '':
+            raise ValueError(f"loc: messages : {err}")
+        return self.value
+
+    def _validate_data_count(self, message_data) -> str:
+        if len(message_data) > Config['MAX_MESSAGE_DATA']:
+            return f". A maximum number of {Config['MAX_MESSAGE_DATA']} data objects allowed per message."
+        return ""
+
+    def _validate_item_rec_key_structure(self, key) -> str:
+        if key.count('.') > 1 or key.count('.') < 1:
+            return f" -> key: '{key}'. item_rec keys must contain only one '.' character seperating the keyword 'item_rec' and the specified item attribute."
+        params = key.split('.')
+        if params[0] != 'item_rec':
+            return f" -> key: '{key}'. item_rec keys must contain only one '.' character seperating the keyword 'item_rec' and the specified item attribute."
+        if params[1] not in Config['ITEM_ATTRIBUTES']:
+            return f" -> key: '{key}'. Illegal item attribute provided: '{params[1]}'. Allowed item attributes : {Config['ITEM_ATTRIBUTES']}"
+        return ""
+
+    def _validate_contains_profile_id(self, key, value) -> str:
+        if "item_price" in key:
+            try:
+                value = value.split("::")[0]
+            except: 
+                return f" -> key: '{key}'. item_rec.item_price key values must contain '::' seperated values using the following sytax: profile_id::currency_from::currency_to::discount"
+        if not re.match(r'[p][r][o][f][i][l][e][_][a-zA-Z0-9]',value):
+            return f" -> key: '{key}'. item_rec key values must contain a valid Octy generated profile identifier as their first value."
+
+        self.data_profiles.append(value)
+        if value not in self.message_profiles:
+            self.message_profiles.append(value)
+        return ""
+
+    def _validate_data_matching_profiles(self) -> str:
+        if not len(set(self.data_profiles)) <= 1:
+            return ". All profile identifiers provided within any single data object must match"
+        return ""
+
+    def _validate_duplicate_message_data_profiles(self, data_count) -> str:
+
+        if len(set(self.message_profiles)) != data_count:
+            return ". Identical profile identifiers found across more than one data object. Each data object within any message object should represent one profile or person."
+        return ""
+
+    def _validate_item_price_params(self, value) -> str:
+        params = value.split("::")
+        if len(params) > 4:
+            return f" . Invalid value provided for item_price parameter. item_price parameters must only contain four values seperated by three sets of '::'. Expected : profile_id::currency_from::curency_to:discount Value provided : {value}"
+        
+        for i, param in enumerate(params):
+            if i == 0:
+                # profile id check
+                if not re.match(r'[p][r][o][f][i][l][e][_][a-zA-Z0-9]', param):
+                    return f". Invalid value provided for item_price profile_id parameter. Must be a valid Octy profile identifier. Value provided : {param}"
+            elif i == 1:
+                try:
+                    Config['ALLOWED_CURRENCIES'][param]
+                except KeyError:
+                    return f". Invalid value provided for the item_price 'currency_from' parameter. Must be a valid accpeted currency code : {Config['ALLOWED_CURRENCIES']}. Value provided : {param}"
+            elif i == 2:
+                try:
+                    Config['ALLOWED_CURRENCIES'][param]
+                except KeyError:
+                    return f". Invalid value provided for the item_price 'currency_to' parameter. Must be a valid accpeted currency code : {Config['ALLOWED_CURRENCIES']}. Value provided : {param}"
+            elif i == 3:
+                try:
+                    int(param)
+                    if 0 <= int(param) <= 90:
+                        pass
+                    else:
+                        int("hi") # deliberately raise value error if value < 1
+                except ValueError:
+                    return f". Invalid value provided for item_price 'discount' parameter. Must be a number greater than or equal to (if no discount is to be applied) 0. Value provided : {param}"
+        return ""
+
+    def _validate_duplicate_templates(self) -> str:
+        if len(self.templates) != len(set(self.templates)):
+            return "Duplicate template identifiers found in messages."
+        return ""

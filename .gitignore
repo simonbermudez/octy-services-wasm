@@ -19,6 +19,7 @@ build.sh
 run.sh
 */config.json
 */secret.json
+*.json
 secrets.json
 secrets.yaml
 secret.yaml

@@ -32,3 +32,16 @@ class MessagingContentInterface(ABC):
         :rtype: list
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    def get_currency_rates(self):
+        """
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        :rtype: dict
+        """
+        raise NotImplementedError

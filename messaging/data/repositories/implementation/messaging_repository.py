@@ -1,8 +1,9 @@
 # module imports
 from data.repositories.Imessaging_repository import MessagingContentInterface
+from data.models.db_schemas import tbl_currency_rates
 from utils.utils import *
 from api.routers.error_handlers import *
-
+from config import Config
 
 # python imports
 from typing import *
@@ -115,5 +116,19 @@ class _MessagingContentRepository(MessagingContentInterface):
             cursor +=body['request_meta']['count']
 
         return items
+
+    async def get_currency_rates(self) -> dict:
+        """
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        :rtype: dict
+        """
+        rates = tbl_currency_rates.objects.order_by('-created_at').first().to_mongo().to_dict()
+        return rates['rates']
+
 
 messagingContentRepository = _MessagingContentRepository()
