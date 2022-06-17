@@ -37,8 +37,9 @@ class ContextManager():
             result : None
         """
 
-        connect(host=Secrets['DB_URI'])
-        logger.info('Opened connection to DB')
+        for db in Config['DATABASES_ALIASES']:
+            connect(host=Secrets[db], alias=db)
+            logger.info(f'Opened connection to {db}')
 
     async def db_disconnect(self, logger) -> None: 
         """
@@ -54,7 +55,8 @@ class ContextManager():
         """
 
         #Disconnect from mongoDB
-        disconnect(alias=Config['DB_ALIAS'])
-        logger.info('Closed conenction to DB')
+        for db in Config['DATABASES_ALIASES']:
+            disconnect(host=Secrets[db], alias=db)
+            logger.info(f'Closed connection to {db}')
 
 contextManager = ContextManager()

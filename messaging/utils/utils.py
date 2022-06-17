@@ -180,7 +180,7 @@ def base64_decode(b64_str : str) -> object:
       Decoded Base64 object
   """
   try:
-    val = json.loads(base64.b64decode(b64_str.encode('ascii')).decode('ascii'))
+    val = json.loads(base64.b64decode(b64_str.encode('utf-8')).decode('utf-8'))
   except Exception:
     print("Not Base64 string.")
     val = json.loads(b64_str)

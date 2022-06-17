@@ -5,6 +5,7 @@ from .utils import *
 from .request_models.messaging import *
 from .dto.messaging import *
 from services.messaging import MessagingService
+from services.template_engine import TemplateEngine
 
 #python imports
 from typing import Optional, List
@@ -142,6 +143,6 @@ async def delete_templates(request: Request,
 async def generate_content(request: Request, 
     messages : GenerateContent,
     current_account: Account = Depends(decode_account_jwt)):
-    created_messages, failed_messages, failed_templates = await MessagingService(account=current_account)\
-        .generate_message_content(messages=messages)
-    return GenerateContentDTO(created_messages, failed_messages, failed_templates).dto()
+    t = TemplateEngine(account=current_account)
+    await t.generate(messages=messages)
+    return GenerateContentDTO(t.created_messages, t.failed_messages, t.failed_templates).dto()

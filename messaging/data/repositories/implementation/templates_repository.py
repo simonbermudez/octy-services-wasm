@@ -125,7 +125,6 @@ class _TemplatesRepository(TemplatesInterface):
                     template_type=template['template_type'],
                     title=template['title'],
                     content=template['content'],
-                    required_data=template['required_data'],
                     default_values=template['default_values'],
                     metadata=template['metadata']
                 )
@@ -221,7 +220,6 @@ class _TemplatesRepository(TemplatesInterface):
             set_dict['template_type'] = templates_batch_obj['template_type'] if templates_batch_obj['template_type'] != None else t['template_type']
             set_dict['title'] = templates_batch_obj['title'] if templates_batch_obj['title'] != None else t['title']
             set_dict['content'] = templates_batch_obj['content'] if templates_batch_obj['content'] != None else t['content']
-            set_dict['required_data'] = templates_batch_obj['required_data'] if templates_batch_obj['required_data'] != None else t['required_data']
             set_dict['default_values'] = templates_batch_obj['default_values'] if templates_batch_obj['default_values'] != None else t['default_values']
             set_dict['metadata'] = templates_batch_obj['metadata'] if templates_batch_obj['metadata'] != None else t['metadata']
             set_dict['updated_at'] = dt.now()

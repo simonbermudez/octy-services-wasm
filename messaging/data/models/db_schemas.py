@@ -16,13 +16,14 @@ class tbl_templates(Document):
     template_type = StringField(required=True)
     title = StringField(required=True)
     content = StringField(required=True)
-    required_data = ListField(StringField(required=True), required=True)
     default_values = DynamicField(required=False)
     metadata = DynamicField(required=False, default={})
     status = StringField(default='active')
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
     meta = {
+        'db_alias': 'template_db',
+        'collection': 'tbl_templates',
         'index_background': True,
         'indexes': [
             {
@@ -30,4 +31,13 @@ class tbl_templates(Document):
                 'name': 'account_id_status'
             }
         ]
+    }
+
+### tbl_currency_rates schema ---
+class tbl_currency_rates(Document):
+    rates = ListField()
+    created_at = DateTimeField()
+    meta = {
+        'db_alias': 'currency_rates_db',
+        'collection': 'tbl_currency_rates'
     }
