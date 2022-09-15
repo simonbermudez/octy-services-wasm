@@ -3,6 +3,7 @@ from re import template
 from this import s
 from data.repositories.implementation.templates_repository import templatesRepository
 from data.repositories.implementation.messaging_repository import messagingContentRepository
+from data.repositories.implementation.reward_cards_repository import rybbonRewardCardsRepository
 from api.routers.request_models.messaging import *
 from api.routers.request_models.account import Account
 from api.routers.error_handlers import *
@@ -11,6 +12,8 @@ from config import Config
 
 # python imports
 from typing import *
+import operator
+import itertools
 
 # external imports
 from stuf import stuf
@@ -41,6 +44,11 @@ class TemplateEngine():
         self.items = list()
         self.created_messages = list()
         self.profile_item_map = list()
+
+        self.rybbon_auth_token = None
+        self.rybbon_campaigns = list()
+        self.customer_rybbon_campaign_map = list()
+        self.rybbon_rewards = list()
 
     def _handle_template_err(self, template_id : str, err_msg : str) -> None:
         self.failed_template_ids.append(template_id)
@@ -118,7 +126,7 @@ class TemplateEngine():
         self.items = await messagingContentRepository\
             .get_items(account_id=self.account.account_id)
 
-    async def build_profile_item_map(self) -> None:
+    async def _build_profile_item_map(self) -> None:
         for rec in self.item_recommendations:
             if len(rec['recommendations'])<1: continue
             profile_item = {}
@@ -129,10 +137,84 @@ class TemplateEngine():
                 profile_item['item'] = item
                 self.profile_item_map.append(profile_item)
 
+    async def _get_rybbon_campaigns(self) -> None:
+        self.rybbon_auth_token = await rybbonRewardCardsRepository.auth()
+        campaigns = await rybbonRewardCardsRepository.get_campaigns(self.rybbon_auth_token)
+        self.rybbon_campaigns.extend(campaigns)
+
+    async def _build_customer_rybbon_campaign_map(self, messages : Any) -> None:
+        map = []
+        def parse(obj, key):
+            try:
+                if "rybbon_reward_card" in key: 
+                    params = obj[key].split("::")
+                    return {
+                        "requestId" : params[0],
+                        "campaignKey" : params[1],
+                        "value" : params[2],
+                        "active" : False,
+                        "exceeded" : False
+                    }
+                return obj[key]
+            except KeyError:
+                pass
+        for tr in self.templates_required_data:
+            for r in tr["required_data"]:
+                for m in messages:
+                    for d in m.data:
+                        map.append(parse(d, r))
+        
+        map = sorted(map, key=operator.itemgetter("campaignKey"))
+        for _,g in itertools.groupby(map,key= operator.itemgetter("campaignKey")):
+            self.customer_rybbon_campaign_map.append(list(g))
+
+    async def _assess_campaign_limit(self) -> None:
+        for campaigns in self.customer_rybbon_campaign_map:
+            group_campaign_key = campaigns[0]['campaignKey']
+            c = next((c for c in self.rybbon_campaigns if c['campaignKey'] == group_campaign_key), None)
+            if c:
+                for campaign in campaigns:
+                    campaign['active'] = True
+                
+                if len(campaigns) > c['availableRewards']:
+                    c['exceeded'] = True
+
+    async def _get_reward_claims(self) -> list:
+        self.rybbon_rewards = await rybbonRewardCardsRepository.claim_rewards(self.rybbon_auth_token, self.customer_rybbon_campaign_map)
+
     async def _format_template_placeholder_tags(self, template : dict) -> dict:
         template['content'] = template['content'].replace("{{", "{")
         template['content'] = template['content'].replace("}}", "}")
         return template
+
+    async def _is_item_rec(self, messages : Any) -> None:
+        # Determine if templates have any item_rec placeholder tags
+        if next((r for r in self.templates_required_data if any("item_rec" in rd for rd in r['required_data'])),None):
+            # Get Item recommendations for all templates profiles
+            profile_ids = await self._parse_group_profile_ids(messages)
+            await self._get_recommendedations(profile_ids)
+            # get all items
+            await self._get_items()
+            if len(self.items) > 0:
+                # Get currecny rates
+                await self._get_currency_rates()
+            # buil profile item map for populating item attributes into content
+            await self._build_profile_item_map()
+    
+    async def _is_reward_card(self, messages : Any) -> None:
+        # Determine if templates have rybbon reward card placeholder tags
+        if next((r for r in self.templates_required_data if any("rybbon_reward_card" in rd for rd in r['required_data'])),None):
+            # Get Rybbon campiagns 
+            await self._get_rybbon_campaigns()
+
+            # Group by campiagnKeys
+            await self._build_customer_rybbon_campaign_map(messages)
+
+            # Determine if this request exceeds any campaign limits
+            await self._assess_campaign_limit()
+
+            # Get reward objects
+            await self._get_reward_claims()
 
     async def _generate(self, message : object, template : object): 
 
@@ -143,13 +225,20 @@ class TemplateEngine():
             values_dict['item_rec'] = {} # item rec values
             message_failed=False
 
-            # init item rec here
             item_rec = ItemRec(
                 data, 
                 template,
                 template_required_data['required_data'],
                 self.profile_item_map,
                 self.currency_rates)
+
+            reward_card = RewardCard(
+                data, 
+                template,
+                template_required_data['required_data'],
+                self.rybbon_rewards
+            )
+            
 
             for key in template_required_data['required_data']:
                 try:
@@ -164,6 +253,9 @@ class TemplateEngine():
                     break
                 if "item_rec" in key:
                     values_dict = item_rec.populate_values_dict(values_dict, key, value)
+                    continue
+                if "rybbon_reward_card" in key: 
+                    values_dict = reward_card.populate_values_dict(values_dict, key)
                     continue
                 if value == "" or value == None:
                     values_dict[key] = str(template['default_values'][key])
@@ -202,19 +294,9 @@ class TemplateEngine():
                 self._identify_required_data(t.id, t.content)
             )
 
-        # Determine if templates have any item_rec placeholder tags
-        if next((r for r in self.templates_required_data if any("item_rec" in rd for rd in r['required_data'])),None):
-            # Get Item recommendations for all templates profiles
-            profile_ids = await self._parse_group_profile_ids(messages.messages)
-            await self._get_recommendedations(profile_ids)
-            # get all items
-            await self._get_items()
-            if len(self.items) > 0:
-                # Get currecny rates
-                await self._get_currency_rates()
-            # buil profile item map for populating item attributes into content
-            await self.build_profile_item_map()
-        
+        await self._is_item_rec(messages.messages)
+        await self._is_reward_card(messages.messages)
+
         for template in self.working_templates:
             for message in messages.messages: 
                 if message.template_id in self.failed_template_ids: continue
@@ -304,3 +386,38 @@ class ItemPrice:
             self.amount = Currency(self.params[2].upper()).get_money_format(self._currency_conversion(self.params[1], self.params[2], int(self.amount)/100))
 
         return self.amount
+
+class RewardCard:
+    '''
+        Handle adding reward cards value to the values dict
+    '''
+    def __init__(self, data, template, required_data, rybbon_rewards):
+        self.data = data
+        self.template = template
+        self.required_data = required_data
+        self.rybbon_rewards = rybbon_rewards
+        self._has_rc = self._has_reward_card()
+        self.reward = None
+        if self._has_rc:
+            self._get_reward_card()
+
+    def _has_reward_card(self) -> bool:
+        if any(Config['REWARD_CARD_PLACEHOLDER_TAG'] in rd for rd in self.required_data):
+            return True
+        return False
+    
+    def _get_reward_card(self) -> None:
+        params = self.data['rybbon_reward_card'].split("::")
+        customer_id = params[0]
+        self.reward = next((r for r in self.rybbon_rewards if r['requestId'] == customer_id), None)
+
+    def populate_values_dict(self, values_dict, key) -> dict:
+        '''
+            Populate reward card values in values_dict and return
+        '''
+        if self.reward:
+            values_dict['rybbon_reward_card'] = str(self.reward['htmlSnippet'])
+        else:
+            values_dict['rybbon_reward_card'] = str(self.template['default_values'][key])
+        
+        return values_dict
