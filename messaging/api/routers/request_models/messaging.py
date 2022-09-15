@@ -134,24 +134,49 @@ class GenerateContent(BaseModel):
         return v
     @validator('messages')
     def content_validation(cls, v):
-        return ValidateMessageContent(v).validate()
+        v = ValidateMessageContent(v).validate()
+        v = ValidateItemRecMessageContent(v).validate()
+        v = ValidateRybbonMessageContent(v).validate()
+        return v
+
 
 class ValidateMessageContent:
+    def __init__(self, value):
+        self.value = value
+        self.templates = list()
+
+    def validate(self):
+        for midx, message in enumerate(self.value):
+            self.templates.append(message.template_id)
+            err = self._validate_data_count(message.data)
+            if err != '':
+                raise ValueError(f"loc: messages : {midx}{err}")
+
+        err = self._validate_duplicate_templates()
+        if err != '':
+            raise ValueError(f"loc: messages : {err}")
+        return self.value
+
+    def _validate_data_count(self, message_data) -> str:
+        if len(message_data) > Config['MAX_MESSAGE_DATA']:
+            return f". A maximum number of {Config['MAX_MESSAGE_DATA']} data objects allowed per message."
+        return ""
+
+    def _validate_duplicate_templates(self) -> str:
+        if len(self.templates) != len(set(self.templates)):
+            return "Duplicate template identifiers found in messages."
+        return ""
+
+class ValidateItemRecMessageContent:
 
     def __init__(self, value):
         self.value = value
         self.message_profiles = []
         self.data_profiles = list()
-        self.templates = list()
     
     def validate(self):
         for midx, message in enumerate(self.value):
-            self.templates.append(message.template_id)
             is_rec = False
-            err = self._validate_data_count(message.data)
-            if err != '':
-                raise ValueError(f"loc: messages : {midx}{err}")
-
             for didx, d in enumerate(message.data):
                 self.data_profiles *= 0
                 for k in d.keys():
@@ -176,15 +201,7 @@ class ValidateMessageContent:
                 if err != '':
                     raise ValueError(f"loc: messages : {midx} {err}")
             self.message_profiles *= 0
-        err = self._validate_duplicate_templates()
-        if err != '':
-            raise ValueError(f"loc: messages : {err}")
         return self.value
-
-    def _validate_data_count(self, message_data) -> str:
-        if len(message_data) > Config['MAX_MESSAGE_DATA']:
-            return f". A maximum number of {Config['MAX_MESSAGE_DATA']} data objects allowed per message."
-        return ""
 
     def _validate_item_rec_key_structure(self, key) -> str:
         if key.count('.') > 1 or key.count('.') < 1:
@@ -223,14 +240,14 @@ class ValidateMessageContent:
 
     def _validate_item_price_params(self, value) -> str:
         params = value.split("::")
-        if len(params) > 4:
-            return f" . Invalid value provided for item_price parameter. item_price parameters must only contain four values seperated by three sets of '::'. Expected : profile_id::currency_from::curency_to:discount Value provided : {value}"
+        if len(params) != 4:
+            return f" . Invalid value provided for item_price parameter. item_price parameters must contain four values separated by three sets of '::'. Expected : profile_id::currency_from::curency_to::discount. Value provided : {value}"
         
         for i, param in enumerate(params):
             if i == 0:
                 # profile id check
                 if not re.match(r'[p][r][o][f][i][l][e][_][a-zA-Z0-9]', param):
-                    return f". Invalid value provided for item_price profile_id parameter. Must be a valid Octy profile identifier. Value provided : {param}"
+                    return f". Invalid value provided for item_price 'profile_id' parameter. Must be a valid Octy profile identifier. Value provided : {param}"
             elif i == 1:
                 try:
                     Config['ALLOWED_CURRENCIES'][param]
@@ -247,12 +264,64 @@ class ValidateMessageContent:
                     if 0 <= int(param) <= 90:
                         pass
                     else:
-                        int("hi") # deliberately raise value error if value < 1
+                        int("hi") # deliberately raise value error if value < 0 or > 90
                 except ValueError:
                     return f". Invalid value provided for item_price 'discount' parameter. Must be a number greater than or equal to (if no discount is to be applied) 0. Value provided : {param}"
         return ""
 
-    def _validate_duplicate_templates(self) -> str:
-        if len(self.templates) != len(set(self.templates)):
-            return "Duplicate template identifiers found in messages."
+class ValidateRybbonMessageContent:
+
+    def __init__(self, value):
+        self.value = value
+        self.message_customer_ids = list()
+        self.is_reward_card = False
+
+    def validate(self):
+        for midx, message in enumerate(self.value):
+            for didx, d in enumerate(message.data):
+                for k in d.keys():
+                    if k == "rybbon_reward_card":
+                        is_reward_card = True
+                        err = self._validate_rybbon_params(d[k])
+                        if err != '':
+                            raise ValueError(f"loc: messages : {midx} -> data: {didx}{err}")
+
+            if is_reward_card:
+                err = self._validate_duplicate_message_data_customers(len(message.data))
+                if err != '':
+                    raise ValueError(f"loc: messages : {midx} {err}")
+            self.message_customer_ids *= 0
+
+        return self.value
+
+    def _validate_rybbon_params(self, value) -> str:
+        params = value.split("::")
+        if len(params) != 3:
+            return f" . Invalid value provided for rybbon_reward_card parameter. 'rybbon_reward_card' parameters must contain four values seperated by three sets of '::'. Expected : customer_id::rybbon_campaign_key::value. Value provided : {value}"
+        
+        for i, param in enumerate(params):
+            if i == 0:
+                if param == '' or param == None:
+                    return f". Invalid value provided for rybbon_reward_card 'customer_id' parameter. Must not be a null value. Value provided : {param}"
+                else:
+                    self.message_customer_ids.append(param)
+            elif i == 1:
+                if param == '' or param == None:
+                    return f". Invalid value provided for rybbon_reward_card 'rybbon_campaign_key' parameter. Must not be a null value. Value provided : {param}"
+            elif i == 2:
+                if param == '' or param == None:
+                    return f". Invalid value provided for rybbon_reward_card 'reward_name' parameter. Must not be a null value. Value provided : {param}"
+            elif i == 3:
+                try:
+                    float(param)
+                    if float(param) < 1:
+                        int("hi") # deliberately raise value error if value < 1
+                except ValueError:
+                    return f". Invalid value provided for rybbon_reward_card 'value' parameter. Must be a floating point number greater than or equal to 1. Value provided : {param}"
+
+        return ""
+
+    def _validate_duplicate_message_data_customers(self, data_count) -> str:
+        if len(set(self.message_customer_ids)) != data_count:
+            return ". Identical customer identifiers found across more than one data object. Each data object within any message object should represent one customer or person."
         return ""

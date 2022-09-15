@@ -19,6 +19,7 @@ class _MessagingContentRepository(MessagingContentInterface):
         Handles:
         - Retrieving item recommendations for message content
         - Retrieving items
+        - Retrieving currency rates
 
         ...
 
