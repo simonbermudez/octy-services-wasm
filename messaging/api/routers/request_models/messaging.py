@@ -281,12 +281,12 @@ class ValidateRybbonMessageContent:
             for didx, d in enumerate(message.data):
                 for k in d.keys():
                     if k == "rybbon_reward_card":
-                        is_reward_card = True
+                        self.is_reward_card = True
                         err = self._validate_rybbon_params(d[k])
                         if err != '':
                             raise ValueError(f"loc: messages : {midx} -> data: {didx}{err}")
 
-            if is_reward_card:
+            if self.is_reward_card:
                 err = self._validate_duplicate_message_data_customers(len(message.data))
                 if err != '':
                     raise ValueError(f"loc: messages : {midx} {err}")

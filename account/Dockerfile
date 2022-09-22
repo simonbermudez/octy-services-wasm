@@ -19,4 +19,6 @@ CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "-
 # WORKDIR /account
 # COPY . /account
 # RUN pip install -r /account/requirements.txt
+# ARG git_token
+# RUN pip install git+https://$git_token@github.com/Octy-ai/octy-rabbitmq-lib.git@1.2.0
 # CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--log-config", "api/log-conf.yml"]

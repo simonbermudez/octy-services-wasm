@@ -1,4 +1,4 @@
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
@@ -12,8 +12,8 @@ spec:
     privateKeySecretRef:
       # Secret resource used to store the account's private key.
       name: letsencrypt-production-private-key
-    # Add a single challenge solver, HTTP01 using nginx
+    # Add a single challenge solver, HTTP01 using traefik
     solvers:
       - http01:
           ingress:
-            class: traefik-cert-manager
+            class: traefik

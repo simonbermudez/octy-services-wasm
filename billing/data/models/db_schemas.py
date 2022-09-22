@@ -6,7 +6,7 @@ from datetime import datetime as dt
 # external imports
 from mongoengine import Document, StringField, IntField, DateTimeField
 
-### tbl_items schema ---
+### tbl_billable_units schema ---
 class tbl_billable_units(Document):
     account_id = StringField(required=True)
     account_type = StringField(required=True)

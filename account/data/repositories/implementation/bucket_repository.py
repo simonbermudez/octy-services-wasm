@@ -102,15 +102,16 @@ class BucketRepository(BucketInterface):
                         "AWS": "*"
                     },
                     "Action": "s3:*",
-                    "Resource": "arn:aws:s3:::"+bucket_name+"/*",
-                    "Condition" : {
-                        "IpAddress" : {
-                            "aws:SourceIp": C['AWS_ALLOWED_IP']
-                        },
-                        "NotIpAddress" : {
-                            "aws:SourceIp": "192.168.143.188/32"
-                        }
-                    }
+                    "Resource": "arn:aws:s3:::"+bucket_name+"/*"
+                    # NOTE: Set allowed IP range for bucket access
+                    # "Condition" : {
+                    #     "IpAddress" : {
+                    #         "aws:SourceIp": C['AWS_ALLOWED_IP']
+                    #     },
+                    #     "NotIpAddress" : {
+                    #         "aws:SourceIp": "192.168.143.188/32"
+                    #     }
+                    # }
                 }
                 ]
             }
