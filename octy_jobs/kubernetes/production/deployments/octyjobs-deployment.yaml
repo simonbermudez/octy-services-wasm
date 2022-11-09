@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: octy-jobs-app
-        image: benpayflic/octy-jobs-service:$COMMIT_SHA1
+        image: octysonity/octy-jobs-service:latest
         imagePullPolicy: Always
         env:
           - name: POD_ID

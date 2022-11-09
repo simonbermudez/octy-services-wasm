@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: account-app
-        image: benpayflic/octy-account-service:$COMMIT_SHA1
+        image: octysonity/octy-account-service:latest
         imagePullPolicy: Always
         env:
           - name: ACCOUNT_CONFIG # name that can be refefenced in app

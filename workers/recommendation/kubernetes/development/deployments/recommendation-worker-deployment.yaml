@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: recommendation-worker-app
-        image: benpayflic/octy-recommendation-worker:latest
+        image: octysonity/octy-recommendation-worker:latest
         imagePullPolicy: Always
         env:
           - name: RECOMMENDATION_WORKER_CONFIG # name that can be refefenced in app

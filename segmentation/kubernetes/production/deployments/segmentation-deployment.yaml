@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: segmentation-app
-        image: benpayflic/octy-segmentation-service:$COMMIT_SHA1
+        image: octysonity/octy-segmentation-service:latest
         imagePullPolicy: Always
         env:
           - name: SEGMENTATION_CONFIG # name that can be refefenced in app

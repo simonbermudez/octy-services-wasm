@@ -107,7 +107,15 @@ class _AccountRepository(AccountInterface):
 
         try:
             _cache_account_data(pk=pk, account_data=json.dumps(a))
-        except:
+        except Exception as e:
+            # Suggested implementation to handle exception.
+            # try:
+            #     new_account = tbl_accounts.objects.get(account_id__exact=account_id)
+            #     new_account.delete()
+            # except Exception as err:
+            #     raise Exception(err)
+            # raise Exception from e
+
             new_account = tbl_accounts.objects.get(account_id__exact=account_id)
             new_account.delete()
 

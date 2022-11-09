@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: admin-app
-        image: benpayflic/octy-admin-service:latest
+        image: octysonity/octy-admin-service:latest
         imagePullPolicy: Always
         env:
           - name: ADMIN_CONFIG # name that can be refefenced in app

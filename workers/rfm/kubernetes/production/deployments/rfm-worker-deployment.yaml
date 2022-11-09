@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: rfm-worker-app
-        image: benpayflic/octy-rfm-worker:$COMMIT_SHA1
+        image: octysonity/octy-rfm-worker:latest
         imagePullPolicy: Always
         env:
           - name: RFM_WORKER_CONFIG # name that can be refefenced in app

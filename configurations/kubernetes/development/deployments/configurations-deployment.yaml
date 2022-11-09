@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: configurations-app
-        image: benpayflic/octy-configurations-service:latest
+        image: octysonity/octy-configurations-service:latest
         imagePullPolicy: Always
         # env:
         #   - name: ACCOUNT_CONFIG # name that can be refefenced in app

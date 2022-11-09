@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: items-app
-        image: benpayflic/octy-items-service:latest
+        image: octysonity/octy-items-service:latest
         imagePullPolicy: Always
         # env:
         #   - name: ACCOUNT_CONFIG # name that can be refefenced in app

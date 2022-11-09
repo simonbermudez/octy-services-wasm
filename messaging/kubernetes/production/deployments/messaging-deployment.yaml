@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: messaging-app
-        image: benpayflic/octy-messaging-service:$COMMIT_SHA1
+        image: octysonity/octy-messaging-service:latest
         imagePullPolicy: Always
         env:
           - name: MESSAGING_CONFIG # name that can be refefenced in app

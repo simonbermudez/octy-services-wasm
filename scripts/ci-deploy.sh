@@ -8,7 +8,7 @@ set -e
 
 CHANGE_CHECKER=./scripts/changed-since-last-commit.py
 COMMIT_SHA1=$CIRCLE_SHA1
-export COMMIT_SHA1=$COMMIT_SHA1
+export COMMIT_SHA1=latest
 export CIRCLE_COMPARE_URL=$CIRCLE_COMPARE_URL
 export GIT_TOKEN=$GIT_TOKEN # Used to download private project libs from GH repo.
 echo "$KUBERNETES_CLUSTER_CERTIFICATE" | base64 --decode > cert.crt

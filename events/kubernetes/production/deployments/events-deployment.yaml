@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: events-app
-        image: benpayflic/octy-events-service:$COMMIT_SHA1
+        image: octysonity/octy-events-service:latest
         imagePullPolicy: Always
         env:
           - name: EVENTS_CONFIG # name that can be refefenced in app

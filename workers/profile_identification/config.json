@@ -1,9 +1,9 @@
 {
     "ENV" : "identity.worker.production",
-    "SENTRY_URL" : "https://e4b80290888a4267a2224efc6dbed258@o324132.ingest.sentry.io/1826169",
-    "OCTY_JOB_SERVICE_CLUSTER_IP" : "http://10.245.179.248:1034",
-    "PROFILE_SERVICE_CLUSTER_IP" : "http://10.245.84.145:1027",
-    "AMQP_URL" : "amqps://kcditigk:jckigtvlFqNxH652hdYIqRPQH7kPuS0n@brilliant-grey-impala.rmq2.cloudamqp.com/kcditigk",
+    "SENTRY_URL" : "https://1ef5498a6b6f4de2b60a43268c7617db@o4503948099125248.ingest.sentry.io/4503977742041088",
+    "OCTY_JOB_SERVICE_CLUSTER_IP" : "http://10.245.112.126:1034",
+    "PROFILE_SERVICE_CLUSTER_IP" : "http://10.245.191.121:1027",
+    "AMQP_URL" : "amqps://wrkvgska:Ru3LAfRPzYx4U_1Fh-yTE2NjHeS5gVYb@rattlesnake.rmq.cloudamqp.com/wrkvgska",
     "EXCHANGE" : "octy-services",
     "AMQP_CONSUMERS" : [        
         {

@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: billing-app
-        image: benpayflic/octy-billing-service:$COMMIT_SHA1
+        image: octysonity/octy-billing-service:latest
         imagePullPolicy: Always
         env:
           - name: BILLING_CONFIG # name that can be refefenced in app

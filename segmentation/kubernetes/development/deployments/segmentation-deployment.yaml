@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: segmentation-app
-        image: benpayflic/octy-segmentation-service:latest
+        image: octysonity/octy-segmentation-service:latest
         imagePullPolicy: Always
         # env:
         #   - name: ACCOUNT_CONFIG # name that can be refefenced in app

@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: recommendations-app
-        image: benpayflic/octy-recommendations-service:$COMMIT_SHA1
+        image: octysonity/octy-recommendations-service:latest
         imagePullPolicy: Always
         env:
           - name: RECOMMENDATION_CONFIG # name that can be refefenced in app

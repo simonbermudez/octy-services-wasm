@@ -32,7 +32,7 @@ except TypeError:
 #         }
 #     },
 
-#     "SENTRY_URL" : "https://e4b80290888a4267a2224efc6dbed258@o324132.ingest.sentry.io/1826169",
+#     "SENTRY_URL" : "https://1ef5498a6b6f4de2b60a43268c7617db@o4503948099125248.ingest.sentry.io/4503977742041088",
 
 #     "DB_ALIAS" : "profile_db",
 

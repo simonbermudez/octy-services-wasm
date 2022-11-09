@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: configurations-app
-        image: benpayflic/octy-configurations-service:$COMMIT_SHA1
+        image: octysonity/octy-configurations-service:latest
         imagePullPolicy: Always
         env:
           - name: CONFIGURATIONS_CONFIG # name that can be refefenced in app
