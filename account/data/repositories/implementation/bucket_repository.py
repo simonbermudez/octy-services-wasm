@@ -76,6 +76,8 @@ class BucketRepository(BucketInterface):
         result :  bool
         """
         try:
+            # Delete public access block
+            self.s3_client.delete_public_access_block(Bucket=bucket_name)
 
             # Define the configuration rules
             cors_configuration = {
@@ -87,8 +89,6 @@ class BucketRepository(BucketInterface):
                     'MaxAgeSeconds': 3000
                 }]
             }
-            self.s3_client.put_bucket_cors(Bucket=bucket_name,
-                    CORSConfiguration=cors_configuration)
 
             # Define and apply a bucket policy
             bucket_policy = {
@@ -116,6 +116,10 @@ class BucketRepository(BucketInterface):
                 ]
             }
             self.s3_client.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(bucket_policy))
+
+            # Apply the configuration rules                                                                                                                                     
+            self.s3_client.put_bucket_cors(Bucket=bucket_name,
+                    CORSConfiguration=cors_configuration)
 
             # tag AWS resource with Octy account ID, for cost tracking
             bucket_tagging = self.s3_resource.BucketTagging(bucket_name)
