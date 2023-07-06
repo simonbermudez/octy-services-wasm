@@ -22,8 +22,8 @@ Example webhook payload :
 
 ACCOUNT_SUBJECT='Your Octy account has been created.'
 ACCOUNT_BODY="Hello {first_name},\n\n\
-Thank you for starting your Octy journey. I'm so glad you're here.\n\
-As the company founder, I wanted to personally thank you for making an account with us. I'm very happy you made the step to make the most of your data using Octy's toolchains.\n\n\
+Thank you for starting your Octy journey. We are delighted that you chose Octy.\n\
+Thank you for making an account with us. Our team is dedicated to helping you make the most of your data using Octy's toolchains.\n\n\
 This email contains sensitive information: your API keys.\n\
 You'll need to keep these secure and only provide them to trusted third parties or individuals as they grant access to all resources associated with your account.\n\n\
 Step one: Safely store your API keys\n\
@@ -35,7 +35,7 @@ PUBLIC KEY: {pk}\n\
 SECRET KEY: {sk}\n\n\
 ==================================================== \n\n\
 You can contact us at support@octy.ai if you have any questions.\n\
-Ben"
+Your Octy Support Team"
 
 #AUTH SECURITY WARNING
 
