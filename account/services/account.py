@@ -15,6 +15,8 @@ from config import Config
 from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import Request
 
+from account.api.routers.error_handlers import OctyException
+
 
 class AccountService:
     """
@@ -27,9 +29,42 @@ class AccountService:
         ----------
         none
     """
-    def __init__(self): pass
 
-    async def create_account(self, account : CreateAccount) -> Dict:
+    def __init__(self):
+        pass
+
+    async def delete_account(self, account_id: str) -> bool:
+        """
+            A method used to delete an Octy account.
+
+            Parameters
+            ----------
+
+            account_id : str
+                Account unique identifier
+
+            Returns
+            ----------
+            erTrue if account was deleted successfully, False otherwise : bool
+        """
+        # Delete account
+        res = accountRepository.delete_account(account_id)
+        if not res:
+            raise Exception(500, 'Account could not be deleted.')
+
+        # Delete bucket
+        bucket_repo = BucketRepository(account_id)
+        res = bucket_repo.delete_bucket()
+        if not res:
+            raise Exception(500, 'Bucket could not be deleted.')
+
+        # Delete account directories
+        for dir in Config['BUCKET_REQUIRED_DIRS']:
+            bucket_repo.delete_directory(dir)
+
+        return True
+
+    async def create_account(self, account: CreateAccount) -> Dict:
         """
             A method used to create an Octy account.
 
@@ -67,41 +102,40 @@ class AccountService:
             bucket_repo.create_directory(bucket_name, dir)
 
         # send email notification
-        notification_sent = NotificationsRepository(account=new_account)\
+        notification_sent = NotificationsRepository(account=new_account) \
             .email(
-                {
-                    'contact_email_address' : new_account.account_configurations.contact_email_address,
-                    'contact_name' : new_account.account_configurations.contact_name,
-                    'subject' : ACCOUNT_SUBJECT,
-                    'body' : ACCOUNT_BODY.format(
-                        first_name=new_account.account_configurations.contact_name,
-                        link=Config['DOCS_ROOT_URL'],
-                        pk=new_account.keys.public_key,
-                        sk=sk)
-                }
+            {
+                'contact_email_address': new_account.account_configurations.contact_email_address,
+                'contact_name': new_account.account_configurations.contact_name,
+                'subject': ACCOUNT_SUBJECT,
+                'body': ACCOUNT_BODY.format(
+                    first_name=new_account.account_configurations.contact_name,
+                    link=Config['DOCS_ROOT_URL'],
+                    pk=new_account.keys.public_key,
+                    sk=sk)
+            }
         )
 
         # call amqp service to create Octy jobs
         for job in Config['OCTY_JOBS']:
             await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
-                payload={
-                    'account_id' : new_account['account_id'],
-                    'job_meta' : job['job_meta'],
-                    'job_data' : job['job_data']
-            })
-
+                                             payload={
+                                                 'account_id': new_account['account_id'],
+                                                 'job_meta': job['job_meta'],
+                                                 'job_data': job['job_data']
+                                             })
 
         return {
             'account_id': new_account.account_id,
-            'account_name' : new_account.account_name,
-            'account_type' : new_account.account_configurations.account_type,
-            'account_currency' : new_account.account_configurations.account_currency,
-            'contact_email_address' : new_account.account_configurations.contact_email_address,
-            'pk' : new_account.keys.public_key,
-            'notification_sent' : notification_sent
+            'account_name': new_account.account_name,
+            'account_type': new_account.account_configurations.account_type,
+            'account_currency': new_account.account_configurations.account_currency,
+            'contact_email_address': new_account.account_configurations.contact_email_address,
+            'pk': new_account.keys.public_key,
+            'notification_sent': notification_sent
         }
-    
-    def get_accounts_internal(self, account_ids : list, cursor : int) -> list:
+
+    def get_accounts_internal(self, account_ids: list, cursor: int) -> list:
         """
             A method used to get Octy accounts from provided account ids.
 
@@ -117,10 +151,11 @@ class AccountService:
             total : int
         """
         accounts, total = accountRepository.get_accounts(account_ids, cursor)
-        if len(accounts)<1:
-            raise OctyException(400, 'No accounts found', 
-                [{'error_message' : 'No accounts found with provided params or pagination cursor exhausted', 
-                'extended_help': ''}])
+        if len(accounts) < 1:
+            raise OctyException(400, 'No accounts found',
+                                [{
+                                     'error_message': 'No accounts found with provided params or pagination cursor exhausted',
+                                     'extended_help': ''}])
         return accounts, total
 
 

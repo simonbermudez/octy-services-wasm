@@ -62,3 +62,16 @@ class GetAccountsInternalDTO():
             }
         )
 
+## Delete Account DTO
+class DeleteAccountDTO():
+    def __init__(self, account_id):
+        self.account_id = account_id
+
+    def dto(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=200,
+            content={
+                'request_meta': {'request_status': 'Success',
+                                 'message': f"Successfully deleted account {self.account_id} and all associated data!"}
+            }
+        )

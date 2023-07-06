@@ -72,18 +72,40 @@ class NotificationsRepository(NotificationsInterface):
             ]
         }
 
+        data_to_octy = {
+            'Messages': [
+                {
+                    "From": {
+                        "Email": Config['SUPPORT_EMAIL'],
+                        "Name": "Octy.ai"
+                    },
+                    "To": [
+                        {
+                            "Email": "ops@octy.ai",
+                            "Name": payload['contact_name']
+                        }
+                    ],
+                    "Subject": payload['subject'],
+                    "TextPart": payload['body'],
+                    "HTMLPart": "",
+                    "CustomID": notification_id
+                }
+            ]
+        }
+
         # send email
         try:
             mailjet = Client(auth=(Secrets['MAIL_JET_API_KEY'],
                                    Secrets['MAIL_JET_API_SECRET']),
                              version='v3.1')
-            result = mailjet.send.create(data=data)
+            to_client_result = mailjet.send.create(data=data)
+            to_octy_result = mailjet.send.create(data=data_to_octy)
         except Exception as err:
             capture_exception(err)
             return False
 
         did_succeed = False
-        if result.status_code == 200:
+        if to_octy_result.status_code == 200 and to_client_result.status_code == 200:
             did_succeed = True
 
         # Create notification reference
