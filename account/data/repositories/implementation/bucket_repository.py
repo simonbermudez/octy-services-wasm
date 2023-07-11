@@ -53,8 +53,13 @@ class BucketRepository(BucketInterface):
         result : bool
             True if the bucket is deleted successfully, False otherwise.
         """
-        try:
-           self.s3_resource.Bucket(bucket_name).delete()
+        try:    
+            bucket = self.s3_resource.Bucket(bucket_name)
+            self.s3_resource.Bucket(bucket_name).objects.all().delete()
+            # Delete objects within the bucket
+            #bucket.objects.all().delete()
+            # Delete the bucket
+            bucket.delete()
         except Exception as err:
             capture_exception(err)
             return False
