@@ -39,6 +39,27 @@ class BucketRepository(BucketInterface):
         self.s3_client = boto3.client('s3',
          aws_access_key_id=Secrets['AWS_ACCESS_KEY_ID'],
          aws_secret_access_key=Secrets['AWS_SECRET_ACCESS_KEY'])
+        
+    def delete_bucket(self, bucket_name: str) -> bool:
+        """
+        A method used to delete an AWS S3 bucket.
+        Parameters
+        ----------
+        bucket_name : str
+            Name of the bucket to be deleted.
+
+        Returns
+        ----------
+        result : bool
+            True if the bucket is deleted successfully, False otherwise.
+        """
+        try:
+           self.s3_resource.Bucket(bucket_name).delete()
+        except Exception as err:
+            capture_exception(err)
+            return False
+        return True
+
 
 
     def create_bucket(self, bucket_name: str) -> bool:

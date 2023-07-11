@@ -47,20 +47,20 @@ class AccountService:
             ----------
             erTrue if account was deleted successfully, False otherwise : bool
         """
-        # Delete account
-        res = accountRepository.delete_account(account_id)
-        if not res:
-            raise Exception(500, 'Account could not be deleted.')
 
         # Delete bucket
         bucket_repo = BucketRepository(account_id)
-        res = bucket_repo.delete_bucket()
-        if not res:
+        account = accountRepository.get_account_by_account_id(account_id)
+        res = bucket_repo.delete_bucket(account.bucket_name)
+        print(account.bucket_name)
+        print(res)
+        if res is False:
             raise Exception(500, 'Bucket could not be deleted.')
-
-        # Delete account directories
-        for dir in Config['BUCKET_REQUIRED_DIRS']:
-            bucket_repo.delete_directory(dir)
+        
+        # Delete account
+        res = accountRepository.delete_account(account_id)
+        if not res:
+            raise Exception(500, 'Account could not be deleted.')   
 
         return True
 

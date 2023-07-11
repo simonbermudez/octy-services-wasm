@@ -32,6 +32,22 @@ class _AccountRepository(AccountInterface):
     """
     def __init__(self): pass
 
+    #Implemented By Munashe
+    def get_account_by_account_id(self, account_id : str) -> object:
+        """
+            A method used to get an Octy account
+
+            Parameters
+            ----------
+            account_id : str
+                Octy generated account unique identifier
+
+            Returns
+            ----------
+            tbl_account object : Mongo Document o       bject/ dict
+        """
+        return tbl_accounts.objects(account_id=account_id).first()   
+
 
     def create_account(self, account, bucket : str) -> Union[object, str]:
         """

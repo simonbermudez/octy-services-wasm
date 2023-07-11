@@ -60,15 +60,17 @@ async def create_new_account(request: Request, account: CreateAccount):
 # Limits : 120 Requests per minute
 # Requires auth : YES -- Admin Public Key & Admin Secret Key
 ######################################
+class DeleteAccount(BaseModel):
+        account_id:str
+
 @router.post('/v1/admin/account/delete',
              dependencies=[Depends(validate_post_headers)])
-@limiter.limit("120/minute")
-async def create_new_account(request: Request, account_id: str):
-    result = await accountService.delete_account(account_id)
-    if result:
-        return DeleteAccountDTO(account_id).dto()
-    else:
-        raise OctyException(400, 'Bad Request',
+async def delete_account(request: Request, payload: DeleteAccount):
+   result = await accountService.delete_account(payload.account_id)
+   if result:
+        return DeleteAccountDTO(payload.account_id).dto()
+   else:
+       raise OctyException(400, 'Bad Request',
                             [{'error_message': f'Error occured and could not delete account {account_id}',
                               'extended_help': ''}])
 
