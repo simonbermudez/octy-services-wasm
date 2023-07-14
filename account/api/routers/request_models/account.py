@@ -1,6 +1,6 @@
 from fastapi import Query
 from pydantic import BaseModel, validator, HttpUrl
-from typing import List, Dict
+from typing import List, Dict, Union
 from email_validator import validate_email, EmailNotValidError
 
 
@@ -16,6 +16,7 @@ class CreateAccount(BaseModel):
             raise ValueError('Invalid contact email address provided.')
     account_name : str
     account_type : str
+    authenticated_id_key: Union[str, None] = None
     @validator('account_type')
     def allowed_account_types(cls, value, **kwargs):
         allowed = ["startup", "pro", "enterprise"]

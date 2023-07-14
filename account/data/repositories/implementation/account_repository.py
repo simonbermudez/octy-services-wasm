@@ -74,7 +74,21 @@ class _AccountRepository(AccountInterface):
             public_key = pk,
             secret_key = ph.hash(secret_key)
         )
-        account_configurations = AccountConfigurations(
+
+        # check if account contains authenticated_id_key and set it if it does 
+        if account.authenticated_id_key is not None:
+            account_configurations = AccountConfigurations(
+            account_type=account.account_type,
+            account_currency = account.account_currency,
+            contact_name = account.contact_name,
+            contact_surname = account.contact_surname,
+            contact_email_address = account.contact_email_address,
+            webhook_url = account.webhook_url,
+            authenticated_id_key = account.authenticated_id_key,
+            limits = [Config['RESOURCE_LIMITS'][account.account_type]]
+                )
+        else:
+            account_configurations = AccountConfigurations(
             account_type=account.account_type,
             account_currency = account.account_currency,
             contact_name = account.contact_name,
