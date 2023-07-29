@@ -487,6 +487,7 @@ class ProfileIdentification():
             await self._append_message_payload(message_body=gpd, type_='event_instance_profiles')
 
         # Publish messages
+        # TODO : CHECK BACK HERE 
         await self._process_amqp_messages()
 
         # Create _create_merged_profiles_ref

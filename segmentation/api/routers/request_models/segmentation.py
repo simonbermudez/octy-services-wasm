@@ -59,3 +59,5 @@ class DeleteSegments(BaseModel):
             raise ValueError(f'You can only delete up to {Config["MAX_DELETE_SEGMENTS"]} segments per request.')
         return v
 
+class DeleteAccountSegmentations(BaseModel):
+    account_id : str

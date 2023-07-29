@@ -152,3 +152,18 @@ async def get_items_internal(request: Request,  account_id : str, ids : bool, st
     items, total = ItemsService(None).get_items_internal(account_id=account_id,cursor=cursor, ids=bool(ids), status=status)
 
     return GetItemsDTO(items, total, cursor).dto()
+
+
+######################################
+# Route : /v1/internal/items/delete
+# Request type : POST
+# Required parameters : DeleteAccountItemsInternal(account_id)
+# Description : Internal service used to delete all items for an account
+# Returns : Bool -- True if all items were deleted successfully, False otherwise
+# NOTE : Do not expose route in ingress
+######################################
+
+@router.post('/v1/internal/items/delete') 
+async def delete_account_items_internal(request: Request,  e : DeleteAccountItemsInternal):
+    res = await ItemsService(account_id=e.account_id).delete_account_items_internal()
+    return DeleteAccountItemsDTO(res).dto()

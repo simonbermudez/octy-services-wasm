@@ -15,3 +15,6 @@ class GetRecomendations(BaseModel):
 class GetRecomendationsInternal(BaseModel):
     account_id : str
     profile_ids : List[str]
+
+class DeleteAccountRecommendations(BaseModel):
+    account_id : str

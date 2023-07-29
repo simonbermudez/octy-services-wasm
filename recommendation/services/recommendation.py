@@ -76,3 +76,19 @@ class RecommendationsService():
         meta['training_job_id'] = hp_tuning_job[0]['best_model_training_job_id']
         meta['model_created_at'] = int_to_dt(hp_tuning_job[0]['updated_at']['$date'], as_str=True)
         return recommendations, meta
+
+    # delete all recommendations for an account
+    async def delete_account_recommendations(self) -> bool:
+        """
+            A method used to delete all recommendations for an Octy account.
+
+            Parameters
+            ----------
+            none
+
+            Returns
+            ----------
+            True if recommendations were deleted successfully, False otherwise : bool
+        """
+        res = await recommendationsRepository.delete_account_recommendations(account_id=self.account_id)
+        return res

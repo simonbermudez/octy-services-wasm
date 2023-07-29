@@ -325,3 +325,6 @@ class ValidateRybbonMessageContent:
         if len(set(self.message_customer_ids)) != data_count:
             return ". Identical customer identifiers found across more than one data object. Each data object within any message object should represent one customer or person."
         return ""
+    
+class DeleteAccountMessaging(BaseModel):
+    account_id : str

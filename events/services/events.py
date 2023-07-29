@@ -31,6 +31,7 @@ class EventsService():
         account : Octy account
         account_id : str
     """
+
     def __init__(self, account : Account = None, account_id : str = None): 
         self.account = account
         self.account_id = account_id if account_id != None else account.account_id
@@ -442,6 +443,22 @@ class EventsService():
                         err_msg.extend(['The event type: \'{e}\' is currently set as this accounts recommendations event type. Please supply the rec_item_identifier key. ex. \'item_id\' with a relevant value within the event_properties.'.format(e=event_type_id), 'Invalid event data provided'])
                         return False, err_msg, None
         return True, None, event_type_id
+
+    #Delete all events for an account
+    async def delete_account_events_internal(self) -> bool:
+        """
+        Returns
+        ----------
+        result : bool
+        """
+
+        try:
+            await eventsRepository.delete_account_events(self.account_id)
+            await eventTypesRepository.delete_account_event_types(self.account_id)
+            return True
+        except Exception as x:
+            raise OctyException(500, 'Server error', [{'error_message' : 'An error occurred while attempting to delete events for this account. Please try again later.', 'extended_help': ''}])
+            
 
     async def get_events(self, timeframe : int, cursor : int, event_sequence_event : dict = None, profile_ids : list = None, event_type : str = None) -> Union[list, int]:
         """

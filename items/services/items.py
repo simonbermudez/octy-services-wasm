@@ -200,3 +200,18 @@ class ItemsService():
             [{'error_message' : 'No items found or pagination cursor exhausted', 
             'extended_help': Config['ITEMS_EXTENDED_HELP']}])
         return items, total
+    
+    #Delete all items for an account
+    async def delete_account_items_internal(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        bool
+        """
+        res = await itemsRepository.delete_account_items_internal(account_id=account_id)
+        return res

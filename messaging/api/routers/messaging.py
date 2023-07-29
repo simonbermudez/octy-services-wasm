@@ -146,3 +146,17 @@ async def generate_content(request: Request,
     t = TemplateEngine(account=current_account)
     await t.generate(messages=messages)
     return GenerateContentDTO(t.created_messages, t.failed_messages, t.failed_templates).dto()
+
+
+######################################
+# Route : /v1/internal/messaging/delete
+# Request type : POST
+# Required parameters : DeleteAccountMessaging
+# Description : Delete all messaging data associated with an account
+# Returns : Bool indicating success or failure
+######################################
+
+@router.post('/v1/internal/messaging/delete')
+async def delete_messaging_internal(e : DeleteAccountMessaging):
+    res = await MessagingService(None,account_id=e.account_id).delete_account_messaging_internal()
+    return DeleteAccountMessagingDTO(res).dto()

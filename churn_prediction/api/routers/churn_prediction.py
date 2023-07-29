@@ -4,6 +4,7 @@ from config import Config
 from .utils import *
 from services.churn_prediction import ChurnPredictionService
 from .dto.churn_prediction import *
+from .request_models.churn_prediction import *
 
 #python imports
 from typing import Optional, List
@@ -39,3 +40,16 @@ limiter = Limiter(key_func=get_remote_address)
 async def get_churn_report(request: Request, current_account: Account = Depends(decode_account_jwt)):
     churn_report = await ChurnPredictionService(account=current_account).generate_churn_report()
     return GenerateChurnReportDTO(churn_prediction_report=churn_report).dto()
+
+######################################
+# Route : /v1/internal/churn_prediction/delete
+# Request type : POST
+# Required parameters : DeleteAccountChurnPredictions
+# Description : Delete all churn predictions data associated with an account
+# Returns : Bool indicating success or failure
+######################################
+
+@router.post('/v1/internal/churn_prediction/delete')
+async def delete_churn_prediction_internal(e : DeleteAccountChurnPredictions):
+    res = await ChurnPredictionService(None,account_id=e.account_id).delete_account_churn_predictions_internal()
+    return DeleteAccountChurnPredictionsDTO(res).dto()

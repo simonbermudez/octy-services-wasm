@@ -125,3 +125,17 @@ async def get_segments_internal(account_id : str, segment_type : str, status : s
     cursor=0
     segments, total = SegmentationService(None,account_id=account_id).get_segments(cursor=cursor, status=status, segment_type=segment_type, internal=True)
     return GetSegmentsDTO(segments, total, cursor).dto()
+
+
+######################################
+# Route : /v1/internal/segments/delete
+# Request type : POST
+# Required parameters : DeleteAccountSegmentations
+# Description : Delete all segment data associated with an account
+# Returns : Bool indicating success or failure
+######################################
+
+@router.post('/v1/internal/segments/delete')
+async def get_segments_internal(e : DeleteAccountSegmentations):
+    res = await SegmentationService(None,account_id=e.account_id).delete_account_segmentations_internal()
+    return DeleteAccountSegmentationsDTO(res).dto()

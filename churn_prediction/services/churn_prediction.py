@@ -75,3 +75,16 @@ class ChurnPredictionService():
 
         return churn_report
 
+
+    # delete all churn predictions data associated with an account
+    async def delete_account_churn_predictions_internal(self) -> bool:
+        """
+        Parameters
+        ----------
+
+        Returns
+        ----------
+        bool
+        """
+        res = await churnPredictionRepository.delete_account_churn_predictions(account_id=self.account.account_id)
+        return res

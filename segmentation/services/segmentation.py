@@ -585,3 +585,17 @@ class SegmentationService():
 
 
         return deleted_segments, failed_to_delete
+
+    #delete all segments associated with account
+    async def delete_account_segmentations_internal(self) -> bool:
+        """
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        True
+        """
+        res = await segmentationRepository.delete_account_segmentations(self.account_id)
+        return res

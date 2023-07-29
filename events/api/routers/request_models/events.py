@@ -27,3 +27,8 @@ class GetEventsInternal(BaseModel):
     event_sequence_event : Optional[Dict]
     profile_ids : Optional[List[str]]
     event_type : Optional[str]
+
+
+### Delete events for an account Input Schema
+class DeleteEventsInternal(BaseModel):
+    account_id : str

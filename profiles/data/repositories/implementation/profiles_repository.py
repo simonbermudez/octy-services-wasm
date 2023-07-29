@@ -600,6 +600,26 @@ class _ProfilesRepository(ProfilesInterface):
             for seg in segment_ids:
                 tbl_profiles.objects(account_id__exact=account_id, segment_tags__segment_id__exact=seg.segment_id).update(pull__segment_tags__segment_id=seg.segment_id)
             
+    # delete all profiles and merged profiles for an account from database and cache
+    async def delete_all_profiles(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+            octy account id
+
+        Returns
+        ----------
+        bool
+        """
+        try:
+            tbl_profiles.objects(account_id__exact=account_id).delete()
+            tbl_merged_profiles.objects(account_id__exact=account_id).delete()
+            ctx.redis_conn.delete(f'{account_id}_profile_key_types')
+            return True
+        except Exception as e:
+            raise Exception(f"[toxic]:: {e}")
+
     # Single segment tag operations.
     async def create_segment_tags(self, account_id : str, profile_id : str, segment_tags : list) -> None:
         """

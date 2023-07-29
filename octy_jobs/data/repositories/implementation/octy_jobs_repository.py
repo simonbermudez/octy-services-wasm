@@ -18,7 +18,7 @@ from mongoengine.queryset.visitor import Q
 from bson.json_util import dumps
 
 
-class _OctyJobsRepository(OctyJobsInterface):
+class _OctyJobsRepository( ):
     """
         _OctyJobsRepository
         Handles:
@@ -173,6 +173,28 @@ class _OctyJobsRepository(OctyJobsInterface):
             bulk_operation.execute()
         except Exception as ex: 
             raise Exception(f"[toxic]:: Exception occurred when deleting octy job : {str(ex)}")
+
+
+    #Delete all octy-jobs for an account from the database, redis and rabbitmq
+    async def delete_all_octy_jobs(self, account_id : str) -> None:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        None
+        """
+        #Delete from database
+        tbl_octy_jobs._get_collection().delete_many({"account_id" : account_id})
+
+        #Delete from redis
+        ctx.redis_conn.delete(f'account.id:{account_id}:octy.job:*')
+
+        return True
+
 
     async def get_octy_jobs(self, cursor : int) -> list:
         """

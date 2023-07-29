@@ -116,6 +116,20 @@ class _ItemsRepository(ItemsInterface):
             _format_item(item)
         return item_dicts, total
 
+    def delete_account_items_internal(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        True if items were deleted successfully, False otherwise : bool
+        """
+        res = tbl_items.objects(account_id__exact=account_id).delete()
+        return True 
+    
     def create_items(self, items_batch : list) -> Union[list, list]:
         """
         Parameters

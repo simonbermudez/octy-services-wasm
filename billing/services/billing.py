@@ -102,4 +102,7 @@ class BillingService():
 
         return await billingRepository.filter_billable_units(filters, cursor)
 
-
+    # delete all billable units for an account
+    async def delete_account_billing_internal(self, account_id : str) -> bool:
+        return await billingRepository.delete_account_billing_internal(account_id)
+    

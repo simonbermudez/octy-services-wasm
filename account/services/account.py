@@ -7,13 +7,14 @@ from api.routers.request_models.account import *
 from api.routers.error_handlers import *
 from utils.utils import *
 from config import Config
+import requests
 
 # python imports
 
 
 # external imports
 from octy_rabbitmq.amqp_publisher import amqpPublisher
-from fastapi import Request
+from ; import Request
 
 from account.api.routers.error_handlers import OctyException
 
@@ -52,13 +53,44 @@ class AccountService:
         bucket_repo = BucketRepository(account_id)
         account = accountRepository.get_account_by_account_id(account_id)
         res = bucket_repo.delete_bucket(account.bucket_name)
-        print(account.bucket_name)
-        print(res)
+    
         if res is False:
             raise Exception(500, 'Bucket could not be deleted.')
         
         # Delete account
         res = accountRepository.delete_account(account_id)
+        # Delete all data associated with account
+        # TODO : Delete all data associated with account
+
+        try:
+            await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
+                                             payload={
+                                                 'account_id': account_id
+                                             })
+            payload = {
+           'account_id': account_id
+            }
+            await _send_http_request(url=f"{Config['BILLING_SERVICE_CLUSTER_IP']}/v1/internal/billing/delete",
+                                     payload=payload)
+            await _send_http_request(url=f"{Config['EVENTS_SERVICE_CLUSTER_IP']}/v1/internal/events/delete",
+                                     payload=payload)
+            await _send_http_request(accourl=f"{Config['PROFILES_SERVICE_CLUSTER_IP']}/v1/internal/profiles/delete",
+                                     payload=payload)
+            await _send_http_request(url=f"{Config['OCTY_JOBS_SERVICE_CLUSTER_IP']}/v1/internal/octy-jobs/delete",
+                                     payload=payload)
+            await _send_http_request(url=f"{Config['ITEMS_SERVICE_CLUSTER_IP']}/v1/internal/items/delete",
+                                     payload=payload)
+            await _send_http_request(url=f"{Config['RECOMMENDATION_SERVICE_CLUSTER_IP']}/v1/internal/recommendations/delete",
+                                     payload=payload)
+            await _send_http_request(url=f"{Config['SEGMENTATION_SERVICE_CLUSTER_IP']}/v1/internal/segments/delete",
+                                     payload=payload)
+            await _send_http_request(url=f"{Config['CHURN_PREDICTION_SERVICE_CLUSTER_IP']}/v1/internal/churn_prediction/delete",
+                                     payload=payload)
+
+        except Exception as e:
+            raise Exception(500, 'Account Data could not be deleted.')
+
+
         if not res:
             raise Exception(500, 'Account could not be deleted.')   
 
@@ -82,6 +114,7 @@ class AccountService:
         bucket_name = generate_uid('bucket')
 
         # Create account
+        # TODO : Probably need to change this to run after creation of bucket 
         new_account, sk = accountRepository.create_account(account, bucket_name)
 
         # Create and configure bucket
@@ -135,7 +168,7 @@ class AccountService:
             'notification_sent': notification_sent
         }
 
-    def get_accounts_internal(self, account_ids: list, cursor: int) -> list:
+    async def get_accounts_internal(self, account_ids: list, cursor: int) -> list:
         """
             A method used to get Octy accounts from provided account ids.
 
@@ -158,5 +191,22 @@ class AccountService:
                                      'extended_help': ''}])
         return accounts, total
 
+    async def _send_http_request(self, url : str, payload : dict) -> None:
+        session = requests_retry_session()
+        t0 = time.time()
+        try:
+            response = session.post(
+                url,
+                headers={'cursor': str(0)},
+                timeout=60, 
+                data=json.dumps(payload)
+            )
+        except Exception as x:
+            raise Exception(x) from None
+        else:
+            self.logger.info(f'{response.request.method} Request: "{url}" returned response with valid status code: {response.status_code}')
+        finally:
+            t1 = time.time()
+            self.logger.info(f'Took {t1 - t0}seconds')
 
 accountService = AccountService()

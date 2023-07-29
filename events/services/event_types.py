@@ -105,7 +105,6 @@ class EventTypesService():
 
         return created, failed
 
-
     def delete_event_types(self, event_type_ids : DeleteEventTypes) -> Union[list, list]:
         """
         Parameters
@@ -129,7 +128,6 @@ class EventTypesService():
         if len(deleted) < 1:
             raise OctyException(400, 'No event types deleted!', failed)
         return deleted, failed
-
     
 
     def get_event_types_internal(self, account_id : str, event_type_names : list) -> Union[list, list]: 

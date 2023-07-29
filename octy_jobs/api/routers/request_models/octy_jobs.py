@@ -8,3 +8,6 @@ class OctyJobCallBack(BaseModel):
     octy_job_id : str
     message : str
     status : str
+
+class DeleteAccountJobs(BaseModel):
+    account_id: str

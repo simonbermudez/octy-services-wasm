@@ -274,6 +274,19 @@ class _EventTypesRepository(EventTypesInterface):
 
         return deleted_event_types, failed_to_delete
 
+    def delete_account_event_types(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        bool
+        """
+        res = tbl_custom_event_types.objects(account_id__exact=account_id).delete()
+        return res
 
 eventTypesRepository = _EventTypesRepository()
 

@@ -352,6 +352,20 @@ class _EventsRepository(EventsInterface):
         """
         tbl_event_instances.objects(account_id__exact=account_id,profile_id__exact=profile_id).delete()
 
+    #Delete all events associated with an account
+    async def delete_account_events(self, account_id : str) -> None:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        bool
+        """
+        res = tbl_event_instances.objects(account_id__exact=account_id).delete()
+        return res
 
     async def get_profile_ids(self, account_id : str, profile_ids : list) -> Union[list,list]:
         """

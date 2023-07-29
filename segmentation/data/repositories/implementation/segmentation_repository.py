@@ -408,6 +408,21 @@ class _SegmentationRepository(SegmentationInterface):
 
         return found_event_types, not_found
 
+    #delete all segments for an account including billing data
+    def delete_account_segments(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        None
+        """
+        tbl_segments.objects(Q(account_id__exact=account_id)).delete()
+        return True
+
 segmentationRepository = _SegmentationRepository()
 
 def _format_segment(segment : dict, internal : bool = False) -> dict:

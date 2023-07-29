@@ -243,6 +243,20 @@ async def get_profiles_internal(request: Request,  profiles : GetProfilesInterna
     profiles, not_found , total = ProfilesService(None, profiles.account_id).get_profiles_internal(profiles=profiles,status = status,  cursor=cursor, ids=bool(ids))
     return GetProfilesInternalDTO(profiles, not_found , total, cursor).dto()
 
+######################################
+# Route : /v1/internal/profiles/delete
+# Request type : POST
+# Required parameters : account_id
+# Description : deleting all profiles for an account. For account Deletion
+# Returns : Bool : True if profiles were deleted successfully, False otherwise
+######################################
+
+@router.post('/v1/retention/profiles/delete')
+async def delete_account_profiles(request: Request,  a : DeleteAccountProfiles):
+    res = await ProfilesService(None, a.account_id).delete_account_profiles_internal()
+    return DeleteAccountProfilesDTO(res).dto()
+
+
 '''
 Scenarios:
 

@@ -459,6 +459,20 @@ class ProfilesService():
             except KeyError:
                 continue
 
+    # Delete all profiles for an account
+    async def delete_account_profiles_internal(self) -> bool:
+        """
+        Parameters
+        ----------
+
+        Returns
+        ----------
+        True if profiles were deleted successfully, False otherwise : bool
+        """
+        res = await profilesRepository.delete_account_profiles(account_id=self.account_id)
+        return res
+    
+
     def get_profiles_internal(self, profiles : GetProfilesInternal, status : str, cursor : int, ids : bool) -> Union[list, list, int]:
         """
         Parameters
