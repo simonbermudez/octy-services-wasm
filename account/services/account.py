@@ -73,7 +73,7 @@ class AccountService:
                                      payload=payload)
             await _send_http_request(url=f"{Config['EVENTS_SERVICE_CLUSTER_IP']}/v1/internal/events/delete",
                                      payload=payload)
-            await _send_http_request(accourl=f"{Config['PROFILES_SERVICE_CLUSTER_IP']}/v1/internal/profiles/delete",
+            await _send_http_request(url=f"{Config['PROFILES_SERVICE_CLUSTER_IP']}/v1/internal/profiles/delete",
                                      payload=payload)
             await _send_http_request(url=f"{Config['OCTY_JOBS_SERVICE_CLUSTER_IP']}/v1/internal/octy-jobs/delete",
                                      payload=payload)
