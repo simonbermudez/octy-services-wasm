@@ -7,14 +7,13 @@ from api.routers.request_models.account import *
 from api.routers.error_handlers import *
 from utils.utils import *
 from config import Config
-import requests
 
 # python imports
 
 
 # external imports
 from octy_rabbitmq.amqp_publisher import amqpPublisher
-from ; import Request
+from fastapi import Request
 
 from account.api.routers.error_handlers import OctyException
 
