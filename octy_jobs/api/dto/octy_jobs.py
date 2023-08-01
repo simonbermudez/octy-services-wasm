@@ -1,6 +1,6 @@
 from fastapi.responses import JSONResponse
 
-class DeleteAccountProfilesDTO():
+class DeleteAccountJobsDTO():
     def __init__(self, is_deleted):
         self.is_deleted = is_deleted
 

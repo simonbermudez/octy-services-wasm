@@ -3,7 +3,7 @@ from .error_handlers import *
 from .utils import *
 from .request_models.octy_jobs import *
 from services.octy_jobs import OctyJobQueueService
-from .dto.octy_jobs import *
+from dto.octy_jobs import *
 
 #python imports
 
