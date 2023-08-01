@@ -15,7 +15,7 @@ from config import Config
 from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import Request
 
-from account.api.routers.error_handlers import OctyException
+from api.routers.error_handlers import OctyException
 
 
 class AccountService:
