@@ -53,6 +53,7 @@ class BucketRepository(BucketInterface):
         result : bool
             True if the bucket is deleted successfully, False otherwise.
         """
+
         try:    
             bucket = self.s3_resource.Bucket(bucket_name)
             self.s3_resource.Bucket(bucket_name).objects.all().delete()
@@ -68,6 +69,7 @@ class BucketRepository(BucketInterface):
 
 
     def create_bucket(self, bucket_name: str) -> bool:
+
         """
         A method used to create an AWS s3 bucket instance.
         Parameters
@@ -79,6 +81,7 @@ class BucketRepository(BucketInterface):
         ----------
         result : bool
         """
+
         try:
             self.s3_client.create_bucket(Bucket=bucket_name,
                                          CreateBucketConfiguration={'LocationConstraint': C['AWS_REGION']})
@@ -88,6 +91,7 @@ class BucketRepository(BucketInterface):
         return True
 
     def bucket_configuration(self, bucket_name: str) -> bool:
+
         """
         A method used to configure an AWS s3 bucket to
         conform to Octy requirements
@@ -101,6 +105,7 @@ class BucketRepository(BucketInterface):
         ----------
         result :  bool
         """
+
         try:
             # Delete public access block
             self.s3_client.delete_public_access_block(Bucket=bucket_name)
@@ -141,6 +146,7 @@ class BucketRepository(BucketInterface):
                 }
                 ]
             }
+            
             self.s3_client.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(bucket_policy))
 
             # Apply the configuration rules                                                                                                                                     
