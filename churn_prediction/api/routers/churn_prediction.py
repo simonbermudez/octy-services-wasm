@@ -4,7 +4,7 @@ from config import Config
 from .utils import *
 from services.churn_prediction import ChurnPredictionService
 from .dto.churn_prediction import *
-from .request_models.churn_prediction import *
+from .request_models.account import *
 
 #python imports
 from typing import Optional, List
