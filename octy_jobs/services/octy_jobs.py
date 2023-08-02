@@ -329,7 +329,10 @@ class OctyJobQueue():
                 return
 
             # Get account data for all accounts associated with pending jobs.
-            await self._get_accounts(account_ids=[job['account_id'] for job in self.pending_jobs])
+            # await self._get_accounts(account_ids=[job['account_id'] for job in self.pending_jobs])
+            account_ids_list=[job['account_id'] for job in self.pending_jobs]
+            account_ids= list(set(account_ids_list))
+            await self._get_accounts(account_ids=account_ids)
 
             octy_job_updates = list()
             for job in self.pending_jobs:
