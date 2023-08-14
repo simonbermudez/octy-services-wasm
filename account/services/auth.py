@@ -91,6 +91,8 @@ class AuthService:
                 Account Auth (fat jwt) containing account info + authorized resource tags
         """
         _,pk,sk = basic_auth_parse(request.headers['authorization'])
+        # update account cache
+        await accountRepository.refresh_account_data_cache(pk)
         valid_pk, valid_sk, account = authRepository.verify_account_keys(pk, sk)
         if not valid_pk or not valid_sk:
             _log_failed_auth(request, valid_pk)

@@ -44,7 +44,7 @@ class _AccountRepository(AccountInterface):
 
             Returns
             ----------
-            tbl_account object : Mongo Document o       bject/ dict
+            tbl_account object : Mongo Document object/ dict
         """
         return tbl_accounts.objects(account_id=account_id).first()   
 
@@ -284,6 +284,34 @@ class _AccountRepository(AccountInterface):
         ctx.redis_conn.delete(f'pk:{a.keys.public_key}')
         # Delete account from mongo DB
         a.delete()
+
+    async def refresh_account_data_cache(self, pk: str) -> None:
+        """
+            A method used to refresh account data by fetching from MongoDB and updating cache
+
+            Parameters
+            ----------
+            pk : str
+                Octy generated account public key
+
+            Returns
+            ----------
+            None
+        """
+        try:
+            account = tbl_accounts.objects.get(keys__public_key__exact=pk)
+        except DoesNotExist as e:
+            print(f"Account not found for pk: {pk}")
+            return
+
+        # Convert account document to JSON dictionary
+        account_dict = json.loads(account.to_json())
+        account_dict.pop('keys', None)  
+
+        # Update the account data in cache
+        _cache_account_data(pk=pk, account_data=json.dumps(account_dict))
+        
+        print(f"Refreshed account data for pk: {pk}")    
 
     async def update_account_cache(self, account : dict) -> None:
         """
