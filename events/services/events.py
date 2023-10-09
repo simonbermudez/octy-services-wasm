@@ -50,6 +50,9 @@ class EventsService():
         """
         # validate event. if invalid raise Octy error 400
         # assess allowed limits
+
+        # if event type is includes ip address, cart token and customer info , use it to configure    system event type, ensure event properties are valid
+
         latest_events, event_count = await eventsRepository.get_events_meta(account_id=self.account.account_id, event_type_list=[event.event_type])
         count_res, counts = assess_resource_limit(self.account.account_configurations['li'],event_count,1,resource_key=3)
         if not count_res:
@@ -425,6 +428,8 @@ class EventsService():
         for algo_conf in self.account.algorithm_configurations:
             try:
                 config = algo_conf['config_json']
+                if len(config) == 0:
+                    continue
             except KeyError:
                 continue
             
