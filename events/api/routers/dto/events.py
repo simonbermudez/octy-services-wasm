@@ -54,8 +54,8 @@ class InternalGetEventsDTO():
         )
     
 
-### Internal get Events DTO
-class InternalGetEventDTO():
+### Get Events DTO
+class GetEventDTO():
     def __init__(self, event):
         self.event = event
 
