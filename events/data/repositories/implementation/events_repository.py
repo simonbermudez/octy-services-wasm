@@ -69,11 +69,11 @@ class _EventsRepository(EventsInterface):
 
         # get latest checkout info submitted event with event_properties.checkout_id == checkout_id and event_type == 'checkout_contact_info_submitted'
 
-        event_type = tbl_custom_event_types.objects((Q(event_type__exact='checkout_contact_info_submitted') & Q(account_id__exact=account_id) & Q(event_properties__checkout_id__exact=checkout_id))).order_by('-created_at').first()
+        event_type = tbl_event_instances.objects((Q(event_type__exact='checkout_contact_info_submitted') & Q(account_id__exact=account_id) & Q(event_properties__checkout_id__exact=checkout_id))).order_by('-created_at').first()
         if event_type:
             event_type_dict = json.loads(event_type.to_json())
             event_type_dict['event_type_id'] = event_type_dict['_id']
-            event_type_dict= _format_event_type(event_type_dict)
+            event_type_dict= {k: v for k, v in event_type_dict.items() if k != '_id'}
             return event_type_dict
         return None 
 

@@ -111,10 +111,10 @@ async def delete_events_internal(request: Request,  e : DeleteEventsInternal):
 
 
 #By Munashe
-# Get latest checkout info submmited event
-@router.get('/v1/internal/event') 
-async def get_latest_checkout_info_submmited_event(request: Request,  checkout_id : str):
+# Get latest checkout info submmited event for given checkout id
+@router.get('/v1/retention/event') 
+async def get_latest_checkout_info_submmited_event(request: Request,  checkout_id : str, current_account: Account = Depends(decode_account_jwt)):
 
-    event = await EventsService(account_id=e.account_id)\
+    event = await EventsService(current_account)\
         .get_latest_checkout_info_submmited_event(checkout_id=checkout_id)
     return GetEventDTO(event).dto()
