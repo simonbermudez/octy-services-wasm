@@ -53,6 +53,22 @@ class InternalGetEventsDTO():
             }
         )
     
+
+### Internal get Events DTO
+class InternalGetEventDTO():
+    def __init__(self, event):
+        self.event = event
+
+    def dto(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=200,
+            content={
+                    'request_meta' : { 'request_status' : 'Success' , 'message' : 'Event found.'},
+                    'event' : self.event
+            }
+        )
+    
+    
 ### Delete Events DTO
 class InternalDeleteEventsDTO():
     def __init__(self, is_deleted):

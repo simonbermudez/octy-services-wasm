@@ -108,3 +108,21 @@ async def get_events_internal(request: Request,  e : GetEventsInternal):
 async def delete_events_internal(request: Request,  e : DeleteEventsInternal):
     res = await EventsService(account_id=e.account_id).delete_account_events_internal()
     return InternalDeleteEventsDTO(res).dto()
+
+
+######################################
+# Route : /v1/internal/events/
+# Request type : POST
+# Required parameters : POST body : {"segment_timeframe" : 4 (days), "account_id" : ""}
+# Description : Internal service used to get event instances
+# Returns : Events found within specified timeframe
+# NOTE : Do not expose route in ingress
+######################################
+
+@router.get('/v1/internal/event') 
+async def get_latest_checkout_info_submmited_event(request: Request,  checkout_id : str):
+
+    # Validate pagination headers set
+    event = await EventsService(account_id=e.account_id)\
+        .get_latest_checkout_info_submmited_event(checkout_id=checkout_id)
+    return InternalGetEventsDTO(event).dto()

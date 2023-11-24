@@ -251,6 +251,23 @@ class EventsService():
         await eventsRepository.batch_create_events(self.account.account_id, valid_events)
 
         return ret_valid_events, invalid_events
+    
+    async def get_latest_checkout_info_submmited_event(self, checkout_id : str):
+        """
+        Parameters
+        ----------
+        checkout_id : str
+            checkout_id
+
+        Returns
+        ----------
+        event : dict
+        """
+        event = await eventsRepository.get_latest_checkout_info_submmited_event(self.account.account_id, checkout_id)
+        if not event:
+            raise OctyException(400,'No event found', 
+                [{'error_message' : 'No event found with provided params', 'extended_help': ''}])
+        return event
 
     async def _verify_event(self, event_type : str, event_properties : dict, latest_event : dict, profile_id : str, ivps : list) -> Union[bool, str, str]:
         """

@@ -93,7 +93,8 @@ class ProfilesService():
                 [{'error_message' : 'No customer profiles found with the provided query parameters or pagination cursor exhausted', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
             return profiles, total
-
+        
+        
     def get_profiles_meta(self, identifiers : list = None) -> list:
         """
         A method used to return a list of merged profiles.
