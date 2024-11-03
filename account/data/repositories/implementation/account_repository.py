@@ -306,7 +306,14 @@ class _AccountRepository(AccountInterface):
 
         # Convert account document to JSON dictionary
         account_dict = json.loads(account.to_json())
-        account_dict.pop('keys', None)  
+        # account_dict.pop('keys', None)
+
+        #account_dict['api_usage'] = [
+        #    {
+        #        'month' : 0,
+        #        'request_count' : 0
+        #   }
+        #]
 
         # Update the account data in cache
         _cache_account_data(pk=pk, account_data=json.dumps(account_dict))
