@@ -100,10 +100,10 @@ class AuthService:
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         # assess api request limits
-        limit_not_exceeded = await _assess_request_limit(account)
-        if not limit_not_exceeded:
-            raise OctyException(400,'limit exceeded', [{'error_message' : 'You have exceeded this accounts monthly API request limit. To increase this limit, please contact us at support@octy.ai', 
-                'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+        #limit_not_exceeded = await _assess_request_limit(account)
+        #if not limit_not_exceeded:
+        #    raise OctyException(400,'limit exceeded', [{'error_message' : 'You have exceeded this accounts monthly API request limit. To increase this limit, please contact us at support@octy.ai', 
+        #        'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
 
         # update account cache. increment request count
 
