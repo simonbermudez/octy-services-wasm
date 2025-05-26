@@ -58,8 +58,6 @@ class AccountService:
         
         # Delete account
         res = accountRepository.delete_account(account_id)
-        # Delete all data associated with account
-        # TODO : Delete all data associated with account
 
         try:
             await amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
@@ -72,6 +70,8 @@ class AccountService:
             await _send_http_request(url=f"{Config['BILLING_SERVICE_CLUSTER_IP']}/v1/internal/billing/delete",
                                      payload=payload)
             await _send_http_request(url=f"{Config['EVENTS_SERVICE_CLUSTER_IP']}/v1/internal/events/delete",
+                                     payload=payload)
+            await _send_http_request(url=f"{Config['EVENTS_SERVICE_CLUSTER_IP']}/v1/retention/events/types/delete/all",
                                      payload=payload)
             await _send_http_request(url=f"{Config['PROFILES_SERVICE_CLUSTER_IP']}/v1/internal/profiles/delete",
                                      payload=payload)
@@ -164,6 +164,7 @@ class AccountService:
             'account_currency': new_account.account_configurations.account_currency,
             'contact_email_address': new_account.account_configurations.contact_email_address,
             'pk': new_account.keys.public_key,
+            'sk': sk,
             'notification_sent': notification_sent
         }
 

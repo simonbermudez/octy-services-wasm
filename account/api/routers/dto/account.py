@@ -3,12 +3,13 @@ from fastapi.responses import JSONResponse
 
 ### Create Account DTO
 class CreateAccountDTO():
-    def __init__(self, account_name, account_type, account_currency, contact_email_address, pk, notification_sent):
+    def __init__(self, account_name, account_type, account_currency, contact_email_address, pk, sk, notification_sent):
         self.account_name = account_name
         self.account_type = account_type
         self.account_currency = account_currency
         self.contact_email_address = contact_email_address
         self.pk = pk
+        self.sk = sk
         self.notification_sent = notification_sent
 
     def dto(self) -> JSONResponse:
@@ -20,6 +21,7 @@ class CreateAccountDTO():
                     'account_type' : self.account_type,
                     'account_currency' : self.account_currency,
                     'pk' : self.pk,
+                    'sk' : self.sk,
                     'notification_sent' : self.notification_sent,
                     'sent_to' : self.contact_email_address
             }

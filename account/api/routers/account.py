@@ -42,6 +42,7 @@ async def create_new_account(request: Request, account: CreateAccount):
                             new_account['account_currency'],
                             new_account['contact_email_address'],
                             new_account['pk'],
+                            new_account['sk'],
                             new_account['notification_sent'], ).dto()
 
 
@@ -71,7 +72,7 @@ async def delete_account(request: Request, payload: DeleteAccount):
         return DeleteAccountDTO(payload.account_id).dto()
    else:
        raise OctyException(400, 'Bad Request',
-                            [{'error_message': f'Error occured and could not delete account {account_id}',
+                            [{'error_message': f'Error occured and could not delete account {payload.account_id}',
                               'extended_help': ''}])
 
 

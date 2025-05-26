@@ -274,6 +274,71 @@ class _EventTypesRepository(EventTypesInterface):
 
         return deleted_event_types, failed_to_delete
 
+    def delete_all_event_types_by_account(self, account_id: str) -> Union[list, list]:
+        """
+        Delete all event types for a given account ID
+        
+        Parameters
+        ----------
+        account_id : str
+            The account ID to delete all event types for
+
+        Returns
+        ----------
+        deleted_event_types : list
+            List of successfully deleted event type IDs
+        failed_to_delete : list
+            List of event types that failed to delete with error messages
+        """
+        deleted_event_types = []
+        failed_to_delete = []
+
+        try:
+            # Find all event types for the given account_id
+            event_types = json.loads(tbl_custom_event_types.objects(account_id=account_id).to_json())
+            
+            if not event_types:
+                return deleted_event_types, [{
+                    'account_id': account_id,
+                    'error_message': f'No event types found for account_id: {account_id}'
+                }]
+
+            # Initialize bulk operation for deletion
+            bulk_operation = tbl_custom_event_types._get_collection().initialize_unordered_bulk_op()
+            
+            # Add each event type to the bulk delete operation
+            for event_type in event_types:
+                try:
+                    deleted_event_types.append({
+                        'event_type_id': event_type['_id'],
+                        'event_type': event_type.get('event_type', 'unknown')
+                    })
+                    
+                    bulk_operation.find({
+                        '$and': [
+                            {"_id": {"$eq": event_type['_id']}},
+                            {"account_id": {"$eq": account_id}}
+                        ]
+                    }).remove()
+                    
+                except Exception as e:
+                    failed_to_delete.append({
+                        'event_type_id': event_type['_id'],
+                        'error_message': f'Failed to prepare deletion: {str(e)}'
+                    })
+
+            # Execute the bulk operation if there are operations to perform
+            if deleted_event_types:
+                bulk_operation.execute()
+
+        except Exception as e:
+            failed_to_delete.append({
+                'account_id': account_id,
+                'error_message': f'Failed to delete event types: {str(e)}'
+            })
+
+        return deleted_event_types, failed_to_delete
+    
     def delete_account_event_types(self, account_id : str) -> bool:
         """
         Parameters
