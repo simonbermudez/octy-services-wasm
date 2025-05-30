@@ -309,7 +309,7 @@ class _AccountRepository(AccountInterface):
 
         # Convert account document to JSON dictionary
         account_dict = json.loads(account.to_json())
-<<<<<<< HEAD
+        
         # account_dict.pop('keys', None)
 
         #account_dict['api_usage'] = [
@@ -318,10 +318,6 @@ class _AccountRepository(AccountInterface):
         #        'request_count' : 0
         #   }
         #]
-=======
-        
-        # account_dict.pop('keys', None)  
->>>>>>> 25602dd (Update: Added connected_platforms to account and deletion of all custom events for an account)
 
         # Update the account data in cache
         _cache_account_data(pk=pk, account_data=json.dumps(account_dict))
