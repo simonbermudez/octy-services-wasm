@@ -15,6 +15,18 @@ from mongoengine.fields import FloatField
 class Keys(EmbeddedDocument):
     public_key = StringField(unique=True)
     secret_key = StringField(unique=True)
+
+class ConnectedPlatform(EmbeddedDocument):
+    platform_type = StringField(required=True, choices=[
+        'shopify', 'woocommerce', 'bigcommerce', 'magento', 
+        'prestashop', 'squarespace', 'custom'
+    ])
+    store_url = StringField(required=True)
+    store_name = StringField(required=True)
+    created_at = DateTimeField(default=dt.now)
+    updated_at = DateTimeField(null=True)
+
+
 class AccountConfigurations(EmbeddedDocument):
     account_type = StringField(required=True)
     account_currency = StringField(required=True)
@@ -61,6 +73,7 @@ class tbl_accounts(Document):
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
     last_updated_action = StringField(null=True)
+    connected_platforms = EmbeddedDocumentField(ConnectedPlatform, required=False) 
 
 ### tbl_segments [one to many]
 class tbl_segments(Document):
