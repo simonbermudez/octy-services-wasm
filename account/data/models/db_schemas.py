@@ -73,7 +73,7 @@ class tbl_accounts(Document):
     created_at = DateTimeField(default=dt.now)
     updated_at = DateTimeField(null=True)
     last_updated_action = StringField(null=True)
-    connected_platforms = EmbeddedDocumentField(ConnectedPlatform, required=False) 
+    connected_platforms = ListField(EmbeddedDocumentField(ConnectedPlatform), required=False) 
 
 ### tbl_segments [one to many]
 class tbl_segments(Document):
