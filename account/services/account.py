@@ -51,7 +51,7 @@ class AccountService:
         # Delete bucket
         bucket_repo = BucketRepository(account_id)
         account = accountRepository.get_account_by_account_id(account_id)
-        res = bucket_repo.delete_bucket(account.bucket_name)
+        res = bucket_repo.delete_bucket(account.bucket)
     
         if res is False:
             raise Exception(500, 'Bucket could not be deleted.')
