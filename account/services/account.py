@@ -14,6 +14,7 @@ from config import Config
 # external imports
 from octy_rabbitmq.amqp_publisher import amqpPublisher
 from fastapi import Request
+import time
 
 from api.routers.error_handlers import OctyException
 
@@ -67,23 +68,22 @@ class AccountService:
             payload = {
            'account_id': account_id
             }
-            # await _send_http_request(url=f"{Config['BILLING_SERVICE_CLUSTER_IP']}/v1/internal/billing/delete",
-            #                          payload=payload)
-            await _send_http_request(url=f"{Config['EVENTS_SERVICE_CLUSTER_IP']}/v1/internal/events/delete",
+
+            await self._send_http_request(url=f"{Config['BILLING_SERVICE_CLUSTER_IP']}/v1/internal/billing/delete",
+                                      payload=payload)
+            await self._send_http_request(url=f"{Config['EVENTS_SERVICE_CLUSTER_IP']}/v1/internal/events/delete",
+                                     payload=payload)   
+            await self._send_http_request(url=f"{Config['PROFILES_SERVICE_CLUSTER_IP']}/v1/internal/profiles/delete",
                                      payload=payload)
-            await _send_http_request(url=f"{Config['EVENTS_SERVICE_CLUSTER_IP']}/v1/retention/events/types/delete/all",
+            await self._send_http_request(url=f"{Config['OCTY_JOBS_SERVICE_CLUSTER_IP']}/v1/internal/octy-jobs/delete",
                                      payload=payload)
-            await _send_http_request(url=f"{Config['PROFILES_SERVICE_CLUSTER_IP']}/v1/internal/profiles/delete",
+            await self._send_http_request(url=f"{Config['ITEMS_SERVICE_CLUSTER_IP']}/v1/internal/items/delete",
                                      payload=payload)
-            await _send_http_request(url=f"{Config['OCTY_JOBS_SERVICE_CLUSTER_IP']}/v1/internal/octy-jobs/delete",
+            await self._send_http_request(url=f"{Config['RECOMMENDATION_SERVICE_CLUSTER_IP']}/v1/internal/recommendations/delete",
                                      payload=payload)
-            await _send_http_request(url=f"{Config['ITEMS_SERVICE_CLUSTER_IP']}/v1/internal/items/delete",
+            await self._send_http_request(url=f"{Config['SEGMENTATION_SERVICE_CLUSTER_IP']}/v1/internal/segments/delete",
                                      payload=payload)
-            await _send_http_request(url=f"{Config['RECOMMENDATION_SERVICE_CLUSTER_IP']}/v1/internal/recommendations/delete",
-                                     payload=payload)
-            await _send_http_request(url=f"{Config['SEGMENTATION_SERVICE_CLUSTER_IP']}/v1/internal/segments/delete",
-                                     payload=payload)
-            await _send_http_request(url=f"{Config['CHURN_PREDICTION_SERVICE_CLUSTER_IP']}/v1/internal/churn_prediction/delete",
+            await self._send_http_request(url=f"{Config['CHURN_PREDICTION_SERVICE_CLUSTER_IP']}/v1/internal/churn_prediction/delete",
                                      payload=payload)
 
         except Exception as e:

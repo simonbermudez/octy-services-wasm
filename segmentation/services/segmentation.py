@@ -597,5 +597,5 @@ class SegmentationService():
         ----------
         True
         """
-        res = await segmentationRepository.delete_account_segmentations(self.account_id)
+        res = await segmentationRepository.delete_account_segments(self.account_id)
         return res

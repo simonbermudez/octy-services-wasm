@@ -470,7 +470,7 @@ class ProfilesService():
         ----------
         True if profiles were deleted successfully, False otherwise : bool
         """
-        res = await profilesRepository.delete_account_profiles(account_id=self.account_id)
+        res = await profilesRepository.delete_all_profiles(account_id=self.account_id)
         return res
     
 
