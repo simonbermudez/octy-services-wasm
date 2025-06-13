@@ -49,7 +49,7 @@ async def octy_job_callback(request: Request, cb: OctyJobCallBack):
 # Description : Updates the status of an Octy job.
 # Returns : bool -- True if all jobs were deleted successfully, False otherwise
 ######################################
-@router.post('/v1/internal/jobs/callback')
+@router.post('/v1/internal/jobs/delete')
 async def delete_account_jobs(request: Request, e: DeleteAccountJobs):
     res = await OctyJobQueueService(e.account_id).delete_all_octy_jobs()
     return DeleteAccountJobsDTO(res).dto()
