@@ -33,7 +33,7 @@ class DeleteAccountRecommendationsDTO():
         return JSONResponse(
             status_code=201,
             content={
-                    'request_meta' : { 'request_status' : 'Success' , 'message' : 'Octy Jobs deleted.'},
+                    'request_meta' : { 'request_status' : 'Success' , 'message' : 'All Account Recommendations deleted.'},
                     'is_deleted' : self.is_deleted
             }
         )
