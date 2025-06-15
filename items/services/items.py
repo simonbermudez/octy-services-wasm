@@ -218,7 +218,7 @@ class ItemsService():
         return items, total
     
     #Delete all items for an account
-    async def delete_account_items_internal(self, account_id : str) -> bool:
+    async def delete_account_items_internal(self) -> bool:
         """
         Parameters
         ----------
@@ -229,5 +229,5 @@ class ItemsService():
         ----------
         bool
         """
-        res = await itemsRepository.delete_account_items_internal(account_id=account_id)
+        res = await itemsRepository.delete_account_items_internal(account_id=self.account_id)
         return res
