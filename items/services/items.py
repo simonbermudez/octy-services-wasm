@@ -29,7 +29,7 @@ class ItemsService():
         ----------
         account : Octy account
     """
-    def __init__(self, account : Account, account_id : str = None): 
+    def __init__(self, account : Account= None, account_id : str = None): 
         # self.account = account
         # self.account_id = account_id if account_id != None else account.account_id
         # self.b = None if self.account is None else BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='items_data')
