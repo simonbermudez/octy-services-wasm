@@ -229,5 +229,5 @@ class ItemsService():
         ----------
         bool
         """
-        res = await itemsRepository.delete_account_items_internal(account_id=self.account_id)
+        res = itemsRepository.delete_account_items_internal(account_id=self.account_id)
         return res
