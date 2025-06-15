@@ -90,5 +90,5 @@ class RecommendationsService():
             ----------
             True if recommendations were deleted successfully, False otherwise : bool
         """
-        res = await recommendationsRepository.delete_account_recommendations(account_id=self.account_id)
+        res = await recommendationsRepository.delete_all_cached_recommendations(account_id=self.account_id)
         return res

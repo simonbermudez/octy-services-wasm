@@ -22,7 +22,7 @@ class EventsService():
         Handles:
         - Create event
         - Batch create events
-        - Get events for all all specified profiles
+        - Get events for all specified profiles
         - Get event meta data
         ...
 
@@ -83,7 +83,6 @@ class EventsService():
 
         event_id = generate_uid('event')
         created_event = {
-
             'event_id' : event_id,
             'profile_id' : event.profile_id,
             'event_type_id' : event_type_id,

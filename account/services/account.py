@@ -26,7 +26,7 @@ class AccountService:
         - Account creation
         ...
 
-        Attributes
+        Attributes  
         ----------
         none
     """
