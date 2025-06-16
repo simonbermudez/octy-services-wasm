@@ -87,5 +87,5 @@ class ChurnPredictionService():
         ----------
         bool
         """
-        res = await churnPredictionRepository.delete_account_churn_predictions(account_id=self.account.account_id)
+        res = await churnPredictionRepository.delete_account_churn_predictions(account_id=self.account_id)
         return res
