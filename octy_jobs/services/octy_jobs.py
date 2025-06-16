@@ -61,11 +61,11 @@ class OctyJobQueueService():
     async def delete_all_octy_jobs(self) -> bool:
         await octyJobsRepository.delete_all_octy_jobs(self.account_id)
 
-        amqpPublisher.publish(
-            exchange_name='octy_jobs',
+        amqpPublisher.send_message(
             routing_key='octy-job-delete-queue',
-            body=json.dumps({'account_id' : self.account_id})
+            payload=json.dumps({'account_id' : self.account_id})
         )
+
         return True
 
     async def get_jobs(self) -> list:

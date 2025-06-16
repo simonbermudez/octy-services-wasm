@@ -43,7 +43,7 @@ async def octy_job_callback(request: Request, cb: OctyJobCallBack):
     return "OK"
 
 ######################################
-# Route : /v1/internal/octy-jobs/delete
+# Route : /v1/internal/jobs/delete
 # Request type : POST
 # Required parameters : DeleteAccountJobs request model
 # Description : Updates the status of an Octy job.
