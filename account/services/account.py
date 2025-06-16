@@ -69,8 +69,9 @@ class AccountService:
            'account_id': account_id
             }
 
-            await self._send_http_request(url=f"{Config['BILLING_SERVICE_CLUSTER_IP']}/v1/internal/billing/delete",
-                                      payload=payload)
+            # await self._send_http_request(url=f"{Config['BILLING_SERVICE_CLUSTER_IP']}/v1/internal/billing/delete",
+            #                           payload=payload)
+            
             await self._send_http_request(url=f"{Config['EVENTS_SERVICE_CLUSTER_IP']}/v1/internal/events/delete",
                                      payload=payload)   
             await self._send_http_request(url=f"{Config['PROFILES_SERVICE_CLUSTER_IP']}/v1/internal/profiles/delete",
