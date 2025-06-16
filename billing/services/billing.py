@@ -24,7 +24,8 @@ class BillingService():
         ----------
         None
     """
-    def __init__(self): pass
+    def __init__(self, account_id : str = None):
+        self.account_id = account_id 
 
     async def calculate_persist_billable_units(billableUnits : BillableUnits) -> None :
         units = []
@@ -103,6 +104,6 @@ class BillingService():
         return await billingRepository.filter_billable_units(filters, cursor)
 
     # delete all billable units for an account
-    async def delete_account_billing_internal(self, account_id : str) -> bool:
-        return await billingRepository.delete_account_billable_units(account_id)
+    async def delete_account_billing_internal(self) -> bool:
+        return await billingRepository.delete_account_billable_units(self.account_id)
     

@@ -124,7 +124,7 @@ async def get_subscription_plans(request : Request,
 
 @router.post('/v1/internal/billing/delete')
 async def delete_billing_internal(e : DeleteAccountBilling):
-    res = await BillingService(None,account_id=e.account_id).delete_account_billing_internal()
+    res = await BillingService(account_id=e.account_id).delete_account_billing_internal()
     return DeleteAccountBillingDTO(res).dto()
 
 
