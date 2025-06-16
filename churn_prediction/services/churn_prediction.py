@@ -25,8 +25,9 @@ class ChurnPredictionService():
         account : Octy account
         account_id : str
     """
-    def __init__(self, account : Account): 
+    def __init__(self, account : Account, account_id : str = None): 
         self.account = account
+        self.account_id = account_id if account_id is not None else account.account_id
 
     async def generate_churn_report(self) -> dict:
         """
