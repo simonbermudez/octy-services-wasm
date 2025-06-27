@@ -12,6 +12,7 @@ import json
 from datetime import datetime as dt
 
 # external imports
+from pymongo import InsertOne
 from pymongo.errors import BulkWriteError
 from mongoengine.queryset.visitor import Q
 from bson.json_util import dumps
@@ -325,12 +326,68 @@ class _ProfilesRepository(ProfilesInterface):
 
         return merged_profiles
         
-    def create_profiles(self, profiles_batch : list) -> Union[list, list]:
+    # def create_profiles(self, profiles_batch : list) -> Union[list, list]:
+    #     """
+    #     Parameters
+    #     ----------
+    #     profiles_batch : List
+    #         list of profile object dictonaries (valid profile objects)
+
+    #     Returns
+    #     ----------
+    #     created_profiles, failed_to_create profiles
+    #     """
+    #     profile_instances = []
+    #     customer_ids = []
+    #     for profile in profiles_batch:
+    #         profile_instances.append(
+    #             tbl_profiles(
+    #                 profile_id=profile['profile_id'],
+    #                 customer_id=profile['customer_id'],
+    #                 account_id=profile['account_id'],
+    #                 profile_data=profile['profile_data'],
+    #                 platform_info=profile['platform_info'],
+    #                 has_charged=profile['has_charged']
+    #             )
+    #         )
+    #         customer_ids.append(profile['customer_id'])
+
+    #     #BULK WRITE OPERATION
+    #     invalid=[]
+    #     bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
+    #     for profile in profile_instances:
+    #         bulk_operation.insert(profile.to_mongo())
+    #     try:
+    #         bulk_operation.execute()
+    #     except BulkWriteError as bwe:
+    #         for err in bwe.details['writeErrors']:
+    #             invalid.append(err['op'].to_dict()['customer_id'])
+
+    #     valid = list(set(customer_ids) - set(invalid))
+
+    #     failed_to_create=[]
+    #     for in_ in invalid:
+    #         failed_to_create.append(
+    #             {
+    #                 'customer_id': in_,
+    #                 'error_message' : f'Another profile exists with provided customer_id : {in_}'
+    #             }
+    #         )
+    #     created_profiles=[]
+    #     for v in valid:
+    #         profile=next((d for i,d in enumerate(profiles_batch) if v == d['customer_id']),None)
+    #         if profile:
+    #             profile.pop('account_id', None)
+    #             created_profiles.append(profile)
+        
+    #     return created_profiles, failed_to_create
+
+    def create_profiles(self, profiles_batch: List[dict]) -> Tuple[List[dict], List[dict]]:
         """
         Parameters
         ----------
         profiles_batch : List
-            list of profile object dictonaries (valid profile objects)
+            list of profile object dictionaries (valid profile objects)
 
         Returns
         ----------
@@ -338,6 +395,8 @@ class _ProfilesRepository(ProfilesInterface):
         """
         profile_instances = []
         customer_ids = []
+        
+        # Create profile instances
         for profile in profiles_batch:
             profile_instances.append(
                 tbl_profiles(
@@ -351,36 +410,54 @@ class _ProfilesRepository(ProfilesInterface):
             )
             customer_ids.append(profile['customer_id'])
 
-        #BULK WRITE OPERATION
-        invalid=[]
-        bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
+        # BULK WRITE OPERATION - Modern PyMongo approach
+        invalid = []
+        collection = tbl_profiles._get_collection()
+        
+        # Prepare bulk operations
+        bulk_operations = []
         for profile in profile_instances:
-            bulk_operation.insert(profile.to_mongo())
+            bulk_operations.append(InsertOne(profile.to_mongo()))
+        
+        # Execute bulk write
         try:
-            bulk_operation.execute()
+            if bulk_operations:  # Only execute if we have operations
+                result = collection.bulk_write(bulk_operations, ordered=False)
         except BulkWriteError as bwe:
+            # Handle bulk write errors
             for err in bwe.details['writeErrors']:
-                invalid.append(err['op'].to_dict()['customer_id'])
+                # Extract customer_id from the failed document
+                failed_doc = err['op']
+                if hasattr(failed_doc, 'to_dict'):
+                    invalid.append(failed_doc.to_dict()['customer_id'])
+                else:
+                    # If it's already a dict (InsertOne document)
+                    invalid.append(failed_doc['customer_id'])
 
+        # Determine valid customer IDs (successfully created)
         valid = list(set(customer_ids) - set(invalid))
 
-        failed_to_create=[]
-        for in_ in invalid:
-            failed_to_create.append(
-                {
-                    'customer_id': in_,
-                    'error_message' : f'Another profile exists with provided customer_id : {in_}'
-                }
-            )
-        created_profiles=[]
-        for v in valid:
-            profile=next((d for i,d in enumerate(profiles_batch) if v == d['customer_id']),None)
-            if profile:
-                profile.pop('account_id', None)
-                created_profiles.append(profile)
+        # Build failed_to_create list
+        failed_to_create = []
+        for invalid_id in invalid:
+            failed_to_create.append({
+                'customer_id': invalid_id,
+                'error_message': f'Another profile exists with provided customer_id : {invalid_id}'
+            })
         
+        # Build created_profiles list
+        created_profiles = []
+        for valid_id in valid:
+            profile = next((d for d in profiles_batch if valid_id == d['customer_id']), None)
+            if profile:
+                # Create a copy to avoid modifying the original
+                profile_copy = profile.copy()
+                profile_copy.pop('account_id', None)
+                created_profiles.append(profile_copy)
+    
         return created_profiles, failed_to_create
-
+    
+    
     async def update_profiles(self, profiles_batch : list, internal : bool) -> Union[list, list]:
         """
         Parameters
