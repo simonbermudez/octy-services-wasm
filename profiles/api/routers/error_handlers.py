@@ -19,7 +19,7 @@ status_code_detail_map = {
     411: 'Length Required',
     415: 'Unsupported media type',
     501: 'Not Implemented'
-}
+}   
 
 
 class OctyException(Exception):

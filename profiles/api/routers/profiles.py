@@ -203,7 +203,7 @@ async def get_profiles_meta(request: Request, ids : str,
 
     
     profiles_meta = ProfilesService(current_account).get_profiles_meta(identifiers)
-    return GetProfilesMetaDTO(profiles_meta).dto()
+    return GetProfilesMetaDTO(profiles_meta).dto() 
     
 
 

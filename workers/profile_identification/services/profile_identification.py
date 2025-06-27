@@ -219,13 +219,13 @@ class ProfileIdentification():
         self.group_profiles_df = self.group_profiles_df.reset_index()
 
     def _score_profile(self, profile) -> int: 
-        '''Score profile based on attributes. '''
+        '''Score profile based on attributes. '''                        
         score = 0
 
         # prediction attributes. 
         # If these attributes are set, it means enough data was available for this profile to complete analysis jobs.
         if profile['rfm_score'] != None:
-            score += 1
+            score += 1    
         if profile['churn_probability'] != None:
             score += 1
 
@@ -300,7 +300,7 @@ class ProfileIdentification():
         zero_children_profile_ids = zero_children['parent_profile'].to_list()
         self.profiles = [profile for profile in self.profiles if profile['profile_id'] not in zero_children_profile_ids]
         self.group_profiles_df.drop(self.group_profiles_df.index[self.group_profiles_df['child_profile_count'] == 0], inplace = True)
-
+        
 
     async def _merge_segment_tags(self) -> None:
         def _append_tag(tag):

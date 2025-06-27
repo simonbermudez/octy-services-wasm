@@ -12,7 +12,7 @@
 
 # Development > local
 #LWhen CD to this directory
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.11
 LABEL maintainer="ben@octy.ai"
 EXPOSE 8080
 RUN mkdir -p /profiles

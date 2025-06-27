@@ -27,7 +27,7 @@ class AccountService:
         ...
 
         Attributes  
-        ----------
+        ----------  
         none
     """
 
@@ -50,7 +50,7 @@ class AccountService:
         """
 
         # Delete bucket
-        bucket_repo = BucketRepository(account_id)
+        bucket_repo = BucketRepository(account_id) 
         account = accountRepository.get_account_by_account_id(account_id)
         res = bucket_repo.delete_bucket(account.bucket)
     

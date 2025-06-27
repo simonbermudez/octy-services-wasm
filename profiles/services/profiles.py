@@ -94,7 +94,6 @@ class ProfilesService():
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
             return profiles, total
         
-        
     def get_profiles_meta(self, identifiers : list = None) -> list:
         """
         A method used to return a list of merged profiles.
@@ -339,7 +338,7 @@ class ProfilesService():
             def profile_json_to_dict(platform_info, profile_data, customer_id):
                 '''
                 merge platform_info and profile_data and return as single dict
-                '''
+                '''                                                                                                                                                                                                                                                 
                 if type(platform_info) != str:
                     platform_info=json.dumps(platform_info)
 

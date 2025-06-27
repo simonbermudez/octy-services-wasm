@@ -15,7 +15,6 @@ from aio_pika.exceptions import MessageProcessError
 logger = logging.getLogger('uvicorn.error')
 sem = threading.BoundedSemaphore(10)
 
-
 def ack_message(payload, did_succeed : bool=True, requeue : bool=True) -> None:
     try:
         if did_succeed:
@@ -23,7 +22,7 @@ def ack_message(payload, did_succeed : bool=True, requeue : bool=True) -> None:
         else:
             payload.reject(requeue=requeue)
         logger.info(f"Acknowledged message! Did succeed: {did_succeed} Requeued message: {False if did_succeed else requeue}")
-    except MessageProcessError:
+    except MessageProcessError: 
         logger.error("Failed to acknowledge message!")
         payload.reject(requeue=False)
 
@@ -73,7 +72,6 @@ def handle_message(payload, main_loop) -> None:
     cb = functools.partial(ack_message, payload)
     main_loop.call_soon_threadsafe(cb)
     sem.release()
-
 
 async def on_consumer_message_cb(payload):
     main_loop = asyncio.get_running_loop()

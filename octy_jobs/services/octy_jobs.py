@@ -53,7 +53,6 @@ class OctyJobQueueService():
         await octyJobsRepository.create_octy_job(self.account_id, new_octy_job)
 
     async def delete_octy_jobs(self, octy_job_ids : list, alt_identifiers : list) -> None:
-        #merge all provided identifers
         octy_job_ids.extend(alt_identifiers)
         await octyJobsRepository.delete_octy_jobs([self.account_id], octy_job_ids)
 
@@ -274,7 +273,7 @@ class OctyJobQueue():
             },
             'octy_job_id' : job['_id'],
             'job_data' : job['job_data']
-        }
+        } 
 
         # Assess permissions
         if len(job['job_meta']['required_permissions'])>0:
