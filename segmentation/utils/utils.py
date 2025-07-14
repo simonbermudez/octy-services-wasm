@@ -21,7 +21,7 @@ from requests.packages.urllib3.util.retry import Retry
 ######################################
 
 
-def assess_resource_limit(limits : str, current_count : int, requested : int) -> Union[bool, dict]:
+async def assess_resource_limit(limits : str, current_count : int, requested : int) -> Union[bool, dict]:
     """
         A utility function used to determine if resource limit has been reached for this account
 
