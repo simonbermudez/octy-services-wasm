@@ -19,7 +19,7 @@ from bson import ObjectId
 
 class _EventTypesRepository(EventTypesInterface):
     def __init__(self):
-        self.collection = ctx.contextManager.db["tbl_custom_event_types"]
+        self.collection = lambda: ctx.contextManager.db["tbl_custom_event_types"]
 
     async def get_event_types_count(self, account_id: str):
         return await self.collection.count_documents({"account_id": account_id})

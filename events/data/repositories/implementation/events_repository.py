@@ -32,7 +32,7 @@ class _EventsRepository(EventsInterface):
         none
     """
     def __init__(self):
-        self.collection = ctx.contextManager.db["tbl_event_instances"]
+        self.collection = lambda: ctx.contextManager.db["tbl_event_instances"]
 
     async def create_event(self, account_id: str, event: dict) -> None:
         """
