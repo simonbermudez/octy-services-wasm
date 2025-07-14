@@ -1,6 +1,6 @@
 # module imports
 from data.repositories.Ibucket_repository import BucketInterface
-from secrets import Secrets
+from app_secrets import Secrets
 from config import Config as C
 
 # python imports

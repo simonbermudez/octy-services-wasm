@@ -1,6 +1,6 @@
 # module imports
 from data.repositories.Inotifications_repository import NotificationsInterface
-from secrets import Secrets
+from app_secrets import Secrets
 from config import Config
 from utils.utils import *
 import data.context.db_context as ctx
