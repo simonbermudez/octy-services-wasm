@@ -63,7 +63,7 @@ async def get_segments(request: Request,
             raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A maximum number of {Config["MAX_GET_SEGMENTS"]} identifiers can be provided with the "?ids=" query param per request', 
                 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
     
-    segments, total = SegmentationService(current_account).get_segments(identifiers=identifiers,cursor=cursor)
+    segments, total = await SegmentationService(current_account).get_segments(identifiers=identifiers,cursor=cursor)
 
     return GetSegmentsDTO(segments, total, cursor).dto()
 
@@ -123,7 +123,7 @@ async def delete_segments(request: Request,
 @router.get('/v1/internal/segments')
 async def get_segments_internal(account_id : str, segment_type : str, status : str):
     cursor=0
-    segments, total = SegmentationService(None,account_id=account_id).get_segments(cursor=cursor, status=status, segment_type=segment_type, internal=True)
+    segments, total = await SegmentationService(None,account_id=account_id).get_segments(cursor=cursor, status=status, segment_type=segment_type, internal=True)
     return GetSegmentsDTO(segments, total, cursor).dto()
 
 
