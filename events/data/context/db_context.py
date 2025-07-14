@@ -1,12 +1,12 @@
 #module imports 
 from config import Config
-from secrets import Secrets
+from app_secrets import Secrets
 
 #python imports
 from typing import *
 
 #external imports
-from mongoengine import connect, disconnect
+from motor.motor_asyncio import AsyncIOMotorClient
 
 
 class ContextManager():
@@ -24,37 +24,17 @@ class ContextManager():
     """
     def __init__(self):pass
 
-    async def db_connect(self, logger) -> None: 
-        """
-            A method used to connect to a mongoDB database
+    def __init__(self):
+        self.mongo_client = None
+        self.db = None
 
-            Parameters
-            ----------
-            logger : logger instance
+    async def db_connect(self, logger) -> None:
+        self.mongo_client = AsyncIOMotorClient(Secrets["DB_URI"])
+        self.db = self.mongo_client.get_default_database()
+        logger.info("Opened connection to MongoDB")
 
-            Returns
-            ----------
-            result : None
-        """
-
-        connect(host=Secrets['DB_URI'])
-        logger.info('Opened connection to DB')
-
-    async def db_disconnect(self, logger) -> None: 
-        """
-            A method used to disconnect from a mongoDB database
-
-            Parameters
-            ----------
-            logger : logger instance
-
-            Returns
-            ----------
-            result : None
-        """
-
-        #Disconnect from mongoDB
-        disconnect(alias=Config['DB_ALIAS'])
-        logger.info('Closed conenction to DB')
+    async def db_disconnect(self, logger) -> None:
+        self.mongo_client.close()
+        logger.info("Closed connection to MongoDB")
 
 contextManager = ContextManager()

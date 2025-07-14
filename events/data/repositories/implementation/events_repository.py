@@ -2,19 +2,21 @@
 from data.repositories.Ievents_repository import EventsInterface
 from utils.utils import *
 from api.routers.error_handlers import *
-from data.models.db_schemas import tbl_event_instances
+import data.context.db_context as ctx
 
 # python imports
 from typing import *
 import json
 from datetime import datetime as dt
 from datetime import timedelta as td
+
 import time
 
 # external imports
-from mongoengine.errors import BulkWriteError
-from mongoengine.queryset.visitor import Q
+from bson import ObjectId
 from bson.json_util import dumps
+from pymongo.errors import BulkWriteError
+from pymongo import UpdateOne
 
 
 class _EventsRepository(EventsInterface):
@@ -29,9 +31,10 @@ class _EventsRepository(EventsInterface):
         ----------
         none
     """
-    def __init__(self): pass
+    def __init__(self):
+        self.collection = ctx.contextManager.db["tbl_event_instances"]
 
-    async def create_event(self, account_id : str, event : dict) -> None:
+    async def create_event(self, account_id: str, event: dict) -> None:
         """
         Parameters
         ----------
@@ -43,17 +46,17 @@ class _EventsRepository(EventsInterface):
         ----------
         None
         """
-        db_event = tbl_event_instances(
-            event_id=event['event_id'],
-            profile_id=event['profile_id'],
-            account_id=account_id,
-            event_type_id=event['event_type_id'],
-            event_type=event['event_type'],
-            event_properties=event['event_properties']
-        )
-        db_event.save()
+        await self.collection.insert_one({
+            "_id": event['event_id'],
+            "account_id": account_id,
+            "profile_id": event['profile_id'],
+            "event_type_id": event['event_type_id'],
+            "event_type": event['event_type'],
+            "event_properties": event['event_properties'],
+            "created_at": event.get("created_at", int(time.time() * 1000))
+        })
 
-    async def get_latest_checkout_info_submmited_event(self, account_id : str, checkout_id : str) -> dict:
+    async def get_latest_checkout_info_submmited_event(self, account_id: str, checkout_id: str) -> dict:
         """
         Parameters
         ----------
@@ -66,18 +69,23 @@ class _EventsRepository(EventsInterface):
         ----------
         event type : dict
         """
+        doc = await self.collection.find_one(
+            {
+                "account_id": account_id,
+                "event_type": "checkout_contact_info_submitted",
+                "event_properties.checkout_id": checkout_id
+            },
 
-        # get latest checkout info submitted event with event_properties.checkout_id == checkout_id and event_type == 'checkout_contact_info_submitted'
+            sort=[("created_at", -1)]
+        )
+        if doc:
+            doc['event_type_id'] = doc['_id']
+            doc.pop('_id', None)
+            doc['created_at'] = int_to_dt(doc['created_at'], as_str=True)
+            return doc
+        return None
 
-        event_type = tbl_event_instances.objects((Q(event_type__exact='checkout_contact_info_submitted') & Q(account_id__exact=account_id) & Q(event_properties__checkout_id__exact=checkout_id))).order_by('-created_at').first()
-        if event_type:
-            event_type_dict = json.loads(event_type.to_json())
-            event_type_dict['event_type_id'] = event_type_dict['_id']
-            event_type_dict= {k: v for k, v in event_type_dict.items() if k != '_id'}
-            return event_type_dict
-        return None 
-
-    async def batch_create_events(self, account_id : str, events_batch : list) -> Union[list, list]:
+    async def batch_create_events(self, account_id: str, events_batch: list) -> tuple[list, list]:
         """
         Parameters
         ----------
@@ -88,53 +96,43 @@ class _EventsRepository(EventsInterface):
         Returns
         ----------
         created_events, failed_to_create : list, list
-        """
-        event_instances = []
+        """       
+        documents = []
+        failed_to_create = []
         event_ids = []
+
         for event in events_batch:
-            event_instances.append(
-                tbl_event_instances(
-                    event_id=event['event_id'],
-                    profile_id=event['profile_id'],
-                    account_id=account_id,
-                    event_type_id=event['event_type_id'],
-                    event_type=event['event_type'],
-                    event_properties=event['event_properties'],
-                    created_at=event['created_at'])
-            )
+
             event_ids.append(event['event_id'])
 
-        #BULK WRITE OPERATION
-        invalid=[]
-        bulk_operation = tbl_event_instances._get_collection().initialize_unordered_bulk_op()
-        for event in event_instances:
-            bulk_operation.insert(event.to_mongo())
+            documents.append({
+                "_id": event['event_id'],
+                "account_id": account_id,
+                "profile_id": event['profile_id'],
+                "event_type_id": event['event_type_id'],
+                "event_type": event['event_type'],
+                "event_properties": event['event_properties'],
+                "created_at": event['created_at']
+            })
+
         try:
-            bulk_operation.execute()
+            await self.collection.insert_many(documents, ordered=False)
         except BulkWriteError as bwe:
-            for err in bwe.details['writeErrors']:
-                invalid.append(err['op'].to_dict()['_id'])
+            for err in bwe.details.get('writeErrors', []):
+                failed_to_create.append({
+                    "event_id": err["op"]["_id"],
+                    "error_message": f"Duplicate or invalid event: {err['op']['_id']}"
+                })
 
-        valid = list(set(event_ids) - set(invalid))
+        valid_ids = list(set(event_ids) - {e['event_id'] for e in failed_to_create})
+        created = [e for e in events_batch if e['event_id'] in valid_ids]
 
-        failed_to_create=[]
-        for in_ in invalid:
-            failed_to_create.append(
-                {
-                    'event_id': in_,
-                    'error_message' : f'Another event exists with provided event_id : {in_}'
-                }
-            )
-        created_events=[]
-        for v in valid:
-            event=next((d for i,d in enumerate(events_batch) if v == d['event_id']),None)
-            if event:
-                event.pop('account_id', None)
-                created_events.append(event)
-        
-        return created_events, failed_to_create
+        for c in created:
+            c.pop("account_id", None)
 
-    async def get_events_meta(self, account_id : str, event_type_list : list) -> Union[list, int]:
+        return created, failed_to_create
+
+    async def get_events_meta(self, account_id: str, event_type_list: list) -> tuple[list, int]:
         """
         Get latest event instance of EACH provided event type in events to determine each event property required data type.
         Also get current count of total events associated with an account, to ensure account is not surpassing creation limit
@@ -150,52 +148,38 @@ class _EventsRepository(EventsInterface):
         event_types : list[dict]
         event_count : int
         """
-        event_types = []
-        queries_idxs = []
-        current_count = tbl_event_instances.objects(account_id__exact=account_id).count()
-        
-        #get latest events that the event type is in event_type_list
-        queries = [{
-            '$facet' : {
-
+        pipeline = {
+            "$facet": {
+                f"query{i}": [
+                    {"$match": {"account_id": account_id, "event_type": et}},
+                    {"$sort": {"created_at": -1}},
+                    {"$limit": 1}
+                ]
+                for i, et in enumerate(event_type_list)
             }
-        }]
-        for idx, et in enumerate(event_type_list): 
+        }
 
-            queries[0]['$facet']['query'+str(idx)] = [
-                {'$match' : 
-                    { '$and' : [ {"event_type" : { "$eq" : et}}, {"account_id" : { "$eq" : account_id}} ] }
-                },
-                { '$sort' : { 'created_at' : -1 } },
-                { '$limit' : 1 }
-            ]
-            queries_idxs.append('query'+str(idx))
+        event_count = await self.collection.count_documents({"account_id": account_id})
+        cursor = self.collection.aggregate([pipeline])
+        docs = await cursor.to_list(length=1)
 
-        results = tbl_event_instances._get_collection().aggregate(queries)
-        try:
-            results_dicts = json.loads(dumps(results))[0]
-        except KeyError:
-            return event_types, current_count
+        result = []
+        if docs:
+            doc = docs[0]
+            for key in doc:
+                if doc[key]:
+                    result.append({
+                        "event_type": doc[key][0]["event_type"],
+                        "event_properties": doc[key][0]["event_properties"]
+                    })
 
-        for q in queries_idxs:
-            try:
-                event_types.append(
-                    {
-                        'event_type' : results_dicts[q][0]['event_type'],
-                        'event_properties' : results_dicts[q][0]['event_properties']
-                    }
-                )
-            except IndexError:
-                continue
+        return result, event_count
 
-        return event_types, current_count
-
-    async def get_events(self, account_id : str, 
-                        timeframe : int, 
-                        cursor : int, 
-                        event_sequence_event : dict = None, 
-                        profile_ids : list = None, 
-                        event_type : str = None) -> Union[list, int]:
+    async def get_events(self, account_id: str, timeframe: int, cursor: int,
+                         event_sequence_event: dict = None,
+                         profile_ids: list = None,
+                         event_type: str = None) -> tuple[list, int]:
+        
         """
         Parameters
         ----------
@@ -216,104 +200,35 @@ class _EventsRepository(EventsInterface):
         events : list
         total : int
         """
-        
-        datetime_timeframe = dt.now() - td(minutes=timeframe+1) # NOTE: Add one additional minute
+        from_dt = dt.now() - td(minutes=timeframe + 1)
+        query = {"account_id": account_id, "created_at": {"$gt": from_dt}}
+
         if event_sequence_event:
-            raw_events = []
-            event_property_keys = []
-            query = {
+            query["event_type"] = event_sequence_event["event_type"]
+            for k, v in event_sequence_event.get("event_properties", {}).items():
+                query[f"event_properties.{k}"] = v
 
-                    '$and' : [
-                        {'account_id' : { '$eq' : account_id}},
-                        {'created_at' : { '$gt' : datetime_timeframe}},
-                        {'event_type' : { '$eq' : event_sequence_event['event_type']}}
-                    ]
-                
-                }
-            if event_sequence_event['event_properties'] != None:
-                for k, v in event_sequence_event['event_properties'].items():
-                    if k not in event_property_keys:
-                        query['$and'].append(
-                            {
-                                '$and' : [
-                                    {f'event_properties.{k}': {"$exists": True}},
-                                    {f'event_properties.{k}': {"$eq": v}}
-                                ]
-                            }
-                        )
-                        event_property_keys.append(k)
+        elif profile_ids and event_type:
+            query["profile_id"] = {"$in": profile_ids}
+            query["event_type"] = event_type
 
-            results_cursor = tbl_event_instances._get_collection().find(query).skip(cursor).limit(3000)
-            total = tbl_event_instances._get_collection().find(query).count()
-            raw_events.extend(json.loads(dumps(list(results_cursor), indent = 2)))
-            found_events=[]
-            for event in raw_events:
-                event_dict = event
-                event_dict['event_id'] = event_dict['_id']
-                event_dict.pop('_id', None)
-                event_dict['created_at'] = int_to_dt(event_dict['created_at']['$date'], as_str=True) if event_dict['created_at'] != None else None
-                found_events.append(event_dict)
-        
-        elif not event_sequence_event and profile_ids and not event_type: 
-            raw_events = []
-            query = {
+        elif profile_ids:
+            query["profile_id"] = {"$in": profile_ids}
 
-                    '$and' : [
-                        {'account_id' : { '$eq' : account_id}},
-                        {'created_at' : { '$gt' : datetime_timeframe}},
-                        {'profile_id' : { '$in' : profile_ids}}
-                    ]
-            }
+        cursor_obj = self.collection.find(query).skip(cursor).limit(3000)
+        total = await self.collection.count_documents(query)
+        raw = await cursor_obj.to_list(length=3000)
 
-            results_cursor = tbl_event_instances._get_collection().find(query).skip(cursor).limit(3000)
-            total = tbl_event_instances._get_collection().find(query).count()
-            raw_events.extend(json.loads(dumps(list(results_cursor), indent = 2)))
-            found_events=[]
-            for event in raw_events:
-                event_dict = event
-                event_dict['event_id'] = event_dict['_id']
-                event_dict.pop('_id', None)
-                event_dict['created_at'] = int_to_dt(event_dict['created_at']['$date'], as_str=True) if event_dict['created_at'] != None else None
-                found_events.append(event_dict)
+        found = []
+        for doc in raw:
+            doc["event_id"] = doc["_id"]
+            doc.pop("_id", None)
+            doc["created_at"] = int_to_dt(doc["created_at"], as_str=True)
+            found.append(doc)
 
-        elif not event_sequence_event and profile_ids and event_type: 
-            raw_events = []
-            query = {
+        return found, total
 
-                '$and' : [
-                    {'account_id' : { '$eq' : account_id}},
-                    {'created_at' : { '$gt' : datetime_timeframe}},
-                    {'profile_id' : { '$in' : profile_ids}},
-                    {'event_type' : { '$eq' : event_type}}
-                ]
-            }
-
-            results_cursor = tbl_event_instances._get_collection().find(query).skip(cursor).limit(3000)
-            total = tbl_event_instances._get_collection().find(query).count()
-            raw_events.extend(json.loads(dumps(list(results_cursor), indent = 2)))
-            found_events=[]
-            for event in raw_events:
-                event_dict = event
-                event_dict['event_id'] = event_dict['_id']
-                event_dict.pop('_id', None)
-                event_dict['created_at'] = int_to_dt(event_dict['created_at']['$date'], as_str=True) if event_dict['created_at'] != None else None
-                found_events.append(event_dict)
-
-        else:
-            events = tbl_event_instances.objects((Q(account_id__exact=account_id) & Q(created_at__gt=datetime_timeframe))).skip(cursor).limit(3000)
-            total = tbl_event_instances.objects((Q(account_id__exact=account_id) & Q(created_at__gt=datetime_timeframe))).count()
-
-            found_events=[]
-            for event in events:
-                event_dict = json.loads(event.to_json())
-                event_dict['event_id'] = event_dict['_id']
-                event_dict.pop('_id', None)
-                event_dict['created_at'] = int_to_dt(event_dict['created_at']['$date'], as_str=True) if event_dict['created_at'] != None else None
-                found_events.append(event_dict)
-
-        return found_events, total
-
-    async def update_events_owner(self, account_id  :str, profiles : list) -> None:
+    async def update_events_owner(self, account_id: str, profiles: list) -> None:
         """
         Parameters
         ----------
@@ -326,42 +241,27 @@ class _EventsRepository(EventsInterface):
         ----------
         None
         """ 
-        # get all events owned by account where id in child profiles
-        all_child_profile_ids = list()
-        [all_child_profile_ids.extend(cp for cp in p.child_profiles) for p in profiles]
+        all_child_profile_ids = []
+        [all_child_profile_ids.extend(p.child_profiles) for p in profiles]
 
-        def _child_to_parent(profile_id) -> str: 
-            '''
-            if profile_id is a child,
-            return childs corresponding parent profile id
-            or None if child not found
-            '''
-            profile = next((p for p in profiles if profile_id in p.child_profiles), None)
-            if profile != None:
-                return profile.parent_profile
-            return None
+        def _child_to_parent(pid):
+            profile = next((p for p in profiles if pid in p.child_profiles), None)
+            return profile.parent_profile if profile else None
 
-        #BULK UPDATE OPERATION
-        bulk_operation = tbl_event_instances._get_collection().initialize_unordered_bulk_op()
+        operations = []
         for cpi in all_child_profile_ids:
             parent = _child_to_parent(cpi)
             if parent:
-                bulk_operation.find({
-                    '$and' : [
-                        {"account_id" : { "$eq" : account_id}},
-                        {"profile_id" : { "$eq" : cpi}}
-                    ]
-                }).update(
-                    {
-                        "$set" : {"profile_id" : parent}
-                    }
-                )
-        try:
-            bulk_operation.execute()
-        except BulkWriteError as bwe: 
-            raise Exception(f"[toxic]:: Exception occurred when updating event instances : {str(bwe)}")
+                operations.append({
+                    "filter": {"account_id": account_id, "profile_id": cpi},
+                    "update": {"$set": {"profile_id": parent}}
+                })
 
-    async def delete_profile_events(self, account_id : str, profile_id : str) -> None:
+        if operations:
+            requests = [UpdateOne(op["filter"], op["update"]) for op in operations]
+            await self.collection.bulk_write(requests, ordered=False)
+
+    async def delete_profile_events(self, account_id: str, profile_id: str) -> None:
         """
         Parameters
         ----------
@@ -374,10 +274,9 @@ class _EventsRepository(EventsInterface):
         ----------
         None
         """
-        tbl_event_instances.objects(account_id__exact=account_id,profile_id__exact=profile_id).delete()
+        await self.collection.delete_many({"account_id": account_id, "profile_id": profile_id})
 
-    #Delete all events associated with an account
-    async def delete_account_events(self, account_id : str) -> None:
+    async def delete_account_events(self, account_id: str) -> None:
         """
         Parameters
         ----------
@@ -388,10 +287,9 @@ class _EventsRepository(EventsInterface):
         ----------
         bool
         """
-        res = tbl_event_instances.objects(account_id__exact=account_id).delete()
-        return res
+        await self.collection.delete_many({"account_id": account_id})
 
-    async def get_profile_ids(self, account_id : str, profile_ids : list) -> Union[list,list]:
+    async def get_profile_ids(self, account_id: str, profile_ids: list) -> tuple[list, list]:
         """
         Parameters
         ----------
@@ -405,48 +303,32 @@ class _EventsRepository(EventsInterface):
         valid profiles : list
         invalid profiles : list
         """
-        valid_profiles = []
-        invalid_profiles = []
+        valid_profiles, invalid_profiles = [], []
 
         payload = {
-            'account_id' : account_id,
-            'profiles': profile_ids,
-            'get_all' : False
+            "account_id": account_id,
+            "profiles": profile_ids,
+            "get_all": False
         }
         url = f"{Config['PROFILE_SERVICE_CLUSTER_IP']}/v1/internal/profiles?ids=true"
         session = requests_retry_session()
-        t0 = time.time()
+
         try:
             response = session.post(
-                url,
-                data=json.dumps(payload),
+                url, 
+                data=json.dumps(payload), 
                 timeout=60
-            )
-        except Exception as x:
-            raise Exception(x) from None
-        else:
-            print(f'{response.request.method} Request: "{url}" returned response with valid status code: {response.status_code}')
-        finally:
-            t1 = time.time()
-            print('Took', t1 - t0, 'seconds')
+                )
+            response.raise_for_status()
+        except Exception as ex:
+            raise Exception(f"Profile API error: {ex}")
 
-        if response.status_code == 400:
-            return valid_profiles, invalid_profiles
-
-        print(response.status_code)
-        print(response.text)
-        print(response)
-
-        body = json.loads(response.text)
-        for vprofile in body['profiles']:
-            valid_profiles.append(vprofile)
-
-        for ivprofile in body['not_found']:
-            invalid_profiles.append(ivprofile)
-
+        data = response.json()
+        valid_profiles = data.get("profiles", [])
+        invalid_profiles = data.get("not_found", [])
         return valid_profiles, invalid_profiles
 
-    async def get_live_segment_definitions(self, account_id : str) -> list:
+    async def get_live_segment_definitions(self, account_id: str) -> list:
         """
         Parameters
         ----------
@@ -457,32 +339,16 @@ class _EventsRepository(EventsInterface):
         ----------
         found_segments : list
         """
-        found_segments = []
-
         url = f"{Config['SEGMENTATION_SERVICE_CLUSTER_IP']}/v1/internal/segments?account_id={account_id}&status=active&segment_type=live"
         session = requests_retry_session()
-        t0 = time.time()
+
         try:
-            response = session.get(
-                url,
-                timeout=60
-            )
-        except Exception as x:
-            raise Exception(x) from None
-        else:
-            print(f'{response.request.method} Request: "{url}" returned response with valid status code: {response.status_code}')
-        finally:
-            t1 = time.time()
-            print('Took', t1 - t0, 'seconds')
+            response = session.get(url, timeout=60)
+            response.raise_for_status()
+        except Exception as ex:
+            raise Exception(f"Segment API error: {ex}")
 
-        if response.status_code == 400:
-            return found_segments
-
-        body = json.loads(response.text)
-        for seg in body['segments']:
-            found_segments.append(seg)
-        
-        return found_segments
+        return response.json().get("segments", [])
 
 
 eventsRepository = _EventsRepository()
