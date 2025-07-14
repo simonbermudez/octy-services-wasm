@@ -1,6 +1,5 @@
 # module imports
 from data.repositories.Iaccount_repository import AccountInterface
-from data.models.db_schemas import tbl_accounts, Keys, AccountConfigurations, ChurnInfo, AlgorithmConfigurations
 from data.models.account import UpdateAccount
 from utils.utils import *
 from api.routers.error_handlers import *
