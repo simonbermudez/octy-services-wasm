@@ -109,7 +109,7 @@ class _OctyJobsRepository:
 
     async def delete_all_octy_jobs(self, account_id: str):
         await self.collection().delete_many({"account_id": account_id})
-        ctx.redis_conn.delete(f'account.id:{account_id}:octy.job:*')
+        await ctx.redis_conn.delete(f'account.id:{account_id}:octy.job:*')
         return True
 
     async def get_octy_jobs(self, cursor: int) -> list:
@@ -148,9 +148,9 @@ class _OctyJobsRepository:
 
     async def claim_pending_job(self, account_id: str, octy_job_id: str, pod_id: str) -> bool:
         name = f'account.id:{account_id}:octy.job:{octy_job_id}'
-        res = ctx.redis_conn.set(name=name, value=pod_id, nx=True, ex=86400)
+        res = await ctx.redis_conn.set(name=name, value=pod_id, nx=True, ex=86400)
         if not res:
-            job_pod_id = ctx.redis_conn.get(name=name)
+            job_pod_id = await ctx.redis_conn.get(name=name)
             return job_pod_id.decode() == pod_id
         return True
 

@@ -230,7 +230,7 @@ class _AccountRepository(AccountInterface):
         if not acc:
             raise Exception("Account not found")
 
-        res = ctx.redis_conn.get(f'pk:{acc["keys"]["public_key"]}')
+        res = await ctx.redis_conn.get(f'pk:{acc["keys"]["public_key"]}')
         if not res:
             raise Exception("Account not found in DB cache")
 
@@ -254,7 +254,7 @@ class _AccountRepository(AccountInterface):
         acc = await self.collection().find_one({"account_id": account_id})
         if not acc:
             return
-        ctx.redis_conn.delete(f'pk:{acc["keys"]["public_key"]}')
+        await ctx.redis_conn.delete(f'pk:{acc["keys"]["public_key"]}')
         await self.collection().delete_one({"account_id": account_id})
 
     async def refresh_account_data_cache(self, pk: str):
