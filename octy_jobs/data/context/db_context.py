@@ -2,7 +2,7 @@
 
 # data context for octy_jobs
 from config import Config
-from secrets import Secrets
+from app_secrets import Secrets
 
 #python imports
 from typing import *
