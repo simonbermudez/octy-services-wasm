@@ -33,7 +33,7 @@ class ContextManager():
 
     async def db_connect(self, logger) -> None:
         self.mongo_client = AsyncIOMotorClient(Secrets["DB_URI"])
-        self.db = self.mongo_client[Config["DB_NAME"]]
+        self.db = self.mongo_client.get_default_database()
         logger.info("Opened connection to MongoDB")
 
     async def db_disconnect(self, logger) -> None:
