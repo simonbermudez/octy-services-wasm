@@ -404,14 +404,14 @@ class EventsService():
         # if not system event type ensure event type and event properties exist
         else:
             
-            custom_event_type_exist = eventTypesRepository.get_event_type_by_name(account_id=self.account.account_id, event_type=event_type)
+            custom_event_type_exist = await eventTypesRepository.get_event_type_by_name(account_id=self.account.account_id, event_type=event_type)
 
             # ensure event type provided is a valid custom event type
             if not custom_event_type_exist:
                 err_msg.extend(['Unknown event type supplied with this request.', 'Invalid event_type.'])
                 return False, err_msg, None
 
-            event_type_id=custom_event_type_exist['event_type_id']
+            event_type_id= custom_event_type_exist['event_type_id']
 
             #ensure all event property keys are provided.  Please ensure all event property keys have been provided.
             event_instance_exists = True

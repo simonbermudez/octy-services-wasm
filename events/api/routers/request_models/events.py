@@ -9,7 +9,7 @@ class CreateEvent(BaseModel):
     event_type : str
     event_properties : dict
     profile_id : str
-    created_at : Optional[str] # only acknowledged if batch create
+    created_at : Optional[str] = None
 
 ### Delete event types Input Schema
 class BatchCreateEvents(BaseModel):
