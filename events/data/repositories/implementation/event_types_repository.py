@@ -167,12 +167,31 @@ class _EventTypesRepository(EventTypesInterface):
 
 eventTypesRepository = _EventTypesRepository()
 
-def _format_event_type(event_type : dict):
-    '''
-        Format event type object
-    '''
-    event_type.pop('_id', None)
-    event_type.pop('account_id', None)
-    event_type['created_at'] = int_to_dt(event_type['created_at']['$date'], as_str=True) if event_type['created_at'] != None else None
- 
+def _format_event_type(event_type: dict) -> dict:
+    """
+    Formats an event type dictionary for output.
+
+    Parameters
+    ----------
+    event_type : dict
+        The raw event type document from the database.
+
+    Returns
+    ----------
+    dict
+        The formatted event type.
+    """
+    created_at = event_type.get('created_at')
+
+    if created_at is not None:
+        if isinstance(created_at, datetime):
+            millis = int(created_at.timestamp() * 1000)
+            event_type['created_at'] = int_to_dt(millis, as_str=True)
+        elif isinstance(created_at, dict) and '$date' in created_at:
+            event_type['created_at'] = int_to_dt(created_at['$date'], as_str=True)
+        else:
+            event_type['created_at'] = None
+    else:
+        event_type['created_at'] = None
+
     return event_type
