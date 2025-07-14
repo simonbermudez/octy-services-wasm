@@ -52,7 +52,7 @@ class _AuthRepository(AuthInterface):
             sk valid : bool
             account : dict | None
         """
-        res = ctx.redis_conn.get(f'pk:{pk}')
+        res = await ctx.redis_conn.get(f'pk:{pk}')
         if not res:
             return False, False, None
         
@@ -67,6 +67,45 @@ class _AuthRepository(AuthInterface):
             return True, False, None
 
         return True, True, account
+
+    async def verify_account_keys(self, pk: str, sk: str) -> Union[bool, bool, dict]:
+        """
+        A method used to verify Octy account holder keys
+
+        Parameters
+        ----------
+        pk : str
+            Octy public key
+        sk : str
+            Octy secret key
+
+        Returns
+        ----------
+        pk valid : bool
+        sk valid : bool
+        account : dict | None
+        """
+        res = await ctx.redis_conn.get(f'pk:{pk}')
+        if not res:
+            return False, False, None
+
+        try:
+            account = json.loads(res.decode("utf-8"))
+        except Exception as e:
+            capture_exception(e)
+            return False, False, None
+
+        if not account.get('active'):
+            return False, False, None
+
+        ph = PasswordHasher()
+        try:
+            ph.verify(account['keys']['secret_key'], sk)
+        except VerifyMismatchError:
+            return True, False, None
+
+        return True, True, account
+    
 
     async def generate_authorization_token(self, account: dict) -> str:
         """
