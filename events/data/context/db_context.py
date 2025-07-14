@@ -22,8 +22,6 @@ class ContextManager():
         ----------
         none
     """
-    def __init__(self):pass
-
     def __init__(self):
         self.mongo_client = None
         self.db = None

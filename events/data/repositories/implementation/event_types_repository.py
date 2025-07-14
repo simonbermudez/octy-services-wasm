@@ -5,7 +5,6 @@ from api.routers.error_handlers import *
 import data.context.db_context as ctx
 from config import Config
 
-
 # python imports
 from typing import *
 import json

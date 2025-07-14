@@ -9,6 +9,7 @@ from typing import *
 import json
 from datetime import datetime as dt
 from datetime import timedelta as td
+from datetime import timezone as tz
 
 import time
 
@@ -45,14 +46,25 @@ class _EventsRepository(EventsInterface):
         ----------
         None
         """
-        await self.collection.insert_one({
-            "_id": event['event_id'],
-            "account_id": account_id,
-            "profile_id": event['profile_id'],
-            "event_type_id": event['event_type_id'],
-            "event_type": event['event_type'],
-            "event_properties": event['event_properties'],
-        })
+        try:
+            document = {
+                "_id": event['event_id'],
+                "account_id": account_id,
+                "profile_id": event['profile_id'],
+                "event_type_id": event['event_type_id'],
+                "event_type": event['event_type'],
+                "event_properties": event['event_properties'],
+                "created_at": dt.now(tz.utc)  
+            }
+            
+            result = await self.collection.insert_one(document)
+            
+            if not result.acknowledged:
+                raise Exception("Failed to insert event")
+                
+        except Exception as e:
+            print(f"Error creating event: {e}")
+            raise
 
     async def get_latest_checkout_info_submmited_event(self, account_id: str, checkout_id: str) -> dict:
         """
