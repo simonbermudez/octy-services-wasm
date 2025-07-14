@@ -18,7 +18,6 @@ from bson.json_util import dumps
 from pymongo.errors import BulkWriteError
 from pymongo import UpdateOne
 
-
 class _EventsRepository(EventsInterface):
     """
         _EventsRepository
@@ -53,7 +52,6 @@ class _EventsRepository(EventsInterface):
             "event_type_id": event['event_type_id'],
             "event_type": event['event_type'],
             "event_properties": event['event_properties'],
-            "created_at": event.get("created_at", int(time.time() * 1000))
         })
 
     async def get_latest_checkout_info_submmited_event(self, account_id: str, checkout_id: str) -> dict:
