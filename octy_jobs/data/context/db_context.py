@@ -1,4 +1,6 @@
 #module imports 
+
+# data context for octy_jobs
 from config import Config
 from secrets import Secrets
 
@@ -6,8 +8,9 @@ from secrets import Secrets
 from typing import *
 
 #external imports
-from mongoengine import connect, disconnect
-import redis, certifi
+# from mongoengine import connect, disconnect
+from motor.motor_asyncio import AsyncIOMotorClient
+import redis.asyncio as redis, certifi
 
 redis_conn = None
 
@@ -24,40 +27,51 @@ class ContextManager():
         ----------
         none
     """
-    def __init__(self): pass
+    def __init__(self):
+        self.mongo_client = None
+        self.db = None
 
-    async def db_connect(self, logger) -> None: 
-        """
-            A method used to connect to a mongoDB database
+    async def db_connect(self, logger) -> None:
+        self.mongo_client = AsyncIOMotorClient(Secrets["DB_URI"])
+        self.db = self.mongo_client[Config["DB_NAME"]]
+        logger.info("Opened connection to MongoDB")
 
-            Parameters
-            ----------
-            logger : logger instance
+    async def db_disconnect(self, logger) -> None:
+        self.mongo_client.close()
+        logger.info("Closed connection to MongoDB")
 
-            Returns
-            ----------
-            result : None
-        """
+    # async def db_connect(self, logger) -> None: 
+    #     """
+    #         A method used to connect to a mongoDB database
 
-        connect(host=Secrets["DB_URI"])
-        logger.info("Opened connection to DB")
+    #         Parameters
+    #         ----------
+    #         logger : logger instance
 
-    async def db_disconnect(self, logger) -> None: 
-        """
-            A method used to disconnect from a mongoDB database
+    #         Returns
+    #         ----------
+    #         result : None
+    #     """
 
-            Parameters
-            ----------
-            logger : logger instance
+    #     connect(host=Secrets["DB_URI"])
+    #     logger.info("Opened connection to DB")
 
-            Returns
-            ----------
-            result : None
-        """
+    # async def db_disconnect(self, logger) -> None: 
+    #     """
+    #         A method used to disconnect from a mongoDB database
 
-        #Disconnect from mongoDB
-        disconnect(alias=Config["DB_ALIAS"])
-        logger.info("Closed conenction to DB")
+    #         Parameters
+    #         ----------
+    #         logger : logger instance
+
+    #         Returns
+    #         ----------
+    #         result : None
+    #     """
+
+    #     #Disconnect from mongoDB
+    #     disconnect(alias=Config["DB_ALIAS"])
+    #     logger.info("Closed conenction to DB")
 
     async def db_redis_connect(self, logger) -> None: 
         """
