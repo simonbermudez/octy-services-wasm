@@ -13,7 +13,6 @@ h11
 hiredis
 idna
 limits
-mongoengine
 multidict
 numpy
 pamqp
@@ -24,13 +23,15 @@ PyJWT
 PyYAML
 pymongo
 python-bsonjs
-redis
 sentry-sdk
 six
 slowapi
 starlette
+redis[hiredis]
 typing-extensions
 urllib3
 uvicorn
 yarl
 python-dotenv
+motor
+schedule

@@ -12,11 +12,10 @@ import json
 from datetime import datetime as dt
 
 # external imports
-from pymongo import InsertOne
 from pymongo.errors import BulkWriteError
 from mongoengine.queryset.visitor import Q
 from bson.json_util import dumps
-
+from pymongo import InsertOne, UpdateOne, DeleteOne, UpdateMany
 
 class _ProfilesRepository(ProfilesInterface):
     """
@@ -32,9 +31,11 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         none
     """
-    def __init__(self): pass
+    def __init__(self):
+        self._profiles_collection = lambda: ctx.contextManager.db["tbl_profiles"]
+        self._merged_profiles_collection = lambda: ctx.contextManager.db["tbl_merged_profiles"]
 
-    def get_profile_count(self, account_id : str) -> int:
+    async def get_profile_count(self, account_id: str) -> int:
         """
         A method used to return the count of all exisitng profiles associated with specififed account.
 
@@ -47,10 +48,9 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         count : int
         """
-        
-        return tbl_profiles.objects(account_id__exact=account_id).count()
+        return await self.profiles_collection.count_documents({"account_id": account_id})
 
-    def get_profile_by_id(self, account_id : str, identifier : str) -> dict:
+    async def get_profile_by_id(self, account_id: str, identifier: str) -> dict:
         """
         A method used to filter and return a list of profiles based the provided profile_id or customer_id.
 
@@ -65,17 +65,17 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         results : dict
         """
-        profiles = tbl_profiles.objects((Q(profile_id__exact=identifier) & Q(account_id__exact=account_id)) \
-            | (Q(customer_id__exact=identifier) & Q(account_id__exact=account_id)))
-
-        if profiles:
-            profile_dict = json.loads(profiles.to_json())
-            profile_dict[0]['profile_id'] = profile_dict[0]['_id']
-            profile_dict= _format_profile(profile_dict[0],tag_statuses=['active'])
-            return profile_dict
+        profile = await self.profiles_collection.find_one({
+            "$or": [{"_id": identifier}, {"customer_id": identifier}],
+            "account_id": account_id
+        })
+        
+        if profile:
+            profile['profile_id'] = str(profile['_id'])
+            return await self._format_profile(profile, tag_statuses=['active'])
         return None
-    
-    def get_profiles_by_identifiers(self, account_id : str, identifiers : list, tag_statuses : list, ids : bool = None, internal : bool = False) -> Union[list, list]:
+
+    async def get_profiles_by_identifiers(self, account_id: str, identifiers: list, tag_statuses: list, ids: bool = None, internal: bool = False) -> tuple:
         """
         A method used to filter and return a list of profiles based the provided profile_ids. multiple.
 
@@ -97,45 +97,39 @@ class _ProfilesRepository(ProfilesInterface):
         """
         found_profiles = []
         not_found = []
-        if ids:
-            profiles =  tbl_profiles._get_collection().find({
-                    '$and' : [
-                            {'$or' : [
-                                {"_id" : { "$in" : identifiers}},
-                                {"customer_id" : { "$in" : identifiers}}
-                            ]},
-                            {"account_id" : { "$eq" : account_id}}
-                    ]
-            },{"_id":1})
-            for profile in profiles:
-                profile['profile_id'] = profile['_id']
-                _format_profile(profile, tag_statuses=tag_statuses, internal=internal)
-                found_profiles.append(profile)
-
-        else:
-            profiles = tbl_profiles.objects((Q(profile_id__in=identifiers) & Q(account_id__exact=account_id)) \
-                | (Q(customer_id__in=identifiers) & Q(account_id__exact=account_id)))
-
-            for profile in profiles:
-                profile_dict = json.loads(profile.to_json())
-                profile_dict['profile_id'] = profile_dict['_id']
-                profile_dict= _format_profile(profile_dict, tag_statuses=tag_statuses, internal=internal)
-                found_profiles.append(profile_dict)
         
-        # get all not found ids
+        if ids:
+            cursor = self.profiles_collection.find({
+                "$and": [
+                    {"$or": [{"_id": {"$in": identifiers}}, {"customer_id": {"$in": identifiers}}]},
+                    {"account_id": account_id}
+                ]
+            }, {"_id": 1})
+            async for profile in cursor:
+                profile['profile_id'] = str(profile['_id'])
+                await self._format_profile(profile, tag_statuses=tag_statuses, internal=internal)
+                found_profiles.append(profile)
+        else:
+            cursor = self.profiles_collection.find({
+                "$and": [
+                    {"$or": [{"_id": {"$in": identifiers}}, {"customer_id": {"$in": identifiers}}]},
+                    {"account_id": account_id}
+                ]
+            })
+            async for profile in cursor:
+                profile['profile_id'] = str(profile['_id'])
+                await self._format_profile(profile, tag_statuses=tag_statuses, internal=internal)
+                found_profiles.append(profile)
+        
+        # Get all not found IDs
+        found_ids = {p['profile_id'] for p in found_profiles}
         for p in identifiers:
-            exists=next((key for key in found_profiles if key['profile_id'] == p), None)
-            if not exists:
+            if p not in found_ids:
                 not_found.append(p)
         
         return found_profiles, not_found
 
-    def get_profiles_by_params(self,
-                    account_id : str,
-                    cursor : int = None, 
-                    segments : list = None, 
-                    rfm_values : list = None, 
-                    churn_prob : str = None) -> Union[list, int]:
+    async def get_profiles_by_params(self, account_id: str, cursor: int = None, segments: list = None, rfm_values: list = None, churn_prob: str = None) -> tuple:
         """
         A method used to filter and return a list of profiles based on the 
         provided parameters.
@@ -159,62 +153,35 @@ class _ProfilesRepository(ProfilesInterface):
         profiles : list
         total : int
         """
-
-        query_and = [{
-            "account_id" : { "$eq" : account_id}
-        }]
-
-        if rfm_values != None:
-            query_and.append(
-            {
-                "rfm_score" : {
-                "$gt" : rfm_values[0], "$lt" : rfm_values[1]
-            }
-            })
-
-        if churn_prob != None:
-            query_and.append(
-            {
-                "churn_probability" : { "$eq" : churn_prob}
-            })
-
-        if segments != None:
-            if len(segments) == 1:
-                query_and.append(
-                {
-                    "segment_tags.segment_tag" :{ 
-                    "$eq" : segments[0]
-                }
-                })
-            else:
-                seg_queries = []
-                for segment in segments:
-                    seg_queries.append(
-                        {
-                            '$and' : [
-                                {'segment_tags.segment_tag' : segment.strip()},
-                                {'segment_tags.status' : 'active'}
-                            ]
-                        
-                        }
-                    )
-                query_and.append(
-                {
-                    "$or" :seg_queries
-                })
+        query = {"account_id": account_id}
         
-        results_cursor = tbl_profiles._get_collection().find({'$and' : query_and}).skip(cursor).limit(100)
-        total = tbl_profiles._get_collection().find({'$and' : query_and}).count()
-        raw_res = json.loads(dumps(list(results_cursor), indent = 2))
+        if rfm_values:
+            query["rfm_score"] = {"$gt": rfm_values[0], "$lt": rfm_values[1]}
+        
+        if churn_prob:
+            query["churn_probability"] = churn_prob
+        
+        if segments:
+            if len(segments) == 1:
+                query["segment_tags.segment_tag"] = segments[0]
+                query["segment_tags.status"] = "active"
+            else:
+                query["$or"] = [
+                    {"$and": [{"segment_tags.segment_tag": seg}, {"segment_tags.status": "active"}]}
+                    for seg in segments
+                ]
+        
+        total = await self.profiles_collection.count_documents(query)
+        cursor = self.profiles_collection.find(query).skip(cursor).limit(100)
+        profiles = []
+        async for profile in cursor:
+            profile['profile_id'] = str(profile['_id'])
+            await self._format_profile(profile, tag_statuses=['active'])
+            profiles.append(profile)
+        
+        return profiles, total
 
-        #format profiles
-        for profile in raw_res:
-            profile['profile_id'] = profile['_id']
-            _format_profile(profile, tag_statuses=['active'])
-
-        return raw_res, total
-
-    def get_all_profiles(self, account_id : str, tag_statuses : list, cursor : int = None, ids : bool = None, status : str = 'active', limit : int = 100, internal : bool = False) -> Union[list, int]:
+    async def get_all_profiles(self, account_id: str, tag_statuses: list, cursor: int = None, ids: bool = None, status: str = 'active', limit: int = 100, internal: bool = False) -> tuple:
         """
         A method used to return all profiles associated with specified account
 
@@ -238,31 +205,21 @@ class _ProfilesRepository(ProfilesInterface):
         or
         results : list, int
         """
-        found_profiles = []
-        if ids:
-            profile_ids =  tbl_profiles._get_collection().find({
-                "account_id" : { "$eq" : account_id},
-                "status" : { "$eq" : status}
-            },{"_id":1}).skip(cursor).limit(limit)
-            #format profiles
-            for profile in profile_ids:
-                #profile_dict = dumps(list(profile_ids), indent = 2)
-                profile['profile_id'] = profile['_id']
-                _format_profile(profile, tag_statuses=tag_statuses, internal = internal)
-                found_profiles.append(profile)
-        else:
-            profiles = tbl_profiles.objects(account_id__exact=account_id, status__exact=status).skip(cursor).limit(limit)
-            #format profiles
-            for profile in profiles:
-                profile_dict = json.loads(profile.to_json())
-                profile_dict['profile_id'] = profile_dict['_id']
-                _format_profile(profile_dict, tag_statuses=tag_statuses,  internal = internal)
-                found_profiles.append(profile_dict)
+        query = {"account_id": account_id, "status": status}
+        projection = {"_id": 1} if ids else None
+        
+        total = await self.profiles_collection.count_documents(query)
+        cursor = self.profiles_collection.find(query, projection).skip(cursor).limit(limit)
+        
+        profiles = []
+        async for profile in cursor:
+            profile['profile_id'] = str(profile['_id'])
+            await self._format_profile(profile, tag_statuses=tag_statuses, internal=internal)
+            profiles.append(profile)
+        
+        return profiles, total
 
-        total = tbl_profiles.objects(account_id__exact=account_id, status__exact=status).count()    
-        return found_profiles, total
-
-    def get_merged_profiles(self, account_id : str, identifiers : list) -> list:
+    async def get_merged_profiles(self, account_id: str, identifiers: list) -> list:
         """
         Parameters
         ----------
@@ -275,190 +232,91 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         merged_profiles : list
         """
-        merged_profiles = list()
-        queries_idxs = list()
-        queries = [{
-            '$facet' : {
-
-            }
-        }]
-
-        for idx, i in enumerate(identifiers): 
-            queries[0]['$facet']['query'+str(idx)] = [
-                {'$match' : 
-                    { 
-                        '$and' : [
-                            {"account_id" : { "$eq" : account_id}},
-                            {'$or' : [
-                                    {"merged_profiles.profile_id" : { "$eq" : i}},
-                                    {"merged_profiles.customer_id" : { "$eq" : i}},
-                                    {"parent_profile_id" : { "$eq" : i}},
-                                    {"parent_customer_id" : { "$eq" : i}}
-                            ]}
-                        ] 
-                    }
-                },
-                { '$sort' : { 'created_at' : -1 } },
-                { '$limit' : 1 }
-            ]
-            queries_idxs.append('query'+str(idx))
-
-        results = tbl_merged_profiles._get_collection().aggregate(queries)
-        try:
-            results_dicts = json.loads(dumps(results))[0]
-        except KeyError:
-            return merged_profiles
-
-        for q in queries_idxs:
-            try:
-                merged_profiles.append(
-                    {
-                        'merged_profiles' : results_dicts[q][0]['merged_profiles'],
-                        'parent_profile_id' : results_dicts[q][0]['parent_profile_id'],
-                        'parent_customer_id' : results_dicts[q][0]['parent_customer_id'], 
-                        'authenticated_id_key' : results_dicts[q][0]['authenticated_id_key'], 
-                        'authenticated_id_value' : results_dicts[q][0]['authenticated_id_value'],
-                        'merged_at' : int_to_dt(results_dicts[q][0]['created_at']['$date'] , as_str=True)
-                    }
-                )
-            except IndexError:
-                continue
-
+        pipeline = []
+        for idx, identifier in enumerate(identifiers):
+            pipeline.append({
+                '$match': {
+                    '$and': [
+                        {"account_id": account_id},
+                        {'$or': [
+                            {"merged_profiles.profile_id": identifier},
+                            {"merged_profiles.customer_id": identifier},
+                            {"parent_profile_id": identifier},
+                            {"parent_customer_id": identifier}
+                        ]}
+                    ]
+                }
+            })
+            pipeline.extend([{'$sort': {'created_at': -1}}, {'$limit': 1}])
+        
+        results = await self.merged_profiles_collection.aggregate(pipeline).to_list(None)
+        merged_profiles = []
+        for res in results:
+            merged_profiles.append({
+                'merged_profiles': res.get('merged_profiles', []),
+                'parent_profile_id': res.get('parent_profile_id'),
+                'parent_customer_id': res.get('parent_customer_id'),
+                'authenticated_id_key': res.get('authenticated_id_key'),
+                'authenticated_id_value': res.get('authenticated_id_value'),
+                'merged_at': int_to_dt(res['created_at']['$date'], as_str=True) if 'created_at' in res else None
+            })
+        
         return merged_profiles
-        
-    # def create_profiles(self, profiles_batch : list) -> Union[list, list]:
-    #     """
-    #     Parameters
-    #     ----------
-    #     profiles_batch : List
-    #         list of profile object dictonaries (valid profile objects)
 
-    #     Returns
-    #     ----------
-    #     created_profiles, failed_to_create profiles
-    #     """
-    #     profile_instances = []
-    #     customer_ids = []
-    #     for profile in profiles_batch:
-    #         profile_instances.append(
-    #             tbl_profiles(
-    #                 profile_id=profile['profile_id'],
-    #                 customer_id=profile['customer_id'],
-    #                 account_id=profile['account_id'],
-    #                 profile_data=profile['profile_data'],
-    #                 platform_info=profile['platform_info'],
-    #                 has_charged=profile['has_charged']
-    #             )
-    #         )
-    #         customer_ids.append(profile['customer_id'])
-
-    #     #BULK WRITE OPERATION
-    #     invalid=[]
-    #     bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
-    #     for profile in profile_instances:
-    #         bulk_operation.insert(profile.to_mongo())
-    #     try:
-    #         bulk_operation.execute()
-    #     except BulkWriteError as bwe:
-    #         for err in bwe.details['writeErrors']:
-    #             invalid.append(err['op'].to_dict()['customer_id'])
-
-    #     valid = list(set(customer_ids) - set(invalid))
-
-    #     failed_to_create=[]
-    #     for in_ in invalid:
-    #         failed_to_create.append(
-    #             {
-    #                 'customer_id': in_,
-    #                 'error_message' : f'Another profile exists with provided customer_id : {in_}'
-    #             }
-    #         )
-    #     created_profiles=[]
-    #     for v in valid:
-    #         profile=next((d for i,d in enumerate(profiles_batch) if v == d['customer_id']),None)
-    #         if profile:
-    #             profile.pop('account_id', None)
-    #             created_profiles.append(profile)
-        
-    #     return created_profiles, failed_to_create
-
-    def create_profiles(self, profiles_batch: List[dict]) -> Tuple[List[dict], List[dict]]:
+    async def create_profiles(self, profiles_batch: list) -> tuple:
         """
         Parameters
         ----------
         profiles_batch : List
-            list of profile object dictionaries (valid profile objects)
+            list of profile object dictonaries (valid profile objects)
 
         Returns
         ----------
         created_profiles, failed_to_create profiles
         """
-        profile_instances = []
+        operations = []
         customer_ids = []
         
-        # Create profile instances
         for profile in profiles_batch:
-            profile_instances.append(
-                tbl_profiles(
-                    profile_id=profile['profile_id'],
-                    customer_id=profile['customer_id'],
-                    account_id=profile['account_id'],
-                    profile_data=profile['profile_data'],
-                    platform_info=profile['platform_info'],
-                    has_charged=profile['has_charged']
-                )
-            )
+            profile_doc = {
+                "_id": profile['profile_id'],
+                "customer_id": profile['customer_id'],
+                "account_id": profile['account_id'],
+                "profile_data": profile['profile_data'],
+                "platform_info": profile['platform_info'],
+                "has_charged": profile['has_charged'],
+                "created_at": dt.utcnow()
+            }
+            operations.append(InsertOne(profile_doc))
             customer_ids.append(profile['customer_id'])
-
-        # BULK WRITE OPERATION - Modern PyMongo approach
-        invalid = []
-        collection = tbl_profiles._get_collection()
         
-        # Prepare bulk operations
-        bulk_operations = []
-        for profile in profile_instances:
-            bulk_operations.append(InsertOne(profile.to_mongo()))
-        
-        # Execute bulk write
         try:
-            if bulk_operations:  # Only execute if we have operations
-                result = collection.bulk_write(bulk_operations, ordered=False)
+            result = await self.profiles_collection.bulk_write(operations, ordered=False)
+            created_count = result.inserted_count
         except BulkWriteError as bwe:
-            # Handle bulk write errors
-            for err in bwe.details['writeErrors']:
-                # Extract customer_id from the failed document
-                failed_doc = err['op']
-                if hasattr(failed_doc, 'to_dict'):
-                    invalid.append(failed_doc.to_dict()['customer_id'])
-                else:
-                    # If it's already a dict (InsertOne document)
-                    invalid.append(failed_doc['customer_id'])
-
-        # Determine valid customer IDs (successfully created)
+            created_count = bwe.details['nInserted']
+            invalid = [err['op']['customer_id'] for err in bwe.details['writeErrors']]
+        else:
+            invalid = []
+        
         valid = list(set(customer_ids) - set(invalid))
-
-        # Build failed_to_create list
         failed_to_create = []
-        for invalid_id in invalid:
+        for inv in invalid:
             failed_to_create.append({
-                'customer_id': invalid_id,
-                'error_message': f'Another profile exists with provided customer_id : {invalid_id}'
+                'customer_id': inv,
+                'error_message': f'Another profile exists with provided customer_id: {inv}'
             })
         
-        # Build created_profiles list
         created_profiles = []
-        for valid_id in valid:
-            profile = next((d for d in profiles_batch if valid_id == d['customer_id']), None)
-            if profile:
-                # Create a copy to avoid modifying the original
-                profile_copy = profile.copy()
-                profile_copy.pop('account_id', None)
-                created_profiles.append(profile_copy)
-    
+        for prof in profiles_batch:
+            if prof['customer_id'] in valid:
+                created = prof.copy()
+                created.pop('account_id', None)
+                created_profiles.append(created)
+        
         return created_profiles, failed_to_create
-    
-    
-    async def update_profiles(self, profiles_batch : list, internal : bool) -> Union[list, list]:
+
+    async def update_profiles(self, profiles_batch: list, internal: bool) -> tuple:
         """
         Parameters
         ----------
@@ -473,101 +331,91 @@ class _ProfilesRepository(ProfilesInterface):
         updated profiles : list
         not found / invalid profiles: list
         """
-
         updated_profiles = []
-        failed_to_update=[]
-        not_existing_profiles = []
-        profile_ids = [] # provided profile ids array
-
-        # determine valid profiles
-        for profile in profiles_batch:
-            if profile['profile_id'] in profile_ids:
-                raise OctyException(400,'An error occurred when validating request.', [{'error_message' : f'Identical profile identifers supplied. Found duplicate profile_id : {profile["profile_id"]}', 
-                'extended_help': Config['PROFILES_EXTENDED_HELP']}])
-            profile_ids.append(profile['profile_id'])
-
-        profiles = json.loads(tbl_profiles.objects(profile_id__in=profile_ids, account_id__exact=profiles_batch[0]['account_id']).to_json())
-        if not profiles:
-            for profile in profiles_batch:
-                failed_to_update.append(
-                    {
-                        'profile_id' : profile['profile_id'],
-                        'error_message' : f'No profile found with profile_id : {profile["profile_id"]}'
-                    }
-                )
-            return updated_profiles, failed_to_update
-     
-        for p in profile_ids:
-            exists=next((key for key in profiles if key['_id'] == p), None)
-            if not exists:
-                customer=next((key for key in profiles_batch if key['profile_id'] == p), None)
-                not_existing_profiles.append(customer['customer_id'])
-                failed_to_update.append(
-                    {
-                        'profile_id': p,
-                        'error_message' : f'No profile exists with provided profile_id : {p}'
-                    }
-                )
-
-        #BULK UPDATE OPERATION
-        bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
-        for p in profiles:
-            profiles_batch_obj = next(key for key in profiles_batch if key['profile_id'] == p['_id'])
-
-            # build update dict
-            set_dict = DictConditional(lambda x: x != None)
-            set_dict['_id'] = profiles_batch_obj['profile_id']
-            set_dict['customer_id'] = profiles_batch_obj['customer_id'] if profiles_batch_obj['customer_id'] != None else p['customer_id']
-            set_dict['profile_data'] = profiles_batch_obj['profile_data'] if profiles_batch_obj['profile_data'] != None else p['profile_data']
-            set_dict['platform_info'] = profiles_batch_obj['platform_info'] if profiles_batch_obj['platform_info'] != None else p['platform_info']
-            set_dict['has_charged'] = profiles_batch_obj['has_charged'] if profiles_batch_obj['has_charged'] != None else p['has_charged']
-            set_dict['status'] = profiles_batch_obj['status'] if profiles_batch_obj['status'] != None else p['status']
-            set_dict['updated_at'] = dt.now()
-            if internal:
-                set_dict['rfm_score'] = profiles_batch_obj['rfm_score'] if profiles_batch_obj['rfm_score'] != None else p['rfm_score']
-                set_dict['rfm_segment_desc'] = profiles_batch_obj['rfm_segment_desc'] if profiles_batch_obj['rfm_segment_desc'] != None else p['rfm_segment_desc']
-                set_dict['churn_probability'] = profiles_batch_obj['churn_probability'] if profiles_batch_obj['churn_probability'] != None else p['churn_probability']
-                set_dict['ltv_prediction'] = profiles_batch_obj['ltv_prediction'] if profiles_batch_obj['ltv_prediction'] != None else p['ltv_prediction']
-                set_dict['current_ltv'] = profiles_batch_obj['current_ltv'] if profiles_batch_obj['current_ltv'] != None else p['current_ltv']
-                set_dict['segment_tags'] = _format_segment_tags(profiles_batch_obj['segment_tags'], p['segment_tags']) if profiles_batch_obj['segment_tags'] != None else _format_segment_tags(p['segment_tags'], p['segment_tags'], tags_updated=False)
-
-            bulk_operation.find({
-                '$and' : [
-                    {"_id" : { "$eq" : p['_id']}},
-                    {"account_id" : { "$eq" : p['account_id']}}
-                ]
-            }).update(
-                {
-                    "$set" : set_dict
-                }
-            )
-
-            # append updated profile to return array
-            profiles_batch_obj['created_at'] = p['created_at']
-            profiles_batch_obj['updated_at'] = dt.now()
-            updated_profiles.append(_format_profile(profiles_batch_obj, tag_statuses=['active'], internal=internal))
+        failed_to_update = []
+        profile_ids = [p['profile_id'] for p in profiles_batch]
         
+        # Find existing profiles
+        existing_profiles = {}
+        cursor = self.profiles_collection.find({"_id": {"$in": profile_ids}})
+        async for profile in cursor:
+            existing_profiles[profile['_id']] = profile
+        
+        # Prepare bulk operations
+        operations = []
+        for profile in profiles_batch:
+            existing = existing_profiles.get(profile['profile_id'])
+            if not existing:
+                failed_to_update.append({
+                    'profile_id': profile['profile_id'],
+                    'error_message': f'No profile found with profile_id: {profile["profile_id"]}'
+                })
+                continue
+            
+            update_data = {
+                "updated_at": dt.utcnow()
+            }
+            
+            # Update basic fields
+            if profile.get('customer_id') is not None:
+                update_data['customer_id'] = profile['customer_id']
+            if profile.get('profile_data') is not None:
+                update_data['profile_data'] = profile['profile_data']
+            if profile.get('platform_info') is not None:
+                update_data['platform_info'] = profile['platform_info']
+            if profile.get('has_charged') is not None:
+                update_data['has_charged'] = profile['has_charged']
+            if profile.get('status') is not None:
+                update_data['status'] = profile['status']
+            
+            # Update internal fields
+            if internal:
+                if profile.get('rfm_score') is not None:
+                    update_data['rfm_score'] = profile['rfm_score']
+                if profile.get('rfm_segment_desc') is not None:
+                    update_data['rfm_segment_desc'] = profile['rfm_segment_desc']
+                if profile.get('churn_probability') is not None:
+                    update_data['churn_probability'] = profile['churn_probability']
+                if profile.get('ltv_prediction') is not None:
+                    update_data['ltv_prediction'] = profile['ltv_prediction']
+                if profile.get('current_ltv') is not None:
+                    update_data['current_ltv'] = profile['current_ltv']
+                if profile.get('segment_tags') is not None:
+                    update_data['segment_tags'] = await self._format_segment_tags(
+                        profile['segment_tags'], 
+                        existing.get('segment_tags', [])
+                    )
+            
+            operations.append(
+                UpdateOne(
+                    {"_id": profile['profile_id'], "account_id": existing['account_id']},
+                    {"$set": update_data}
+                )
+            )
+            
+            # Prepare response object
+            updated = existing.copy()
+            updated.update(update_data)
+            updated['profile_id'] = str(updated['_id'])
+            await self._format_profile(updated, tag_statuses=['active'], internal=internal)
+            updated_profiles.append(updated)
+        
+        # Execute bulk operations
         try:
-            bulk_operation.execute()
+            await self.profiles_collection.bulk_write(operations, ordered=False)
         except BulkWriteError as bwe:
             for err in bwe.details['writeErrors']:
-                if err['code'] == 11000:
-                    mes = f"Another profile exists with provided customer_id : {err['op']['u']['$set']['customer_id']}"
-                else:
-                    mes = f"Unknown error occurred when updating profile with customer_id : {err['op']['u']['$set']['customer_id']}"
+                profile_id = err['op']['q']['_id']
                 failed_to_update.append({
-                        'profile_id' : err['op']['u']['$set']['profile_id'],
-                        'customer_id':  err['op']['u']['$set']['customer_id'],
-                        'error_message' : mes
-                    })
-
-
-                updated_profiles = list(filter(lambda i : i['profile_id'] != err['op']['u']['$set']['profile_id'], updated_profiles))
-
-
+                    'profile_id': profile_id,
+                    'error_message': f'Update failed: {err["errmsg"]}'
+                })
+                # Remove from updated list
+                updated_profiles = [p for p in updated_profiles if p['profile_id'] != profile_id]
+        
         return updated_profiles, failed_to_update
 
-    async def delete_profiles(self, profiles_batch : list) -> Union[list, list]:
+    async def delete_profiles(self, profiles_batch: list) -> tuple:
         """
         Parameters
         ----------
@@ -579,57 +427,44 @@ class _ProfilesRepository(ProfilesInterface):
         deleted_profiles : list
         failed_to_delete : list
         """
-        deleted_profiles=[]
-        failed_to_delete=[]
-        profile_ids=[]
-
-        for profile in profiles_batch:
-            profile_ids.append(profile['profile_id'])
-
-
-        profiles = json.loads(tbl_profiles.objects(profile_id__in=profile_ids, account_id__exact=profiles_batch[0]['account_id']).to_json())
-        if not profiles:
-            for profile in profiles_batch:
-                failed_to_delete.append(
-                    {
-                        'profile_id' : profile['profile_id'],
-                        'error_message' : f'No profile found with profile_id : {profile["profile_id"]}'
-                    }
-                )
-            return deleted_profiles, failed_to_delete
-
+        deleted_profiles = []
+        failed_to_delete = []
+        profile_ids = [p['profile_id'] for p in profiles_batch]
         
+        # Find existing profiles
+        existing_profiles = {}
+        cursor = self.profiles_collection.find({"_id": {"$in": profile_ids}})
+        async for profile in cursor:
+            existing_profiles[profile['_id']] = profile
         
-        bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
+        # Prepare operations
+        operations = []
         for profile in profiles_batch:
-            p_object=next((key for key in profiles if key['_id'] == profile['profile_id'] and key['account_id'] == profile['account_id']), None)
-            if p_object:
-                deleted_profiles.append(
-                    {
-                        'profile_id': p_object['_id'],
-                        'customer_id': p_object['customer_id']
-                    }
-                )
-            else:
-                failed_to_delete.append(
-                    {
-                        'profile_id' : profile['profile_id'],
-                        'error_message' : f'No profile found with profile_id : {profile["profile_id"]}'
-                    }
-                )
-
-            bulk_operation.find({
-                '$and' : [
-                    {  "_id" : { "$eq" : profile['profile_id'] }  },
-                    {  "account_id" : { "$eq" : profile['account_id'] }  }
-                ]
-            }).remove()
-
-        bulk_operation.execute()
-
+            if profile['profile_id'] not in existing_profiles:
+                failed_to_delete.append({
+                    'profile_id': profile['profile_id'],
+                    'error_message': f'No profile found with profile_id: {profile["profile_id"]}'
+                })
+                continue
+            
+            operations.append(
+                DeleteOne({
+                    "_id": profile['profile_id'],
+                    "account_id": profile['account_id']
+                })
+            )
+            deleted_profiles.append({
+                'profile_id': profile['profile_id'],
+                'customer_id': existing_profiles[profile['profile_id']]['customer_id']
+            })
+        
+        # Execute operations
+        if operations:
+            await self.profiles_collection.bulk_write(operations, ordered=False)
+        
         return deleted_profiles, failed_to_delete
 
-    async def update_delete_segment_tags(self, account_id : str, segment_ids : list, action : str) -> None: 
+    async def update_delete_segment_tags(self, account_id: str, segment_ids: list, action: str) -> None:
         """
         Either update the status of tags to 'pending_deletion' or 
         delete all segment tags in provided list. This is used when segment definitions are deleted.
@@ -646,39 +481,34 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         None
         """
-
         if action == 'update':
-            #BULK UPDATE OPERATION
-            bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
-
+            operations = []
             for seg in segment_ids:
-                # find all segment tags in profiles and update status to 'pending deletion'
-
-                bulk_operation.find({
-                    '$and' : [
-                        {"account_id" : { "$eq" : account_id} },
-                        {"segment_tags.segment_id" : { "$eq" : seg.segment_id} }
-                    ]
-                }).update(
-                    {
-                        "$set" : 
-                            {   
-                                "segment_tags.$.status":"pending_deletion",
-                                "segment_tags.$.updated_at":dt.now()
+                operations.append(
+                    UpdateMany(
+                        {
+                            "account_id": account_id,
+                            "segment_tags.segment_id": seg['segment_id']
+                        },
+                        {
+                            "$set": {
+                                "segment_tags.$.status": "pending_deletion",
+                                "segment_tags.$.updated_at": dt.utcnow()
                             }
-                    }
+                        }
+                    )
                 )
-            try:
-                bulk_operation.execute()
-            except Exception as e:
-                raise Exception(f"[toxic]:: {e}")
-
+            if operations:
+                await self.profiles_collection.bulk_write(operations)
+        
         elif action == 'delete':
             for seg in segment_ids:
-                tbl_profiles.objects(account_id__exact=account_id, segment_tags__segment_id__exact=seg.segment_id).update(pull__segment_tags__segment_id=seg.segment_id)
-            
-    # delete all profiles and merged profiles for an account from database and cache
-    async def delete_all_profiles(self, account_id : str) -> bool:
+                await self.profiles_collection.update_many(
+                    {"account_id": account_id},
+                    {"$pull": {"segment_tags": {"segment_id": seg['segment_id']}}}
+                )
+
+    async def delete_all_profiles(self, account_id: str) -> bool:
         """
         Parameters
         ----------
@@ -690,17 +520,15 @@ class _ProfilesRepository(ProfilesInterface):
         bool
         """
         try:
-            tbl_profiles.objects(account_id__exact=account_id).delete()
-            tbl_merged_profiles.objects(account_id__exact=account_id).delete()
-            ctx.redis_conn.delete(f'{account_id}_profile_key_types')
+            await self.profiles_collection.delete_many({"account_id": account_id})
+            await self.merged_profiles_collection.delete_many({"account_id": account_id})
+            await ctx.redis_conn.delete(f'{account_id}_profile_key_types')
             return True
         except Exception as e:
-            raise Exception(f"[toxic]:: {e}")
+            raise Exception(f"Error deleting profiles: {str(e)}")
 
-    # Single segment tag operations.
-    async def create_segment_tags(self, account_id : str, profile_id : str, segment_tags : list) -> None:
+    async def create_segment_tags(self, account_id: str, profile_id: str, segment_tags: list) -> None:
         """
-
         Parameters
         ----------
         account_id : str
@@ -714,34 +542,30 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         None
         """
-        #TODO: add safeguard here to ensure duplicate tags are not added to a profile
-        bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
+        operations = []
         for seg in segment_tags:
-    
-            bulk_operation.find({
-                '$and' : [
-                    {"account_id" : { "$eq" : account_id} },
-                    {"_id" : { "$eq" : profile_id} }
-                ]
-            }).update(
-                {
-                    "$push" : 
-                        {   
+            operations.append(
+                UpdateOne(
+                    {
+                        "_id": profile_id,
+                        "account_id": account_id
+                    },
+                    {
+                        "$push": {
                             "segment_tags": {
-                                "segment_id" : seg['segment_id'],
-                                "segment_tag" : seg['segment_tag'],
-                                "status" : seg['status'],
-                                "created_at" : dt.now()
+                                "segment_id": seg['segment_id'],
+                                "segment_tag": seg['segment_tag'],
+                                "status": seg['status'],
+                                "created_at": dt.utcnow()
                             }
                         }
-                }
+                    }
+                )
             )
-        try:
-            bulk_operation.execute()
-        except Exception as e:
-            raise Exception(f"[toxic]:: {e}")
+        if operations:
+            await self.profiles_collection.bulk_write(operations)
 
-    async def update_segment_tags(self, account_id : str, profile_id : str, segment_tags : list) -> None:
+    async def update_segment_tags(self, account_id: str, profile_id: str, segment_tags: list) -> None:
         """
         Parameters
         ----------
@@ -756,18 +580,17 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         None
         """
-        profile = tbl_profiles.objects( ( Q(profile_id__exact=profile_id) & Q(account_id__exact=account_id) )).first()
-        if profile:
-            for segment_tag in segment_tags:
-                for tag in profile.segment_tags:
-                    if tag.segment_id != segment_tag['segment_id']:
-                        continue
-                    if tag.status == 'pending_deletion' or tag.status == 'inactive':
-                        continue
-                    tag.status = segment_tag['status']
-            profile.save()
+        await self.profiles_collection.update_one(
+            {"_id": profile_id, "account_id": account_id},
+            {
+                "$set": {
+                    "segment_tags": segment_tags,
+                    "updated_at": dt.now(tz.utc)
+                }
+            }
+        )
 
-    async def delete_segment_tags(self, account_id : str, profile_id : str, segment_tags : list) -> None:
+    async def delete_segment_tags(self, account_id: str, profile_id: str, segment_tags: list) -> None:
         """
         Parameters
         ----------
@@ -782,31 +605,17 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         None
         """
-
-        bulk_operation = tbl_profiles._get_collection().initialize_unordered_bulk_op()
-        for seg in segment_tags:
-
-            bulk_operation.find({
-                '$and' : [
-                    {"account_id" : { "$eq" : account_id} },
-                    {"_id" : { "$eq" : profile_id} }
-                ]
-            }).update(
-                {
-                    "$pull" : {   
-                        "segment_tags" : { 
-                            "segment_id" : seg['segment_id']
-                        } 
-                    }
+        segment_ids = [seg['segment_id'] for seg in segment_tags]
+        await self.profiles_collection.update_one(
+            {"_id": profile_id, "account_id": account_id},
+            {
+                "$pull": {
+                    "segment_tags": {"segment_id": {"$in": segment_ids}}
                 }
-            )
-        try:
-            bulk_operation.execute()
-        except Exception as e:
-            raise Exception(f"[toxic]:: {e}")
-        #, "status" :"pending_deletion"
-            
-    def set_profile_key_type(self, account_id : str, profile_key_type : dict) -> None:
+            }
+        )
+
+    async def set_profile_key_type(self, account_id: str, profile_key_type: dict) -> None:
         """
         Parameters
         ----------
@@ -819,9 +628,9 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         None
         """
-        ctx.redis_conn.sadd(f'{account_id}_profile_key_types', json.dumps(profile_key_type))
+        await ctx.redis_conn.sadd(f'{account_id}_profile_key_types', json.dumps(profile_key_type))
 
-    def get_profile_key_types(self, account_id : str) -> list:
+    async def get_profile_key_types(self, account_id: str) -> list:
         """
         Parameters
         ----------
@@ -832,112 +641,63 @@ class _ProfilesRepository(ProfilesInterface):
         ----------
         list
         """
-        profile_key_types = json.loads(json.dumps([json.loads(s) for s in 
-            list(ctx.redis_conn.smembers(f'{account_id}_profile_key_types'))]))
-        return profile_key_types
+        keys = await ctx.redis_conn.smembers(f'{account_id}_profile_key_types')
+        return [json.loads(key) for key in keys]
+
+    async def _format_profile(self, profile: dict, tag_statuses: list, internal: bool = False) -> dict:
+        """
+          Format profile return objects
+        """
     
-def _format_profile(profile : dict, tag_statuses : list, internal : bool = False) -> dict:
-    '''
-        Format profile return objects
-    '''
-    
-    profile.pop('_id', None)
-    profile.pop('account_id', None)
-    profile.pop('ltv_prediction', None)
-    profile.pop('current_ltv', None)
-
-    # Format segment tags 
-    if internal:
-        try:
-            # Filter segment tags, based on status, returned with each profile.
-            # DO NOT remove tag attributes
-            valid_tags = []
-            for tag in profile['segment_tags']:
-                if tag['status'] not in tag_statuses:
-                    continue
-                valid_tags.append(tag)
-            profile['segment_tags'] = valid_tags
-        except Exception: pass
-
-    else:
-        try:
-            # Filter segment tags, based on status, returned with each profile.
-            # Remove un-needed tag attributes. 
-            valid_tags = []
-            for tag in profile['segment_tags']:
-                if tag['status'] not in tag_statuses:
-                    continue
-                tag.pop('segment_id', None)
-                tag.pop('status', None)
-                tag.pop('updated_at', None)
-                tag['created_at'] = int_to_dt(tag['created_at']['$date'], as_str=True)
-                valid_tags.append(tag)
-            profile['segment_tags'] = valid_tags
-        except Exception: pass
-
-    try:
-        profile['created_at'] = int_to_dt(profile['created_at']['$date'], as_str=True) if profile['created_at'] != None else None
-        try:
-            profile['updated_at'] = int_to_dt(profile['updated_at']['$date'], as_str=True) if profile['updated_at'] != None else None
-        except TypeError:
-            profile['updated_at'] = profile['updated_at'].strftime('%a, %d %b %Y %H:%M:%S GMT')
-    except KeyError:
-        pass
-
-    return profile
-
-def _format_segment_tags(profile_segment_tags , current_segment_tags, tags_updated=True) -> list:
-    '''
-        Updating profile segment tags
-    '''
-    # format segment tags
-    if profile_segment_tags != None:
-        if current_segment_tags ==None:
-            current_segment_tags = []
+        if '_id' in profile:
+            profile['profile_id'] = str(profile['_id'])
+            del profile['_id']
         
-        for tag in profile_segment_tags:
-            try:
-                exists=next((key for key in current_segment_tags if key['segment_id'] == tag.segment_id), None)
-            except AttributeError:
-                exists=next((key for key in current_segment_tags if key['segment_id'] == tag['segment_id']), None)
-            if not exists:
-                try:
-                    current_segment_tags.append(
-                        {
-                            'segment_id' : tag.segment_id, 
-                            'segment_tag' : tag.segment_tag,
-                            'status' : tag.status if tag.status else 'active',
-                            'created_at' : dt.now(),
-                            'updated_at' : None
-                        }
-                    )
-                except AttributeError:
-                    current_segment_tags.append(
-                        {
-                            'segment_id' : tag['segment_id'], 
-                            'segment_tag' : tag['segment_tag'],
-                            'status' : tag['status'] if tag['status'] else 'active',
-                            'created_at' : dt.now(),
-                            'updated_at' : None
-                        }
-                    )
+        if 'account_id' in profile:
+            del profile['account_id']
+        
+        if not internal:
+            profile.pop('ltv_prediction', None)
+            profile.pop('current_ltv', None)
+        
+        # Format segment tags
+        if 'segment_tags' in profile:
+            valid_tags = []
+            for tag in profile['segment_tags']:
+                if tag.get('status') not in tag_statuses:
+                    continue
+                if not internal:
+                    tag.pop('segment_id', None)
+                    tag.pop('status', None)
+                    tag.pop('updated_at', None)
+                    if 'created_at' in tag and isinstance(tag['created_at'], dict):
+                        tag['created_at'] = int_to_dt(tag['created_at']['$date'], as_str=True)
+                valid_tags.append(tag)
+            profile['segment_tags'] = valid_tags
+        
+        # Format dates
+        if 'created_at' in profile and isinstance(profile['created_at'], dict):
+            profile['created_at'] = int_to_dt(profile['created_at']['$date'], as_str=True)
+        if 'updated_at' in profile and isinstance(profile['updated_at'], dict):
+            profile['updated_at'] = int_to_dt(profile['updated_at']['$date'], as_str=True)
+        
+        return profile
 
+    async def _format_segment_tags(self, new_tags: list, existing_tags: list) -> list:
+        """
+          Updating profile segment tags
+        """
+        formatted = existing_tags.copy()
+        for tag in new_tags:
+            found = next((t for t in formatted if t.get('segment_id') == tag.get('segment_id')), None)
+            if found:
+                found.update(tag)
+                found['updated_at'] = dt.utcnow()
             else:
-                if tags_updated:
-                    exists['updated_at'] = dt.now()
-                try:
-                    exists['created_at'] = int_to_dt(exists['created_at']['$date'], as_str=False)
-                except TypeError:
-                    pass
-                try:
-                    exists['status'] = tag.status
-                except AttributeError:
-                    exists['status'] = tag['status']
+                tag['created_at'] = dt.utcnow()
+                formatted.append(tag)
+        return formatted
 
-    else:
-        return []
-    
-    return current_segment_tags
 
 
 

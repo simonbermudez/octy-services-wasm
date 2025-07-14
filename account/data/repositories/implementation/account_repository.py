@@ -13,10 +13,11 @@ import json
 from datetime import datetime as dt
 
 # external imports
-from mongoengine.errors import NotUniqueError, DoesNotExist
+from bson import ObjectId
+from typing import Union
+from datetime import datetime as dt
 from argon2 import PasswordHasher
-from mongoengine.queryset.visitor import Q
-
+import json
 
 class _AccountRepository(AccountInterface):
     """
@@ -30,10 +31,10 @@ class _AccountRepository(AccountInterface):
         ----------
         none
     """
-    def __init__(self): pass
+    def __init__(self):
+        self.collection = lambda: ctx.contextManager.db["tbl_accounts"]
 
-    #Implemented By Munashe
-    def get_account_by_account_id(self, account_id : str) -> object:
+    async def get_account_by_account_id(self, account_id: str) -> dict:
         """
             A method used to get an Octy account
 
@@ -46,10 +47,9 @@ class _AccountRepository(AccountInterface):
             ----------
             tbl_account object : Mongo Document object/ dict
         """
-        return tbl_accounts.objects(account_id=account_id).first()   
+        return await self.collection().find_one({"account_id": account_id})
 
-
-    def create_account(self, account, bucket : str) -> Union[object, str]:
+    async def create_account(self, account, bucket: str) -> tuple[dict, str]:
         """
             A method used to create an Octy account in a mongoDB instance
 
@@ -66,95 +66,70 @@ class _AccountRepository(AccountInterface):
             New tbl_account object : object
             Secret key : str
         """
-        # Argon2 hash secret key
         ph = PasswordHasher()
         secret_key = generate_uid('sk')
         pk = generate_uid('pk')
-        keys = Keys(
-            public_key = pk,
-            secret_key = ph.hash(secret_key)
-        )
 
-        # check if account contains authenticated_id_key and set it if it does 
-        if account.authenticated_id_key is not None:
-            account_configurations = AccountConfigurations(
-            account_type=account.account_type,
-            account_currency = account.account_currency,
-            contact_name = account.contact_name,
-            contact_surname = account.contact_surname,
-            contact_email_address = account.contact_email_address,
-            webhook_url = account.webhook_url,
-            authenticated_id_key = account.authenticated_id_key,
-            limits = [Config['RESOURCE_LIMITS'][account.account_type]]
-                )
-        else:
-            account_configurations = AccountConfigurations(
-            account_type=account.account_type,
-            account_currency = account.account_currency,
-            contact_name = account.contact_name,
-            contact_surname = account.contact_surname,
-            contact_email_address = account.contact_email_address,
-            webhook_url = account.webhook_url,
-            limits = [Config['RESOURCE_LIMITS'][account.account_type]]
-        )
+        keys = {
+            "public_key": pk,
+            "secret_key": ph.hash(secret_key)
+        }
 
-        # create algorithm configs base models for each required configuration
-        rec_algorithm_configs = AlgorithmConfigurations(
-            algorithm_name = 'rec',
-            config_json = {}
-        )
-        churn_algorithm_configs = AlgorithmConfigurations(
-            algorithm_name = 'churn',
-            config_json = {}
-        )
+        account_configurations = {
+            "account_type": account.account_type,
+            "account_currency": account.account_currency,
+            "contact_name": account.contact_name,
+            "contact_surname": account.contact_surname,
+            "contact_email_address": account.contact_email_address,
+            "webhook_url": account.webhook_url,
+            "authenticated_id_key": account.authenticated_id_key if account.authenticated_id_key else None,
+            "limits": [Config["RESOURCE_LIMITS"][account.account_type]]
+        }
 
-        account_id=generate_uid('account')
-        new_account = tbl_accounts(
-            account_id=generate_uid('account'),
-            account_name=account.account_name,
-            bucket=bucket,
-            permissions=account.permissions,
-            keys=keys,
-            account_configurations=account_configurations,
-            algorithm_configurations=[rec_algorithm_configs,churn_algorithm_configs],
-            churn_info=ChurnInfo(),
-            last_updated_action="Account created",
-            connected_platforms=[platform.dict() for platform in account.connected_platforms] if account.connected_platforms else []
-        )
+        rec_algorithm_configs = {
+            "algorithm_name": "rec",
+            "config_json": {}
+        }
+
+        churn_algorithm_configs = {
+            "algorithm_name": "churn",
+            "config_json": {}
+        }
+
+        account_id = generate_uid('account')
+
+        new_account = {
+            "account_id": account_id,
+            "account_name": account.account_name,
+            "bucket": bucket,
+            "permissions": account.permissions,
+            "keys": keys,
+            "account_configurations": account_configurations,
+            "algorithm_configurations": [rec_algorithm_configs, churn_algorithm_configs],
+            "churn_info": {},
+            "last_updated_action": "Account created",
+            "connected_platforms": [platform.dict() for platform in account.connected_platforms] if account.connected_platforms else [],
+            "created_at": dt.utcnow(),
+            "updated_at": dt.utcnow(),
+            "active": True
+        }
 
         try:
-            new_account.save()
-        except NotUniqueError as err:
-            raise OctyException(400, 'Duplicate entry', [{'error_message' : str(err), 'extended_help': ''}])
+            await self.collection().insert_one(new_account)
+        except Exception as err:
+            raise OctyException(400, 'Duplicate entry', [{'error_message': str(err), 'extended_help': ''}])
 
-        a = json.loads(new_account.to_json())
-        # add top level API usage property to account cache only.
-        a['api_usage'] = [
-            {
-                'month' : 0,
-                'request_count' : 0
-            }
-        ]
+        new_account['api_usage'] = [{"month": 0, "request_count": 0}]
 
         try:
-            _cache_account_data(pk=pk, account_data=json.dumps(a))
-        except Exception as e:
-            # Suggested implementation to handle exception.
-            # try:
-            #     new_account = tbl_accounts.objects.get(account_id__exact=account_id)
-            #     new_account.delete()
-            # except Exception as err:
-            #     raise Exception(err)
-            # raise Exception from e
-
-            new_account = tbl_accounts.objects.get(account_id__exact=account_id)
-            new_account.delete()
+            _cache_account_data(pk=pk, account_data=json.dumps(new_account))
+        except Exception:
+            await self.collection().delete_one({"account_id": account_id})
+            raise
 
         return new_account, secret_key
 
-
-
-    def get_account(self, pk : str, dict : bool) -> object:
+    async def get_account(self, pk: str, as_dict: bool) -> Union[dict, object]:
         """
             A method used to get an Octy account
 
@@ -170,13 +145,12 @@ class _AccountRepository(AccountInterface):
             ----------
             tbl_account object : Mongo Document object/ dict
         """
-        if dict:
-            return json.loads(tbl_accounts.objects
-                                 .get(keys__public_key__exact=pk).to_json())
+        account = await self.collection().find_one({"keys.public_key": pk})
+        if not account:
+            return None
+        return account if as_dict else account
 
-        return tbl_accounts.objects.get(keys__public_key__exact=pk)
-
-    def get_accounts(self, account_ids : list, cursor : int):
+    async def get_accounts(self, account_ids: list, cursor: int):
         """
             A method used to get all Octy accounts. paginated.
 
@@ -190,18 +164,18 @@ class _AccountRepository(AccountInterface):
             :rtype: list
             :rtype: int
         """
-        accounts = tbl_accounts.objects((Q(account_id__in=account_ids) & Q(active__exact=True) )).skip(cursor).limit(100)
-        total = tbl_accounts.objects((Q(account_id__in=account_ids) & Q(active__exact=True) )).count()
+        query = {"account_id": {"$in": account_ids}, "active": True}
+        cursor_obj = self.collection().find(query).skip(cursor).limit(100)
+        total = await self.collection().count_documents(query)
 
-        found_accounts=[]
-        for account in accounts:
-            account_dict = json.loads(account.to_json())
-            account_dict.pop('keys', None)
-            found_accounts.append(account_dict)
-        
-        return found_accounts, total
+        accounts = []
+        async for doc in cursor_obj:
+            doc.pop('keys', None)
+            accounts.append(doc)
 
-    async def update_account(self, account : UpdateAccount, action : str):
+        return accounts, total
+
+    async def update_account(self, account: UpdateAccount, action: str):
         """
             A method used to update an Octy account
 
@@ -216,60 +190,55 @@ class _AccountRepository(AccountInterface):
             ----------
             None
         """
-        try:
-            a = tbl_accounts.objects.get(account_id__exact=account.account_id)
-        except DoesNotExist as e:
-            raise Exception(f"[toxic]:: {e}")
+        update_fields = {}
+        now = dt.utcnow()
 
-        if action == 'account-config':
-            a.account_configurations.contact_name = account.contact_name
-            a.account_configurations.contact_surname=account.contact_surname
-            a.account_configurations.contact_email_address=account.contact_email_address
-            a.account_configurations.webhook_url=account.webhook_url
-            a.account_configurations.authenticated_id_key=account.authenticated_id_key
+        if action == "account-config":
+            update_fields = {
+                "account_configurations.contact_name": account.contact_name,
+                "account_configurations.contact_surname": account.contact_surname,
+                "account_configurations.contact_email_address": account.contact_email_address,
+                "account_configurations.webhook_url": account.webhook_url,
+                "account_configurations.authenticated_id_key": account.authenticated_id_key,
+                "last_updated_action": "updated account configurations",
+                "updated_at": now
+            }
 
-            a.last_updated_action = 'updated account configurations'
-            a.updated_at = dt.now()
+        elif action == "algorithm-config":
+            index = 0 if account.algorithm_configurations.algorithm_name == "rec" else 1
+            key_base = f"algorithm_configurations.{index}"
+            update_fields = {
+                f"{key_base}.algorithm_name": account.algorithm_configurations.algorithm_name,
+                f"{key_base}.config_json": account.algorithm_configurations.config_json,
+                "last_updated_action": "updated algorithm configurations",
+                "updated_at": now
+            }
 
-        elif action == 'algorithm-config':
-            #NOTE: rec configs at index 0, churn configs at index 1
-            if account.algorithm_configurations.algorithm_name == 'rec':
-                idx = 0
-            elif account.algorithm_configurations.algorithm_name == 'churn':
-                idx = 1
-            a.algorithm_configurations[idx].algorithm_name = account.algorithm_configurations.algorithm_name
-            a.algorithm_configurations[idx].config_json = account.algorithm_configurations.config_json
+        elif action == "churn-info":
+            update_fields = {
+                "churn_info.churn_percentage": account.churn_info.churn_percentage,
+                "churn_info.churn_indicator": account.churn_info.churn_indicator,
+                "churn_info.churn_difference": account.churn_info.churn_difference,
+                "churn_info.features": account.churn_info.features,
+                "last_updated_action": "updated churn info",
+                "updated_at": now
+            }
 
-            a.last_updated_action = 'updated algorithm configurations'
-            a.updated_at = dt.now()
+        await self.collection().update_one({"account_id": account.account_id}, {"$set": update_fields})
 
+        acc = await self.collection().find_one({"account_id": account.account_id})
+        if not acc:
+            raise Exception("Account not found")
 
-        elif action == 'churn-info':
-            a.churn_info.churn_percentage = account.churn_info.churn_percentage
-            a.churn_info.churn_indicator = account.churn_info.churn_indicator
-            a.churn_info.churn_difference = account.churn_info.churn_difference
-            a.churn_info.features = account.churn_info.features
-
-            a.last_updated_action = 'updated churn info'
-            a.updated_at = dt.now()
-
-        a.save()
-
-        res = ctx.redis_conn.get(f'pk:{a.keys.public_key}')
+        res = ctx.redis_conn.get(f'pk:{acc["keys"]["public_key"]}')
         if not res:
-            raise Exception(f"[toxic]:: Account not found in DB cache!")
+            raise Exception("Account not found in DB cache")
+
         acc_cache = json.loads(res)
+        acc['api_usage'] = acc_cache.get('api_usage', [])
+        _cache_account_data(pk=acc["keys"]["public_key"], account_data=json.dumps(acc))
 
-        acc = json.loads(json.dumps(a.to_mongo(), default=json_serial))
-        # add top level API usage property to account cache only.
-        try:
-            acc['api_usage'] = acc_cache['api_usage']
-        except KeyError as e:
-            raise Exception(f"[toxic]:: {e}")
-
-        _cache_account_data(pk=a.keys.public_key, account_data=json.dumps(acc))
-
-    def delete_account(self, account_id : str) -> None:
+    async def delete_account(self, account_id: str):
         """
             A method used to delete an Octy account
 
@@ -282,13 +251,13 @@ class _AccountRepository(AccountInterface):
             ----------
             None
         """
-        a = tbl_accounts.objects.get(account_id__exact=account_id)
-        # Remove account from cache
-        ctx.redis_conn.delete(f'pk:{a.keys.public_key}')
-        # Delete account from mongo DB
-        a.delete()
+        acc = await self.collection().find_one({"account_id": account_id})
+        if not acc:
+            return
+        ctx.redis_conn.delete(f'pk:{acc["keys"]["public_key"]}')
+        await self.collection().delete_one({"account_id": account_id})
 
-    async def refresh_account_data_cache(self, pk: str) -> None:
+    async def refresh_account_data_cache(self, pk: str):
         """
             A method used to refresh account data by fetching from MongoDB and updating cache
 
@@ -301,30 +270,11 @@ class _AccountRepository(AccountInterface):
             ----------
             None
         """
-        try:
-            account = tbl_accounts.objects.get(keys__public_key__exact=pk)
-        except DoesNotExist as e:
-            print(f"Account not found for pk: {pk}")
-            return
+        acc = await self.collection().find_one({"keys.public_key": pk})
+        if acc:
+            _cache_account_data(pk=pk, account_data=json.dumps(acc))
 
-        # Convert account document to JSON dictionary
-        account_dict = json.loads(account.to_json())
-        
-        # account_dict.pop('keys', None)
-
-        #account_dict['api_usage'] = [
-        #    {
-        #        'month' : 0,
-        #        'request_count' : 0
-        #   }
-        #]
-
-        # Update the account data in cache
-        _cache_account_data(pk=pk, account_data=json.dumps(account_dict))
-        
-        print(f"Refreshed account data for pk: {pk}")    
-
-    async def update_account_cache(self, account : dict) -> None:
+    async def update_account_cache(self, account: dict):
         """
             Parameters
             ----------
@@ -337,9 +287,11 @@ class _AccountRepository(AccountInterface):
         """
         _cache_account_data(pk=account['keys']['public_key'], account_data=json.dumps(account))
 
-# Private functions
 
-def _cache_account_data(pk : str, account_data : dict) -> None:
+def _cache_account_data(pk: str, account_data: str):
     ctx.redis_conn.set(f'pk:{pk}', account_data)
 
+
 accountRepository = _AccountRepository()
+
+
