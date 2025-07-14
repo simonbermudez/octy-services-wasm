@@ -12,7 +12,7 @@ import json
 from datetime import datetime as dt
 
 # external imports
-from bson import ObjectId
+from bson import ObjectId, json_util
 from typing import Union
 from datetime import datetime as dt
 from argon2 import PasswordHasher
@@ -121,7 +121,7 @@ class _AccountRepository(AccountInterface):
         new_account['api_usage'] = [{"month": 0, "request_count": 0}]
 
         try:
-            _cache_account_data(pk=pk, account_data=json.dumps(new_account))
+            _cache_account_data(pk=pk, account_data=json_util.dumps(new_account))
         except Exception:
             await self.collection().delete_one({"account_id": account_id})
             raise
@@ -235,7 +235,7 @@ class _AccountRepository(AccountInterface):
 
         acc_cache = json.loads(res)
         acc['api_usage'] = acc_cache.get('api_usage', [])
-        _cache_account_data(pk=acc["keys"]["public_key"], account_data=json.dumps(acc))
+        _cache_account_data(pk=acc["keys"]["public_key"], account_data=json_util.dumps(acc))
 
     async def delete_account(self, account_id: str):
         """
@@ -271,7 +271,7 @@ class _AccountRepository(AccountInterface):
         """
         acc = await self.collection().find_one({"keys.public_key": pk})
         if acc:
-            _cache_account_data(pk=pk, account_data=json.dumps(acc))
+            _cache_account_data(pk=pk, account_data=json_util.dumps(acc))
 
     async def update_account_cache(self, account: dict):
         """
@@ -284,7 +284,7 @@ class _AccountRepository(AccountInterface):
             ----------
             :rtype: None
         """
-        _cache_account_data(pk=account['keys']['public_key'], account_data=json.dumps(account))
+        _cache_account_data(pk=account['keys']['public_key'], account_data=json_util.dumps(account))
 
 
 def _cache_account_data(pk: str, account_data: str):
