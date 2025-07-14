@@ -10,6 +10,7 @@ import data.context.db_context as ctx
 from typing import *
 import json
 from datetime import datetime as dt
+from datetime import timezone as tz
 
 # external imports
 from bson import ObjectId, json_util
@@ -108,8 +109,8 @@ class _AccountRepository(AccountInterface):
             "churn_info": {},
             "last_updated_action": "Account created",
             "connected_platforms": [platform.dict() for platform in account.connected_platforms] if account.connected_platforms else [],
-            "created_at": dt.utcnow(),
-            "updated_at": dt.utcnow(),
+            "created_at": dt.now(tz.utc),
+            "updated_at": dt.now(tz.utc),
             "active": True
         }
 
@@ -121,7 +122,7 @@ class _AccountRepository(AccountInterface):
         new_account['api_usage'] = [{"month": 0, "request_count": 0}]
 
         try:
-            _cache_account_data(pk=pk, account_data=json_util.dumps(new_account))
+            await _cache_account_data(pk=pk, account_data=json_util.dumps(new_account))
         except Exception:
             await self.collection().delete_one({"account_id": account_id})
             raise
@@ -190,7 +191,7 @@ class _AccountRepository(AccountInterface):
             None
         """
         update_fields = {}
-        now = dt.utcnow()
+        now = dt.now(tz.utc)
 
         if action == "account-config":
             update_fields = {
@@ -235,7 +236,7 @@ class _AccountRepository(AccountInterface):
 
         acc_cache = json.loads(res)
         acc['api_usage'] = acc_cache.get('api_usage', [])
-        _cache_account_data(pk=acc["keys"]["public_key"], account_data=json_util.dumps(acc))
+        await _cache_account_data(pk=acc["keys"]["public_key"], account_data=json_util.dumps(acc))
 
     async def delete_account(self, account_id: str):
         """
@@ -271,7 +272,7 @@ class _AccountRepository(AccountInterface):
         """
         acc = await self.collection().find_one({"keys.public_key": pk})
         if acc:
-            _cache_account_data(pk=pk, account_data=json_util.dumps(acc))
+            await _cache_account_data(pk=pk, account_data=json_util.dumps(acc))
 
     async def update_account_cache(self, account: dict):
         """
@@ -284,11 +285,11 @@ class _AccountRepository(AccountInterface):
             ----------
             :rtype: None
         """
-        _cache_account_data(pk=account['keys']['public_key'], account_data=json_util.dumps(account))
+        await _cache_account_data(pk=account['keys']['public_key'], account_data=json_util.dumps(account))
 
 
-def _cache_account_data(pk: str, account_data: str):
-    ctx.redis_conn.set(f'pk:{pk}', account_data)
+async def _cache_account_data(pk: str, account_data: str):
+    await ctx.redis_conn.set(f'pk:{pk}', account_data)
 
 
 accountRepository = _AccountRepository()

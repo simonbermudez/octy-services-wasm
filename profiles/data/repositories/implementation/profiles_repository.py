@@ -10,6 +10,7 @@ import data.context.db_context as ctx
 from typing import *
 import json
 from datetime import datetime as dt
+from datetime import timezone as tz
 
 # external imports
 from pymongo.errors import BulkWriteError
@@ -285,7 +286,7 @@ class _ProfilesRepository(ProfilesInterface):
                 "profile_data": profile['profile_data'],
                 "platform_info": profile['platform_info'],
                 "has_charged": profile['has_charged'],
-                "created_at": dt.utcnow()
+                "created_at": dt.now(tz.utc)
             }
             operations.append(InsertOne(profile_doc))
             customer_ids.append(profile['customer_id'])
@@ -353,7 +354,7 @@ class _ProfilesRepository(ProfilesInterface):
                 continue
             
             update_data = {
-                "updated_at": dt.utcnow()
+                "updated_at": dt.now(tz.utc)
             }
             
             # Update basic fields
@@ -493,7 +494,7 @@ class _ProfilesRepository(ProfilesInterface):
                         {
                             "$set": {
                                 "segment_tags.$.status": "pending_deletion",
-                                "segment_tags.$.updated_at": dt.utcnow()
+                                "segment_tags.$.updated_at": dt.now(tz.utc)
                             }
                         }
                     )
@@ -556,7 +557,7 @@ class _ProfilesRepository(ProfilesInterface):
                                 "segment_id": seg['segment_id'],
                                 "segment_tag": seg['segment_tag'],
                                 "status": seg['status'],
-                                "created_at": dt.utcnow()
+                                "created_at": dt.now(tz.now)
                             }
                         }
                     }
@@ -692,9 +693,9 @@ class _ProfilesRepository(ProfilesInterface):
             found = next((t for t in formatted if t.get('segment_id') == tag.get('segment_id')), None)
             if found:
                 found.update(tag)
-                found['updated_at'] = dt.utcnow()
+                found['updated_at'] = dt.now(tz.now)
             else:
-                tag['created_at'] = dt.utcnow()
+                tag['created_at'] = dt.now(tz.now)
                 formatted.append(tag)
         return formatted
 
