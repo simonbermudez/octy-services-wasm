@@ -57,7 +57,7 @@ class _EventsRepository(EventsInterface):
                 "created_at": dt.now(tz.utc)  
             }
             
-            result = await self.collection.insert_one(document)
+            result = await self.collection().insert_one(document)
             
             if not result.acknowledged:
                 raise Exception("Failed to insert event")
@@ -79,7 +79,7 @@ class _EventsRepository(EventsInterface):
         ----------
         event type : dict
         """
-        doc = await self.collection.find_one(
+        doc = await self.collection().find_one(
             {
                 "account_id": account_id,
                 "event_type": "checkout_contact_info_submitted",
@@ -126,7 +126,7 @@ class _EventsRepository(EventsInterface):
             })
 
         try:
-            await self.collection.insert_many(documents, ordered=False)
+            await self.collection().insert_many(documents, ordered=False)
         except BulkWriteError as bwe:
             for err in bwe.details.get('writeErrors', []):
                 failed_to_create.append({
@@ -169,8 +169,8 @@ class _EventsRepository(EventsInterface):
             }
         }
 
-        event_count = await self.collection.count_documents({"account_id": account_id})
-        cursor = self.collection.aggregate([pipeline])
+        event_count = await self.collection().count_documents({"account_id": account_id})
+        cursor = self.collection().aggregate([pipeline])
         docs = await cursor.to_list(length=1)
 
         result = []
@@ -225,8 +225,8 @@ class _EventsRepository(EventsInterface):
         elif profile_ids:
             query["profile_id"] = {"$in": profile_ids}
 
-        cursor_obj = self.collection.find(query).skip(cursor).limit(3000)
-        total = await self.collection.count_documents(query)
+        cursor_obj = self.collection().find(query).skip(cursor).limit(3000)
+        total = await self.collection().count_documents(query)
         raw = await cursor_obj.to_list(length=3000)
 
         found = []
@@ -269,7 +269,7 @@ class _EventsRepository(EventsInterface):
 
         if operations:
             requests = [UpdateOne(op["filter"], op["update"]) for op in operations]
-            await self.collection.bulk_write(requests, ordered=False)
+            await self.collection().bulk_write(requests, ordered=False)
 
     async def delete_profile_events(self, account_id: str, profile_id: str) -> None:
         """
@@ -284,7 +284,7 @@ class _EventsRepository(EventsInterface):
         ----------
         None
         """
-        await self.collection.delete_many({"account_id": account_id, "profile_id": profile_id})
+        await self.collection().delete_many({"account_id": account_id, "profile_id": profile_id})
 
     async def delete_account_events(self, account_id: str) -> None:
         """
@@ -297,7 +297,7 @@ class _EventsRepository(EventsInterface):
         ----------
         bool
         """
-        await self.collection.delete_many({"account_id": account_id})
+        await self.collection().delete_many({"account_id": account_id})
 
     async def get_profile_ids(self, account_id: str, profile_ids: list) -> tuple[list, list]:
         """

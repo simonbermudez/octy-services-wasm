@@ -21,7 +21,7 @@ class _EventTypesRepository(EventTypesInterface):
         self.collection = lambda: ctx.contextManager.db["tbl_custom_event_types"]
 
     async def get_event_types_count(self, account_id: str):
-        return await self.collection.count_documents({"account_id": account_id})
+        return await self.collection().count_documents({"account_id": account_id})
 
     async def get_event_type_by_ids(self, account_id: str, event_type_ids: list) -> list:
         query = {
@@ -30,7 +30,7 @@ class _EventTypesRepository(EventTypesInterface):
                 {"account_id": account_id}
             ]
         }
-        cursor = self.collection.find(query)
+        cursor = self.collection().find(query)
         docs = await cursor.to_list(length=None)
         for doc in docs:
             doc["event_type_id"] = doc["_id"]
@@ -38,7 +38,7 @@ class _EventTypesRepository(EventTypesInterface):
         return docs
 
     async def get_event_type_by_name(self, account_id: str, event_type: str) -> dict:
-        doc = await self.collection.find_one({"account_id": account_id, "event_type": event_type})
+        doc = await self.collection().find_one({"account_id": account_id, "event_type": event_type})
         if doc:
             doc["event_type_id"] = doc["_id"]
             return _format_event_type(doc)
@@ -48,7 +48,7 @@ class _EventTypesRepository(EventTypesInterface):
         found_event_types = []
         not_found = []
 
-        cursor = self.collection.find({
+        cursor = self.collection().find({
             "account_id": account_id,
             "event_type": {"$in": event_type_names}
         })
@@ -65,9 +65,9 @@ class _EventTypesRepository(EventTypesInterface):
         return found_event_types, not_found
 
     async def get_all_event_types(self, account_id: str, cursor: int) -> tuple[list, int]:
-        cursor_data = self.collection.find({"account_id": account_id}).skip(cursor).limit(100)
+        cursor_data = self.collection().find({"account_id": account_id}).skip(cursor).limit(100)
         docs = await cursor_data.to_list(length=100)
-        total = await self.collection.count_documents({"account_id": account_id})
+        total = await self.collection().count_documents({"account_id": account_id})
         for doc in docs:
             doc["event_type_id"] = doc["_id"]
             _format_event_type(doc)
@@ -97,7 +97,7 @@ class _EventTypesRepository(EventTypesInterface):
 
         try:
             if valid_docs:
-                await self.collection.insert_many(valid_docs, ordered=False)
+                await self.collection().insert_many(valid_docs, ordered=False)
         except Exception as e:
             # Check for duplicate errors
             from pymongo.errors import BulkWriteError
@@ -123,7 +123,7 @@ class _EventTypesRepository(EventTypesInterface):
         failed_to_delete = []
 
         for et in event_types_batch:
-            result = await self.collection.delete_one({
+            result = await self.collection().delete_one({
                 "_id": et["event_type_id"],
                 "account_id": et["account_id"]
             })
@@ -140,7 +140,7 @@ class _EventTypesRepository(EventTypesInterface):
         deleted = []
         failed = []
 
-        cursor = self.collection.find({"account_id": account_id})
+        cursor = self.collection().find({"account_id": account_id})
         docs = await cursor.to_list(length=None)
         if not docs:
             return [], [{
@@ -152,7 +152,7 @@ class _EventTypesRepository(EventTypesInterface):
             deleted.append({"event_type_id": doc["_id"], "event_type": doc.get("event_type", "unknown")})
 
         try:
-            await self.collection.delete_many({"account_id": account_id})
+            await self.collection().delete_many({"account_id": account_id})
         except Exception as e:
             return [], [{
                 "account_id": account_id,
@@ -162,7 +162,7 @@ class _EventTypesRepository(EventTypesInterface):
         return deleted, failed
 
     async def delete_account_event_types(self, account_id: str) -> bool:
-        result = await self.collection.delete_many({"account_id": account_id})
+        result = await self.collection().delete_many({"account_id": account_id})
         return result.deleted_count > 0
 
 eventTypesRepository = _EventTypesRepository()
