@@ -32,7 +32,8 @@ class AccountService:
     """
 
     def __init__(self):
-        pass
+        pass 
+    
 
     async def delete_account(self, account_id: str) -> bool:
         """
@@ -46,7 +47,7 @@ class AccountService:
 
             Returns
             ----------
-            erTrue if account was deleted successfully, False otherwise : bool
+            erTrue if account was deleted successfully, False otherwise : bool  
         """
 
         # Delete bucket
@@ -108,19 +109,19 @@ class AccountService:
 
         # Create account
         # TODO : Probably need to change this to run after creation of bucket 
-        new_account, sk = accountRepository.create_account(account, bucket_name)
+        new_account, sk = await accountRepository.create_account(account, bucket_name)
 
         # Create and configure bucket
         bucket_repo = BucketRepository(new_account)
 
         res = bucket_repo.create_bucket(bucket_name)
         if not res:
-            accountRepository.delete_account(new_account.account_id)
+            await accountRepository.delete_account(new_account.account_id)
             raise Exception(500, 'Bucket could not be created.')
 
         res = bucket_repo.bucket_configuration(bucket_name)
         if not res:
-            accountRepository.delete_account(new_account.account_id)
+            await accountRepository.delete_account(new_account.account_id)
             raise Exception(500, 'Bucket could not be configured')
 
         # Create required directories
