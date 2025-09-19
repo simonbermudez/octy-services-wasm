@@ -81,7 +81,7 @@ class _AccountRepository(AccountInterface):
             "contact_name": account.contact_name,
             "contact_surname": account.contact_surname,
             "contact_email_address": account.contact_email_address,
-            "webhook_url": account.webhook_url,
+            "webhook_url": str(account.webhook_url) if account.webhook_url else None,
             "authenticated_id_key": account.authenticated_id_key if account.authenticated_id_key else None,
             "limits": [Config["RESOURCE_LIMITS"][account.account_type]]
         }
