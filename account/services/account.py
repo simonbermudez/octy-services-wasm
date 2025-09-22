@@ -114,7 +114,7 @@ class AccountService:
             print("Creating account in database...")
             # TODO : Probably need to change this to run after creation of bucket 
             new_account, sk = await accountRepository.create_account(account, bucket_name)
-            print(f'New account created: {new_account.account_id}')
+            print(f'New account created: {new_account["account_id"]}')
 
             # Create and configure bucket
             print("Initializing bucket repository...")
@@ -126,7 +126,7 @@ class AccountService:
             if not res:
                 print('ERROR: Bucket could not be created.')
                 print("Cleaning up - deleting account...")
-                await accountRepository.delete_account(new_account.account_id)
+                await accountRepository.delete_account(new_account["account_id"])
                 raise Exception(500, 'Bucket could not be created.')
             print("Bucket created successfully")
 
@@ -135,7 +135,7 @@ class AccountService:
             if not res:
                 print('ERROR: Bucket could not be configured.')
                 print("Cleaning up - deleting account...")
-                await accountRepository.delete_account(new_account.account_id)
+                await accountRepository.delete_account(new_account["account_id"])
                 raise Exception(500, 'Bucket could not be configured')
             print("Bucket configured successfully")
 
@@ -151,13 +151,13 @@ class AccountService:
             notification_sent = NotificationsRepository(account=new_account) \
                 .email(
                 {
-                    'contact_email_address': new_account.account_configurations.contact_email_address,
-                    'contact_name': new_account.account_configurations.contact_name,
+                    'contact_email_address': new_account["account_configurations"]["contact_email_address"],
+                    'contact_name': new_account["account_configurations"]["contact_name"],
                     'subject': ACCOUNT_SUBJECT,
                     'body': ACCOUNT_BODY.format(
-                        first_name=new_account.account_configurations.contact_name,
+                        first_name=new_account["account_configurations"]["contact_name"],
                         link=Config['DOCS_ROOT_URL'],
-                        pk=new_account.keys.public_key,
+                        pk=new_account["keys"]["public_key"],
                         sk=sk)
                 }
             )
@@ -177,12 +177,12 @@ class AccountService:
 
             print("=== Account creation completed successfully ===")
             return {
-                'account_id': new_account.account_id,
-                'account_name': new_account.account_name,
-                'account_type': new_account.account_configurations.account_type,
-                'account_currency': new_account.account_configurations.account_currency,
-                'contact_email_address': new_account.account_configurations.contact_email_address,
-                'pk': new_account.keys.public_key,
+                'account_id': new_account["account_id"],
+                'account_name': new_account["account_name"],
+                'account_type': new_account["account_configurations"]["account_type"],
+                'account_currency': new_account["account_configurations"]["account_currency"],
+                'contact_email_address': new_account["account_configurations"]["contact_email_address"],
+                'pk': new_account["keys"]["public_key"],
                 'sk': sk,
                 'notification_sent': notification_sent
             }
