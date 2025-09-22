@@ -104,64 +104,93 @@ class AccountService:
             ----------
             new account : Dict
         """
+        print("=== Starting account creation process ===")
+        
+        try:
+            bucket_name = generate_uid('bucket')
+            print(f"Generated bucket name: {bucket_name}")
 
-        bucket_name = generate_uid('bucket')
+            # Create account
+            print("Creating account in database...")
+            # TODO : Probably need to change this to run after creation of bucket 
+            new_account, sk = await accountRepository.create_account(account, bucket_name)
+            print(f'New account created: {new_account.account_id}')
 
-        # Create account
-        # TODO : Probably need to change this to run after creation of bucket 
-        new_account, sk = await accountRepository.create_account(account, bucket_name)
+            # Create and configure bucket
+            print("Initializing bucket repository...")
+            bucket_repo = BucketRepository(new_account)
+            print("Bucket repository initialized successfully")
 
-        # Create and configure bucket
-        bucket_repo = BucketRepository(new_account)
+            print(f"Creating bucket: {bucket_name}")
+            res = bucket_repo.create_bucket(bucket_name)
+            if not res:
+                print('ERROR: Bucket could not be created.')
+                print("Cleaning up - deleting account...")
+                await accountRepository.delete_account(new_account.account_id)
+                raise Exception(500, 'Bucket could not be created.')
+            print("Bucket created successfully")
 
-        res = bucket_repo.create_bucket(bucket_name)
-        if not res:
-            await accountRepository.delete_account(new_account.account_id)
-            raise Exception(500, 'Bucket could not be created.')
+            print(f"Configuring bucket: {bucket_name}")
+            res = bucket_repo.bucket_configuration(bucket_name)
+            if not res:
+                print('ERROR: Bucket could not be configured.')
+                print("Cleaning up - deleting account...")
+                await accountRepository.delete_account(new_account.account_id)
+                raise Exception(500, 'Bucket could not be configured')
+            print("Bucket configured successfully")
 
-        res = bucket_repo.bucket_configuration(bucket_name)
-        if not res:
-            await accountRepository.delete_account(new_account.account_id)
-            raise Exception(500, 'Bucket could not be configured')
+            # Create required directories
+            print("Creating required directories...")
+            for dir in Config['BUCKET_REQUIRED_DIRS']:
+                print(f"Creating directory: {dir}")
+                bucket_repo.create_directory(bucket_name, dir)
+            print("All required directories created")
 
-        # Create required directories
-        for dir in Config['BUCKET_REQUIRED_DIRS']:
-            bucket_repo.create_directory(bucket_name, dir)
+            # send email notification
+            print("Sending email notification...")
+            notification_sent = NotificationsRepository(account=new_account) \
+                .email(
+                {
+                    'contact_email_address': new_account.account_configurations.contact_email_address,
+                    'contact_name': new_account.account_configurations.contact_name,
+                    'subject': ACCOUNT_SUBJECT,
+                    'body': ACCOUNT_BODY.format(
+                        first_name=new_account.account_configurations.contact_name,
+                        link=Config['DOCS_ROOT_URL'],
+                        pk=new_account.keys.public_key,
+                        sk=sk)
+                }
+            )
+            print(f"Email notification sent: {notification_sent}")
 
-        # send email notification
-        notification_sent = NotificationsRepository(account=new_account) \
-            .email(
-            {
+            # call amqp service to create Octy jobs
+            print("Creating Octy jobs...")
+            for job in Config['OCTY_JOBS']:
+                print(f"Sending job creation message for job: {job.get('job_meta', {}).get('name', 'unknown')}")
+                await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
+                                                payload={
+                                                    'account_id': new_account['account_id'],
+                                                    'job_meta': job['job_meta'],
+                                                    'job_data': job['job_data']
+                                                })
+            print("All Octy jobs created successfully")
+
+            print("=== Account creation completed successfully ===")
+            return {
+                'account_id': new_account.account_id,
+                'account_name': new_account.account_name,
+                'account_type': new_account.account_configurations.account_type,
+                'account_currency': new_account.account_configurations.account_currency,
                 'contact_email_address': new_account.account_configurations.contact_email_address,
-                'contact_name': new_account.account_configurations.contact_name,
-                'subject': ACCOUNT_SUBJECT,
-                'body': ACCOUNT_BODY.format(
-                    first_name=new_account.account_configurations.contact_name,
-                    link=Config['DOCS_ROOT_URL'],
-                    pk=new_account.keys.public_key,
-                    sk=sk)
+                'pk': new_account.keys.public_key,
+                'sk': sk,
+                'notification_sent': notification_sent
             }
-        )
-
-        # call amqp service to create Octy jobs
-        for job in Config['OCTY_JOBS']:
-            await amqpPublisher.send_message(routing_key='octy.job.cmd.create',
-                                             payload={
-                                                 'account_id': new_account['account_id'],
-                                                 'job_meta': job['job_meta'],
-                                                 'job_data': job['job_data']
-                                             })
-
-        return {
-            'account_id': new_account.account_id,
-            'account_name': new_account.account_name,
-            'account_type': new_account.account_configurations.account_type,
-            'account_currency': new_account.account_configurations.account_currency,
-            'contact_email_address': new_account.account_configurations.contact_email_address,
-            'pk': new_account.keys.public_key,
-            'sk': sk,
-            'notification_sent': notification_sent
-        }
+            
+        except Exception as e:
+            print(f"=== ERROR in account creation: {str(e)} ===")
+            print(f"Exception type: {type(e).__name__}")
+            raise
 
     async def get_accounts_internal(self, account_ids: list, cursor: int) -> list:
         """

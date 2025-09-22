@@ -34,6 +34,6 @@ uvicorn
 yarl
 python-dotenv
 motor
-requests
 schedule
 requests
+passlib[bcrypt]

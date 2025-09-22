@@ -34,4 +34,4 @@ uvicorn
 yarl
 python-dotenv
 motor
-schedule
+requests

@@ -40,39 +40,6 @@ class ContextManager():
         self.mongo_client.close()
         logger.info("Closed connection to MongoDB")
 
-    # async def db_connect(self, logger) -> None: 
-    #     """
-    #         A method used to connect to a mongoDB database
-
-    #         Parameters
-    #         ----------
-    #         logger : logger instance
-
-    #         Returns
-    #         ----------
-    #         result : None
-    #     """
-
-    #     connect(host=Secrets["DB_URI"])
-    #     logger.info("Opened connection to DB")
-
-    # async def db_disconnect(self, logger) -> None: 
-    #     """
-    #         A method used to disconnect from a mongoDB database
-
-    #         Parameters
-    #         ----------
-    #         logger : logger instance
-
-    #         Returns
-    #         ----------
-    #         result : None
-    #     """
-
-    #     #Disconnect from mongoDB
-    #     disconnect(alias=Config["DB_ALIAS"])
-    #     logger.info("Closed conenction to DB")
-
     async def db_redis_connect(self, logger) -> None: 
         """
             A method used to connect to a redis database
