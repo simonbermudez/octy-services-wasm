@@ -59,7 +59,7 @@ class AccountService:
 
             print("Step 2: Retrieving account information...")
             try:
-                account = accountRepository.get_account_by_account_id(account_id)
+                account = await accountRepository.get_account_by_account_id(account_id)
                 print(f"Account retrieved successfully: {account}")
                 print(f"Account bucket: {account.bucket if hasattr(account, 'bucket') else 'No bucket attribute'}")
             except Exception as e:
