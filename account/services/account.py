@@ -69,7 +69,7 @@ class AccountService:
 
             print("Step 3: Deleting bucket...")
             try:
-                res = bucket_repo.delete_bucket(account.bucket)
+                res = bucket_repo.delete_bucket(account['bucket'])
                 print(f"Bucket deletion result: {res}")
                 
                 if res is False:
