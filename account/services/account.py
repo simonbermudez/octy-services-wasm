@@ -99,7 +99,6 @@ class AccountService:
 
             account : CreateAccount Model
                 Parsed request body representing a new account
-
             Returns
             ----------
             new account : Dict
@@ -214,7 +213,6 @@ class AccountService:
                                      'error_message': 'No accounts found with provided params or pagination cursor exhausted',
                                      'extended_help': ''}])
         return accounts, total
-
     async def _send_http_request(self, url : str, payload : dict) -> None:
         session = requests_retry_session()
         t0 = time.time()

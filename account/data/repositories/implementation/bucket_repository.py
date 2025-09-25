@@ -153,7 +153,7 @@ class BucketRepository(BucketInterface):
             bucket_tagging = self.s3_resource.BucketTagging(bucket_name)
             bucket_tagging.put(
                 Tagging={
-                    'TagSet': [{'Key': 'octy_account_id', 'Value': str(self.account.account_id)}]
+                    'TagSet': [{'Key': 'octy_account_id', 'Value': str(self.account["account_id"]) }]
                 }
             )
             print("[OK] Bucket tagging applied")
