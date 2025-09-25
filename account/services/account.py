@@ -147,7 +147,7 @@ class AccountService:
 
             # send email notification
             print("Sending email notification...")
-            notification_sent = NotificationsRepository(account=new_account) \
+            notification_sent = await NotificationsRepository(account=new_account) \
                 .email(
                 {
                     'contact_email_address': new_account["account_configurations"]["contact_email_address"],
