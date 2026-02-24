@@ -11,3 +11,7 @@ class Account(BaseModel):
     algorithm_configurations : List
     churn_info : Dict
     created_at : Any
+
+
+class DeleteAccountChurnPredictions(BaseModel):
+    account_id : str

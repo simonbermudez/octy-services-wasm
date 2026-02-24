@@ -55,6 +55,8 @@ def str_to_dt(dt_str : str) -> int:
         ----------
         datetime
     """
+    if(dt_str == None):
+        return dt.now()
     return dt.strptime(dt_str, '%a, %d %b %Y %H:%M:%S GMT')
    
 def dt_to_int(dt) -> int:

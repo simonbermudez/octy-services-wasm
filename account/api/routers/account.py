@@ -14,6 +14,7 @@ from slowapi.util import get_remote_address
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
+
 ######################################
 # Account routers:
 # Account management API endpoints
@@ -41,13 +42,39 @@ async def create_new_account(request: Request, account: CreateAccount):
                             new_account['account_currency'],
                             new_account['contact_email_address'],
                             new_account['pk'],
-                            new_account['notification_sent'],).dto()
+                            new_account['sk'],
+                            new_account['notification_sent'], ).dto()
 
 
 ######################################
 # Internal Account API endpoints. 
 # Available via cluster IP only.
 ######################################
+
+# WRITTEN BY MUNASHE
+######################################
+# Route : /v1/internal/account/delete
+# Request type : POST
+# Required parameters : account_id [string]
+# Description : Delete Account
+# Returns : Message informing if the account was deleted or not
+# Limits : 120 Requests per minute
+# Requires auth : YES -- Admin Public Key & Admin Secret Key
+######################################
+class DeleteAccount(BaseModel):
+        account_id:str
+
+@router.post('/v1/admin/account/delete',
+             dependencies=[Depends(validate_post_headers)])
+async def delete_account(request: Request, payload: DeleteAccount):
+   result = await accountService.delete_account(payload.account_id)
+   if result:
+        return DeleteAccountDTO(payload.account_id).dto()
+   else:
+       raise OctyException(400, 'Bad Request',
+                            [{'error_message': f'Error occured and could not delete account {payload.account_id}',
+                              'extended_help': ''}])
+
 
 ######################################
 # Route : /v1/internal/accounts
@@ -58,13 +85,12 @@ async def create_new_account(request: Request, account: CreateAccount):
 # NOTE : Do not expose route in ingress
 ######################################
 
-@router.post('/v1/internal/accounts') 
-async def get_accounts_internal(request: Request,  a : GetAccountsInternal):
-    
+@router.post('/v1/internal/accounts')
+async def get_accounts_internal(request: Request, a: GetAccountsInternal):
     # Validate pagination headers set
     cursor, pag_message = await validate_pagination_request(request, None)
-    if cursor == None:
-        raise OctyException(400,'Missing Parameters', [{'error_message' : pag_message, 
-            'extended_help': ''}])
-    accounts, total = accountService.get_accounts_internal(account_ids=a.account_ids, cursor=cursor)
+    if cursor is None:
+        raise OctyException(400, 'Missing Parameters', [{'error_message': pag_message,
+                                                         'extended_help': ''}])
+    accounts, total = await accountService.get_accounts_internal(account_ids=a.account_ids, cursor=cursor)
     return GetAccountsInternalDTO(accounts, total).dto()

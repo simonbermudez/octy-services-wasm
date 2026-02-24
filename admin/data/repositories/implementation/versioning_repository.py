@@ -60,7 +60,7 @@ class _VersioningRepository(VersioningInterface):
         version_data['published_at'] = data['published_at']
         version_data['updated_at'] = dt.now().strftime("%m-%d-%YT%H:%M:%S")
 
-        ctx.redis_conn.sadd(repository_name, json.dumps(version_data))
+        await ctx.redis_conn.sadd(repository_name, json.dumps(version_data))
 
         
 

@@ -103,6 +103,22 @@ async def delete_custom_event_types(request: Request,
 
 
 ######################################
+# Route : /v1/retention/events/types/delete/all
+# Request type : POST
+# Required parameters : events list(event_type [string])
+# Description : Deletes all custom event types for an account
+# Returns : Status of custom event type deleteion
+# Limits : 120 Requests per minute
+# Requires auth : YES -- Public Key & Secret Key
+######################################
+@router.post('/v1/retention/events/types/delete/all')
+@limiter.limit("120/minute")
+async def delete_all_custom_event_types(request: Request, 
+    current_account: Account = Depends(decode_account_jwt)):
+    delete_event_types, failed = EventTypesService(current_account).delete_all_event_types()
+    return DeleteEventTypesDTO(delete_event_types, failed).dto()
+
+######################################
 # Route : /v1/internal/events/types
 # Request type : POST
 # Required parameters : POST body : {"event_types" : ["login", "logout", "other event type" ...]}

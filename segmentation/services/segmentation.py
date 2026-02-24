@@ -338,7 +338,7 @@ class SegmentationService():
         self.account = account
         self.account_id = account_id if account_id != None else account.account_id
 
-    def get_segments(self,
+    async def get_segments(self,
                   identifiers : list = None, 
                   cursor : int = None, 
                   status='active',
@@ -362,7 +362,7 @@ class SegmentationService():
         total : int
         """
         if identifiers != None and cursor == 0:
-            segments, total = segmentationRepository.get_segment_by_identifiers(identifiers=identifiers,account_id=self.account_id)
+            segments, total = await segmentationRepository.get_segment_by_identifiers(identifiers=identifiers,account_id=self.account_id)
             if total<1:
                 raise OctyException(400, 'Invalid segment identifier(s) provided', 
                 [{'error_message' : 'No segments were found with the provided identifier(s)', 
@@ -373,7 +373,7 @@ class SegmentationService():
 
         elif identifiers == None and cursor != None:
             
-            segments,total = segmentationRepository.get_segments(account_id=self.account_id, 
+            segments,total = await segmentationRepository.get_segments(account_id=self.account_id, 
                                                 segment_type=segment_type,
                                                 status=status,
                                                 cursor=cursor, 
@@ -398,7 +398,7 @@ class SegmentationService():
                 'profile_property_value' : segment.profile_property_value,
                 'segment_status' : 'created' if segment.segment_type == 'live' else 'processing'
             }
-            segmentationRepository.create_segment(new_segment)
+            await segmentationRepository.create_segment(new_segment)
             return new_segment
 
     async def create_segment(self, segment : CreateSegment) -> dict:
@@ -414,8 +414,8 @@ class SegmentationService():
         """
 
         # assess allowed limits
-        res, counts = assess_resource_limit(self.account.account_configurations['li'],
-                              segmentationRepository.get_segment_count(self.account.account_id), 1)
+        current_count = await segmentationRepository.get_segment_count(self.account.account_id)
+        res, counts = await assess_resource_limit(self.account.account_configurations['li'], current_count, 1)
         if not res:
             raise OctyException(400,'Resource limit exceeded', 
             [{'error_message' : f'This request could not be completed as this request exceeds the allowed number of segments : {counts["limit"]}. This account can create another {counts["remainder"]} segment(s).', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
@@ -585,3 +585,17 @@ class SegmentationService():
 
 
         return deleted_segments, failed_to_delete
+
+    #delete all segments associated with account
+    async def delete_account_segmentations_internal(self) -> bool:
+        """
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        True
+        """
+        res = segmentationRepository.delete_account_segments(self.account_id)
+        return res

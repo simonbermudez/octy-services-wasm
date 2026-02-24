@@ -93,7 +93,7 @@ class ProfilesService():
                 [{'error_message' : 'No customer profiles found with the provided query parameters or pagination cursor exhausted', 
                 'extended_help': Config['PROFILES_EXTENDED_HELP']}])
             return profiles, total
-
+        
     def get_profiles_meta(self, identifiers : list = None) -> list:
         """
         A method used to return a list of merged profiles.
@@ -338,7 +338,7 @@ class ProfilesService():
             def profile_json_to_dict(platform_info, profile_data, customer_id):
                 '''
                 merge platform_info and profile_data and return as single dict
-                '''
+                '''                                                                                                                                                                                                                                                 
                 if type(platform_info) != str:
                     platform_info=json.dumps(platform_info)
 
@@ -458,6 +458,20 @@ class ProfilesService():
                     await profilesRepository.delete_segment_tags(self.account_id, op['operation_payload']['profile_id'], op['operation_payload']['segment_tags'])
             except KeyError:
                 continue
+
+    # Delete all profiles for an account
+    async def delete_account_profiles_internal(self) -> bool:
+        """
+        Parameters
+        ----------
+
+        Returns
+        ----------
+        True if profiles were deleted successfully, False otherwise : bool
+        """
+        res = await profilesRepository.delete_all_profiles(account_id=self.account_id)
+        return res
+    
 
     def get_profiles_internal(self, profiles : GetProfilesInternal, status : str, cursor : int, ids : bool) -> Union[list, list, int]:
         """

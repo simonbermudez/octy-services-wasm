@@ -1,13 +1,16 @@
 #module imports 
+
+# data context for octy_jobs
 from config import Config
-from secrets import Secrets
+from app_secrets import Secrets
 
 #python imports
 from typing import *
 
 #external imports
-from mongoengine import connect, disconnect
-import redis, certifi
+# from mongoengine import connect, disconnect
+from motor.motor_asyncio import AsyncIOMotorClient
+import redis.asyncio as redis, certifi
 
 redis_conn = None
 
@@ -24,40 +27,18 @@ class ContextManager():
         ----------
         none
     """
-    def __init__(self): pass
+    def __init__(self):
+        self.mongo_client = None
+        self.db = None
 
-    async def db_connect(self, logger) -> None: 
-        """
-            A method used to connect to a mongoDB database
+    async def db_connect(self, logger) -> None:
+        self.mongo_client = AsyncIOMotorClient(Secrets["DB_URI"])
+        self.db = self.mongo_client.get_default_database()
+        logger.info("Opened connection to MongoDB")
 
-            Parameters
-            ----------
-            logger : logger instance
-
-            Returns
-            ----------
-            result : None
-        """
-
-        connect(host=Secrets["DB_URI"])
-        logger.info("Opened connection to DB")
-
-    async def db_disconnect(self, logger) -> None: 
-        """
-            A method used to disconnect from a mongoDB database
-
-            Parameters
-            ----------
-            logger : logger instance
-
-            Returns
-            ----------
-            result : None
-        """
-
-        #Disconnect from mongoDB
-        disconnect(alias=Config["DB_ALIAS"])
-        logger.info("Closed conenction to DB")
+    async def db_disconnect(self, logger) -> None:
+        self.mongo_client.close()
+        logger.info("Closed connection to MongoDB")
 
     async def db_redis_connect(self, logger) -> None: 
         """

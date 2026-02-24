@@ -3,12 +3,13 @@ from fastapi.responses import JSONResponse
 
 ### Create Account DTO
 class CreateAccountDTO():
-    def __init__(self, account_name, account_type, account_currency, contact_email_address, pk, notification_sent):
+    def __init__(self, account_name, account_type, account_currency, contact_email_address, pk, sk, notification_sent):
         self.account_name = account_name
         self.account_type = account_type
         self.account_currency = account_currency
         self.contact_email_address = contact_email_address
         self.pk = pk
+        self.sk = sk
         self.notification_sent = notification_sent
 
     def dto(self) -> JSONResponse:
@@ -20,6 +21,7 @@ class CreateAccountDTO():
                     'account_type' : self.account_type,
                     'account_currency' : self.account_currency,
                     'pk' : self.pk,
+                    'sk' : self.sk,
                     'notification_sent' : self.notification_sent,
                     'sent_to' : self.contact_email_address
             }
@@ -62,3 +64,16 @@ class GetAccountsInternalDTO():
             }
         )
 
+## Delete Account DTO
+class DeleteAccountDTO():
+    def __init__(self, account_id):
+        self.account_id = account_id
+
+    def dto(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=200,
+            content={
+                'request_meta': {'request_status': 'Success',
+                                 'message': f"Successfully deleted account {self.account_id} and all associated data!"}
+            }
+        )

@@ -53,9 +53,19 @@ class OctyJobQueueService():
         await octyJobsRepository.create_octy_job(self.account_id, new_octy_job)
 
     async def delete_octy_jobs(self, octy_job_ids : list, alt_identifiers : list) -> None:
-        #merge all provided identifers
         octy_job_ids.extend(alt_identifiers)
         await octyJobsRepository.delete_octy_jobs([self.account_id], octy_job_ids)
+
+    #Delete all octy jobs for an account . also delete from queue
+    async def delete_all_octy_jobs(self) -> bool:
+        await octyJobsRepository.delete_all_octy_jobs(self.account_id)
+
+        amqpPublisher.send_message(
+            routing_key='octy-job-delete-queue',
+            payload=json.dumps({'account_id' : self.account_id})
+        )
+
+        return True
 
     async def get_jobs(self) -> list:
         pass
@@ -263,7 +273,7 @@ class OctyJobQueue():
             },
             'octy_job_id' : job['_id'],
             'job_data' : job['job_data']
-        }
+        } 
 
         # Assess permissions
         if len(job['job_meta']['required_permissions'])>0:
@@ -318,7 +328,10 @@ class OctyJobQueue():
                 return
 
             # Get account data for all accounts associated with pending jobs.
-            await self._get_accounts(account_ids=[job['account_id'] for job in self.pending_jobs])
+            # await self._get_accounts(account_ids=[job['account_id'] for job in self.pending_jobs])
+            account_ids_list=[job['account_id'] for job in self.pending_jobs]
+            account_ids= list(set(account_ids_list))
+            await self._get_accounts(account_ids=account_ids)
 
             octy_job_updates = list()
             for job in self.pending_jobs:

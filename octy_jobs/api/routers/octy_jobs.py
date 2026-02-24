@@ -41,3 +41,15 @@ limiter = Limiter(key_func=get_remote_address)
 async def octy_job_callback(request: Request, cb: OctyJobCallBack):
     await OctyJobQueueService(cb.account_id).status_callback(cb.dict())
     return "OK"
+
+######################################
+# Route : /v1/internal/jobs/delete
+# Request type : POST
+# Required parameters : DeleteAccountJobs request model
+# Description : Updates the status of an Octy job.
+# Returns : bool -- True if all jobs were deleted successfully, False otherwise
+######################################
+@router.post('/v1/internal/jobs/delete')
+async def delete_account_jobs(request: Request, e: DeleteAccountJobs):
+    res = await OctyJobQueueService(e.account_id).delete_all_octy_jobs()
+    return DeleteAccountJobsDTO(res).dto()

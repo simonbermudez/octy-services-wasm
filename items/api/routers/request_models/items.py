@@ -81,3 +81,6 @@ class DeleteItems(BaseModel):
         if len(v) > Config['MAX_UPDATE_DELETE_ITEMS']:
             raise ValueError(f'You can only delete up to {Config["MAX_UPDATE_DELETE_ITEMS"]} items per request.')
         return v
+    
+class DeleteAccountItemsInternal(BaseModel):
+    account_id : str

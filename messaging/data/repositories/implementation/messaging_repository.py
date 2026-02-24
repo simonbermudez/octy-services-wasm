@@ -131,5 +131,24 @@ class _MessagingContentRepository(MessagingContentInterface):
         rates = tbl_currency_rates.objects.order_by('-created_at').first().to_mongo().to_dict()
         return rates['rates']
 
+    # delete messaging data to do with account_id
+    # TODO : check where the messaging content is stored
+    async def delete_account_messaging_data(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+
+        Returns
+        ----------
+        True if account was deleted successfully, False otherwise : bool
+        """
+        # Delete messaging content
+        res = messagingContentRepository.delete_messaging_content(account_id)
+        if res is False:
+            raise Exception(500, 'Messaging content could not be deleted.')
+
+        return True
+    
 
 messagingContentRepository = _MessagingContentRepository()

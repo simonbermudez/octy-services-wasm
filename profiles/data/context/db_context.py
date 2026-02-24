@@ -1,86 +1,42 @@
 #module imports 
 from config import Config
-from secrets import Secrets
+from profiles.app_secrets import Secrets
 
 #python imports
 from typing import *
 
 #external imports
-from mongoengine import connect, disconnect
-import redis, certifi
+# from mongoengine import connect, disconnect
+import redis.asyncio as redis
+import certifi
+from motor.motor_asyncio import AsyncIOMotorClient
 
 redis_conn = None
 
-class ContextManager():
-    """
-        ContextManager
-        Handles:
-        - Database connections
-            - connecting
-            - disconnecting
-        ...
+class ContextManager:
+    def __init__(self):
+        self.mongo_client = None
+        self.db = None
 
-        Attributes
-        ----------
-        none
-    """
-    def __init__(self):pass
+    async def db_connect(self, logger) -> None:
+        self.mongo_client = AsyncIOMotorClient(Secrets["DB_URI"])
+        self.db = self.mongo_client.get_default_database()
+        logger.info("Opened connection to MongoDB")
 
-    async def db_connect(self, logger) -> None: 
-        """
-            A method used to connect to a mongoDB database
+    async def db_disconnect(self, logger) -> None:
+        self.mongo_client.close()
+        logger.info("Closed connection to MongoDB")
 
-            Parameters
-            ----------
-            logger : logger instance
-
-            Returns
-            ----------
-            None
-        """
-
-        connect(host=Secrets['DB_URI'])
-        logger.info('Opened connection to DB')
-
-    async def db_disconnect(self, logger) -> None: 
-        """
-            A method used to disconnect from a mongoDB database
-
-            Parameters
-            ----------
-            logger : logger instance
-
-            Returns
-            ----------
-            None
-        """
-
-        #Disconnect from mongoDB
-        disconnect(alias=Config['DB_ALIAS'])
-        logger.info('Closed conenction to DB')
-
-    async def db_redis_connect(self, logger) -> None: 
-        """
-            A method used to connect to a redis database
-
-            Parameters
-            ----------
-            None
-
-            Returns
-            ----------
-            None
-        """
-
+    async def db_redis_connect(self, logger) -> None:
         global redis_conn
-        redis_conn = \
-            redis.Redis(
-                    host=Config['REDIS_PUB_HOST'], 
-                    port=Config['REDIS_PORT'], 
-                    password=Secrets['REDIS_PASS'],
-                    db=1,
-                    ssl=True, 
-                    ssl_ca_certs=certifi.where())
-        logger.info(f'Opened Redis connection pool. host: {Config["REDIS_PUB_HOST"]} on port: {Config["REDIS_PORT"]}')
+        redis_conn = redis.Redis(
+            host=Config['REDIS_PUB_HOST'],
+            port=Config['REDIS_PORT'],
+            password=Secrets['REDIS_PASS'],
+            db=1,
+            ssl=True,
+            ssl_ca_certs=certifi.where()
+        )
+        logger.info(f'Opened async Redis connection: {Config["REDIS_PUB_HOST"]}:{Config["REDIS_PORT"]}')
 
 contextManager = ContextManager()

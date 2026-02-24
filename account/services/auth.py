@@ -91,17 +91,19 @@ class AuthService:
                 Account Auth (fat jwt) containing account info + authorized resource tags
         """
         _,pk,sk = basic_auth_parse(request.headers['authorization'])
-        valid_pk, valid_sk, account = authRepository.verify_account_keys(pk, sk)
+        # update account cache
+        await accountRepository.refresh_account_data_cache(pk)
+        valid_pk, valid_sk, account = await authRepository.verify_account_keys(pk, sk)
         if not valid_pk or not valid_sk:
             _log_failed_auth(request, valid_pk)
             raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         # assess api request limits
-        limit_not_exceeded = await _assess_request_limit(account)
-        if not limit_not_exceeded:
-            raise OctyException(400,'limit exceeded', [{'error_message' : 'You have exceeded this accounts monthly API request limit. To increase this limit, please contact us at support@octy.ai', 
-                'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
+        #limit_not_exceeded = await _assess_request_limit(account)
+        #if not limit_not_exceeded:
+        #    raise OctyException(400,'limit exceeded', [{'error_message' : 'You have exceeded this accounts monthly API request limit. To increase this limit, please contact us at support@octy.ai', 
+        #        'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
 
         # update account cache. increment request count
 

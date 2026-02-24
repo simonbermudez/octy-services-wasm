@@ -18,6 +18,7 @@ status_code_detail_map = {
     404: 'Resource not found',
     411: 'Length Required',
     415: 'Unsupported media type',
+    500: 'Internal Server Error',
     501: 'Not Implemented'
 }
 

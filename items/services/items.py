@@ -29,9 +29,25 @@ class ItemsService():
         ----------
         account : Octy account
     """
-    def __init__(self, account : Account): 
+    def __init__(self, account : Account= None, account_id : str = None): 
+        # self.account = account
+        # self.account_id = account_id if account_id != None else account.account_id
+        # self.b = None if self.account is None else BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='items_data')
         self.account = account
-        self.b = None if self.account is None else BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='items_data')
+        if account_id is not None:
+            self.account_id = account_id
+        elif account is not None:
+            self.account_id = account.account_id
+    
+        if self.account is None:
+           self.b = None 
+        else:
+           self.b = BillingUnits(
+            account_id=self.account.account_id, 
+            account_type=self.account.account_configurations['a_t'], 
+            account_currency=self.account.account_configurations['a_c'], 
+            process_name='items_data'
+        )
 
     def get_items(self,
                   item_ids : list = None, 
@@ -200,3 +216,18 @@ class ItemsService():
             [{'error_message' : 'No items found or pagination cursor exhausted', 
             'extended_help': Config['ITEMS_EXTENDED_HELP']}])
         return items, total
+    
+    #Delete all items for an account
+    async def delete_account_items_internal(self) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        bool
+        """
+        res = itemsRepository.delete_account_items_internal(account_id=self.account_id)
+        return res

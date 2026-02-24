@@ -25,8 +25,9 @@ class ChurnPredictionService():
         account : Octy account
         account_id : str
     """
-    def __init__(self, account : Account): 
+    def __init__(self, account : Account, account_id : str = None): 
         self.account = account
+        self.account_id = account_id if account_id is not None else account.account_id
 
     async def generate_churn_report(self) -> dict:
         """
@@ -75,3 +76,16 @@ class ChurnPredictionService():
 
         return churn_report
 
+
+    # delete all churn predictions data associated with an account
+    async def delete_account_churn_predictions_internal(self) -> bool:
+        """
+        Parameters
+        ----------
+
+        Returns
+        ----------
+        bool
+        """
+        res = await churnPredictionRepository.delete_account_churn_predictions(account_id=self.account_id)
+        return res

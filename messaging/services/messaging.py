@@ -165,3 +165,29 @@ class MessagingService():
         if len(deleted) < 1:
             raise OctyException(400, 'No templates deleted!', failed)
         return deleted, failed
+    
+    # Delete all templates, messages and message content for an account
+    async def delete_account_messaging_internal(self, account_id: str) -> bool:
+        """
+            A method used to delete all messaging data for an Octy account.
+
+            Parameters
+            ----------
+            account_id : str
+                Account unique identifier
+
+            Returns
+            ----------
+            True if account was deleted successfully, False otherwise : bool
+        """
+        # Delete messages
+        res = await messagingContentRepository.delete_messages(account_id)
+        if res is False:
+            raise Exception(500, 'Messages could not be deleted.')
+        
+        # Delete templates
+        res = await templatesRepository.delete_templates_by_account_id(account_id)
+        if res is False:
+            raise Exception(500, 'Templates could not be deleted.')
+        
+        return True

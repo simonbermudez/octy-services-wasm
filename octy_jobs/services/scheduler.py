@@ -65,13 +65,17 @@ class RobustScheduler(Scheduler):
 		|                             | futures finish or are cancelled.       |
 		+-----------------------------+----------------------------------------+
         """
-        jobs = [job.run() for job in self.jobs if job.should_run]
+
+
+        jobs = [asyncio.create_task(job.run()) for job in self.jobs if job.should_run]
+    
         if not jobs:
             return [], []
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(1)  
 
         return await asyncio.wait(jobs, *args, **kwargs)
+    
 
     async def run_all(self, delay_seconds=0, *args, **kwargs):
         """Run all jobs regardless if they are scheduled to run or not.
@@ -101,14 +105,18 @@ class RobustScheduler(Scheduler):
 		|                             | futures finish or are cancelled.       |
 		+-----------------------------+----------------------------------------+
 		"""
+
         if delay_seconds:
             warnings.warn("The `delay_seconds` parameter is deprecated.",
                 DeprecationWarning)
-        jobs = [self._run_job(job) for job in self.jobs[:]]
+        
+        jobs = [asyncio.create_task(self._run_job(job)) for job in self.jobs[:]]
+        
         if not jobs:
             return [], []
 
         return await asyncio.wait(jobs, *args, **kwargs)
+
 
     def clear(self, tag=None):
         """

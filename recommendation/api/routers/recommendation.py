@@ -69,3 +69,16 @@ async def get_recomendations(request: Request,  getRec : GetRecomendationsIntern
     recommendations, training_job_meta = await RecommendationsService(account=None, account_id=getRec.account_id)\
         .get_recommendations(profile_ids=getRec.profile_ids)
     return GetRecommendationsDTO(recommendations=recommendations, training_job_meta=training_job_meta).dto()
+
+######################################
+# Route : /v1/internal/recommendations/delete
+# Request type : POST
+# Required parameters : DeleteAccountRecommendations
+# Description : Delete all recommendations for an account.
+# Returns : Bool -- True if all recommendations were deleted successfully, False otherwise
+# NOTE : Do not expose route in ingress
+######################################
+@router.post('/v1/internal/recommendations/delete')
+async def get_recomendations(request: Request,  e : DeleteAccountRecommendations):
+    res = await RecommendationsService(account=None, account_id=e.account_id).delete_account_recommendations()
+    return DeleteAccountRecommendationsDTO(res).dto()

@@ -94,3 +94,27 @@ async def get_events_internal(request: Request,  e : GetEventsInternal):
                     profile_ids=e.profile_ids,
                     event_type=e.event_type)
     return InternalGetEventsDTO(events, total).dto()
+
+######################################
+# Route : /v1/internal/events/delete
+# Request type : POST
+# Required parameters : POST body : {"account_id" : ""}
+# Description : Internal service used to delete events and event instances for a given account
+# Returns : bool : True if events were deleted successfully, False otherwise
+# NOTE : Do not expose route in ingress
+######################################
+
+@router.post('/v1/internal/events/delete')
+async def delete_events_internal(request: Request,  e : DeleteEventsInternal):
+    res = await EventsService(account_id=e.account_id).delete_account_events_internal()
+    return InternalDeleteEventsDTO(res).dto()
+
+
+#By Munashe
+# Get latest checkout info submmited event for given checkout id
+@router.post('/v1/retention/events') 
+async def get_latest_checkout_info_submmited_event(request: Request,  checkout_id : str, current_account: Account = Depends(decode_account_jwt)):
+
+    event = await EventsService(current_account)\
+        .get_latest_checkout_info_submmited_event(checkout_id=checkout_id)
+    return GetEventDTO(event).dto()

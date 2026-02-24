@@ -111,3 +111,7 @@ class GetProfilesInternal(BaseModel):
     profiles : List[str]
     tag_statuses : Optional[List[str]] = ['active'] # the allowed status of segment tags returned with each profile
     get_all : bool # if true, service will ignore any sent profile ids.
+
+
+class DeleteAccountProfiles(BaseModel):
+    account_id : str

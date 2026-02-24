@@ -85,5 +85,25 @@ class _RecommendationsRepository(RecommendationsInterface):
         """
         tbl_recommendations_cache.objects(account_id__exact=account_id, profile_id__in=profiles).delete()
 
+    #delete all recommendations for an account from both cache and tbl_recommendations
+    async def delete_all_cached_recommendations(self, account_id : str):
+        """
+        Parameters
+        ----------
+        account_id : str
 
+        Returns
+        ----------
+        bool : True if successful, False otherwise
+        """
+
+        try:
+
+            tbl_recommendations_cache.objects(account_id__exact=account_id).delete()
+            tbl_hparam_tuning_jobs.objects(account_id__exact=account_id).delete()
+            return True
+        except Exception as e:
+            capture_exception(e)
+            return False
+        
 recommendationsRepository = _RecommendationsRepository()

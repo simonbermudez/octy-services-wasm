@@ -22,7 +22,7 @@ class EventsService():
         Handles:
         - Create event
         - Batch create events
-        - Get events for all all specified profiles
+        - Get events for all specified profiles
         - Get event meta data
         ...
 
@@ -31,10 +31,28 @@ class EventsService():
         account : Octy account
         account_id : str
     """
+
     def __init__(self, account : Account = None, account_id : str = None): 
+        # self.account = account
+        # self.account_id = account_id if account_id != None else account.account_id
+        # self.b = None if self.account is None else BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='events_data')
+
         self.account = account
-        self.account_id = account_id if account_id != None else account.account_id
-        self.b = None if self.account is None else BillingUnits(account_id=self.account.account_id, account_type=self.account.account_configurations['a_t'], account_currency=self.account.account_configurations['a_c'], process_name='events_data')
+    
+        if account_id is not None:
+           self.account_id = account_id
+        elif account is not None:
+           self.account_id = account.account_id
+    
+        if self.account is None:
+           self.b = None 
+        else:
+           self.b = BillingUnits(
+               account_id=self.account.account_id, 
+               account_type=self.account.account_configurations['a_t'], 
+               account_currency=self.account.account_configurations['a_c'], 
+               process_name='items_data'
+            )
     
     async def create_event(self, event : CreateEvent) -> dict:
         """
@@ -49,6 +67,9 @@ class EventsService():
         """
         # validate event. if invalid raise Octy error 400
         # assess allowed limits
+
+        # if event type is includes ip address, cart token and customer info , use it to configure    system event type, ensure event properties are valid
+
         latest_events, event_count = await eventsRepository.get_events_meta(account_id=self.account.account_id, event_type_list=[event.event_type])
         count_res, counts = assess_resource_limit(self.account.account_configurations['li'],event_count,1,resource_key=3)
         if not count_res:
@@ -79,7 +100,6 @@ class EventsService():
 
         event_id = generate_uid('event')
         created_event = {
-
             'event_id' : event_id,
             'profile_id' : event.profile_id,
             'event_type_id' : event_type_id,
@@ -247,6 +267,23 @@ class EventsService():
         await eventsRepository.batch_create_events(self.account.account_id, valid_events)
 
         return ret_valid_events, invalid_events
+    
+    async def get_latest_checkout_info_submmited_event(self, checkout_id : str):
+        """
+        Parameters
+        ----------
+        checkout_id : str
+            checkout_id
+
+        Returns
+        ----------
+        event : dict
+        """
+        event = await eventsRepository.get_latest_checkout_info_submmited_event(self.account.account_id, checkout_id)
+        if not event:
+            raise OctyException(400,'No event found', 
+                [{'error_message' : 'No event found with provided params', 'extended_help': ''}])
+        return event
 
     async def _verify_event(self, event_type : str, event_properties : dict, latest_event : dict, profile_id : str, ivps : list) -> Union[bool, str, str]:
         """
@@ -367,14 +404,14 @@ class EventsService():
         # if not system event type ensure event type and event properties exist
         else:
             
-            custom_event_type_exist = eventTypesRepository.get_event_type_by_name(account_id=self.account.account_id, event_type=event_type)
+            custom_event_type_exist = await eventTypesRepository.get_event_type_by_name(account_id=self.account.account_id, event_type=event_type)
 
             # ensure event type provided is a valid custom event type
             if not custom_event_type_exist:
                 err_msg.extend(['Unknown event type supplied with this request.', 'Invalid event_type.'])
                 return False, err_msg, None
 
-            event_type_id=custom_event_type_exist['event_type_id']
+            event_type_id= custom_event_type_exist['event_type_id']
 
             #ensure all event property keys are provided.  Please ensure all event property keys have been provided.
             event_instance_exists = True
@@ -424,6 +461,8 @@ class EventsService():
         for algo_conf in self.account.algorithm_configurations:
             try:
                 config = algo_conf['config_json']
+                if len(config) == 0:
+                    continue
             except KeyError:
                 continue
             
@@ -442,6 +481,22 @@ class EventsService():
                         err_msg.extend(['The event type: \'{e}\' is currently set as this accounts recommendations event type. Please supply the rec_item_identifier key. ex. \'item_id\' with a relevant value within the event_properties.'.format(e=event_type_id), 'Invalid event data provided'])
                         return False, err_msg, None
         return True, None, event_type_id
+
+    #Delete all events for an account
+    async def delete_account_events_internal(self) -> bool:
+        """
+        Returns
+        ----------
+        result : bool
+        """
+
+        try:
+            await eventsRepository.delete_account_events(self.account_id)
+            eventTypesRepository.delete_account_event_types(self.account_id)
+            return True
+        except Exception as x:
+            raise OctyException(500, 'Server error', [{'error_message' : 'An error occurred while attempting to delete events for this account. Please try again later.', 'extended_help': ''}])
+            
 
     async def get_events(self, timeframe : int, cursor : int, event_sequence_event : dict = None, profile_ids : list = None, event_type : str = None) -> Union[list, int]:
         """

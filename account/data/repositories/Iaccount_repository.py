@@ -18,6 +18,21 @@ class AccountInterface(ABC):
         :rtype: object, str
         """
         raise NotImplementedError
+    
+    #Implemented by Munashe
+    @abstractmethod
+    def get_account_by_account_id(self, account_id : str):
+        """
+            Parameters
+            ----------
+            account_id : str
+                Octy generated account unique identifier
+
+            Returns
+            ----------
+            :rtype: object
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def get_account(self, pk : str, dict : bool):

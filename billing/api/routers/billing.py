@@ -112,3 +112,19 @@ async def get_subscription_plans(request : Request,
     
     return GetSubscriptionPlansDTO(subscriptions).dto()
 
+
+
+######################################
+# Route : /v1/internal/billing/delete
+# Request type : POST
+# Required parameters : DeleteAccountBilling
+# Description : Delete all messaging data associated with an account
+# Returns : Bool indicating success or failure
+######################################
+
+@router.post('/v1/internal/billing/delete')
+async def delete_billing_internal(e : DeleteAccountBilling):
+    res = await BillingService(account_id=e.account_id).delete_account_billing_internal()
+    return DeleteAccountBillingDTO(res).dto()
+
+

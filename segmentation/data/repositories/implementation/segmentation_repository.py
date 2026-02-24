@@ -1,9 +1,9 @@
 # module imports
 from data.repositories.Isegmentation_repository import SegmentationInterface
-from data.models.db_schemas import tbl_segments, EventSequence
 from utils.utils import *
 from api.routers.error_handlers import *
-
+import data.context.db_context as ctx
+from config import Config
 
 # python imports
 from typing import *
@@ -12,11 +12,9 @@ from datetime import datetime as dt
 import time
 
 # external imports
-from mongoengine.errors import BulkWriteError, OperationError
-from mongoengine.queryset.visitor import Q
-from pymongo.errors import BulkWriteError
+from pymongo.errors import BulkWriteError, OperationFailure
 from bson.json_util import dumps
-
+from bson import ObjectId
 
 
 class _SegmentationRepository(SegmentationInterface):
@@ -33,9 +31,10 @@ class _SegmentationRepository(SegmentationInterface):
         ----------
         ...
     """
-    def __init__(self): pass
+    def __init__(self):
+        self.collection = lambda: ctx.contextManager.db["tbl_segments"]
 
-    def get_segment_count(self, account_id : str) -> int:
+    async def get_segment_count(self, account_id: str) -> int:
         """
         Parameters
         ----------
@@ -46,9 +45,9 @@ class _SegmentationRepository(SegmentationInterface):
         ----------
         count : int
         """
-        return tbl_segments.objects(account_id__exact=account_id).count()
+        return await self.collection().count_documents({"account_id": account_id})
 
-    def get_segment_by_identifiers(self, identifiers : list, account_id : str) -> Union[list, int]:
+    async def get_segment_by_identifiers(self, identifiers: list, account_id: str) -> Union[list, int]:
         """
         Parameters
         ----------
@@ -62,37 +61,33 @@ class _SegmentationRepository(SegmentationInterface):
         segments : list
         total : int
         """
-        query = [
-            {"account_id" : { "$eq" : account_id}},
-            {"status" : { "$eq" : "active"}}
-        ]
+        query = {
+            "$and": [
+                {"account_id": account_id},
+                {"status": "active"}
+            ]
+        }
 
-        if identifiers != None:
-            cursor = 0
-            query.append(
+        if identifiers is not None:
+            query["$and"].append({
+                "$or": [
+                    {"_id": {"$in": identifiers}},
+                    {"segment_name": {"$in": identifiers}}
+                ]
+            })
 
-                {
-                    "$or" : [
-                        {"_id" : { "$in" : identifiers}},
-                        {"segment_name" : { "$in" : identifiers}}
-                    ]
-                    
-                }
-            
-            )
-
-        results_cursor = tbl_segments._get_collection().find({'$and' : query}).skip(cursor).limit(100)
-        total = tbl_segments._get_collection().find({'$and' : query}).count()
-        raw_res = json.loads(dumps(list(results_cursor), indent = 2))
+        cursor = self.collection().find(query).skip(0).limit(100)
+        docs = await cursor.to_list(length=100)
+        total = await self.collection().count_documents(query)
         
-        #format segments
-        for segment in raw_res:
+        # Format segments
+        for segment in docs:
             segment['segment_id'] = segment['_id']
             _format_segment(segment)
 
-        return raw_res, total
+        return docs, total
 
-    def get_segment_by_attr(self, account_id : str, segment : dict) -> dict:
+    async def get_segment_by_attr(self, account_id: str, segment: dict) -> dict:
         """
         Parameters
         ----------
@@ -103,63 +98,57 @@ class _SegmentationRepository(SegmentationInterface):
         ----------
         segment_dict : dict
         """
-        segments = tbl_segments.objects((   Q(segment_name__exact=segment.segment_name) & Q(account_id__exact=account_id)))
-        if segments:
-            segment_dict = json.loads(segments[0].to_json())
-            #segment_dict = segments[0]
+        # First try to find by segment name
+        segment_dict = await self.collection().find_one({
+            "segment_name": segment.get("segment_name"),
+            "account_id": account_id
+        })
+        
+        if segment_dict:
             segment_dict['segment_id'] = segment_dict['_id']
             segment_dict = _format_segment(segment_dict)
             return segment_dict
 
-        if not segment.profile_property_name and not segment.profile_property_value:
+        # Build query based on profile properties
+        query = {
+            "account_id": account_id,
+            "segment_type": segment.get("segment_type"),
+            "segment_sub_type": segment.get("segment_sub_type"),
+            "status": "active"
+        }
 
+        if segment.get("profile_property_name") and segment.get("profile_property_value"):
+            query["profile_property_name"] = segment.get("profile_property_name")
+            query["profile_property_value"] = segment.get("profile_property_value")
 
-            segments = tbl_segments.objects(Q(account_id__exact=account_id) \
-                    & Q(segment_type__exact=segment.segment_type) \
-                    & Q(segment_sub_type__exact=segment.segment_sub_type) \
-                    & Q(status__exact="active") )
-        else:
-
-            segments = tbl_segments.objects( Q(account_id__exact=account_id) \
-                    & Q(segment_type__exact=segment.segment_type) \
-                    & Q(segment_sub_type__exact=segment.segment_sub_type) \
-                    & Q(profile_property_name__exact=segment.profile_property_name) \
-                    & Q(profile_property_value__exact=segment.profile_property_value) \
-                    & Q(status__exact="active") )
+        cursor = self.collection().find(query)
+        docs = await cursor.to_list(length=None)
         
+        # Convert event_sequence to comparable format
         es_json_list = []
-        for es in segment.event_sequence:
-            es_json_list.append(
-                es.dict()
-            )
+        for es in segment.get("event_sequence", []):
+            if hasattr(es, 'dict'):
+                es_json_list.append(es.dict())
+            else:
+                es_json_list.append(es)
 
-        
-        for found_segment in segments:
-            segment_es_list=[]
-            for event in found_segment.event_sequence:
-                segment_es_list.append(
-                    json.loads(event.to_json())
-                )
+        for found_segment in docs:
+            segment_es_list = found_segment.get("event_sequence", [])
             
             if segment_es_list == es_json_list:
+                if (found_segment.get("segment_type") == segment.get("segment_type") and
+                    found_segment.get("segment_sub_type") == segment.get("segment_sub_type") and
+                    found_segment.get("segment_timeframe") == segment.get("segment_timeframe") and
+                    found_segment.get("profile_property_name") == segment.get("profile_property_name") and
+                    found_segment.get("profile_property_value") == segment.get("profile_property_value")):
+                    
+                    found_segment['segment_id'] = found_segment['_id']
+                    found_segment = _format_segment(found_segment)
+                    return found_segment
 
-                if found_segment.segment_type == segment.segment_type and \
-                    found_segment.segment_sub_type == segment.segment_sub_type and \
-                    found_segment.segment_timeframe == segment.segment_timeframe and \
-                    found_segment.profile_property_name == segment.profile_property_name and \
-                    found_segment.profile_property_value == segment.profile_property_value :
-            
-                    segment_dict = json.loads(found_segment.to_json())
-                    segment_dict['segment_id'] = segment_dict['_id']
-                    segment_dict = _format_segment(segment_dict)
-                    return segment_dict
-                else:
-                    continue
-
-        
         return None
 
-    async def get_past_segments_by_profile_ids(self, account_id : str, profile_ids : list) -> list:
+    async def get_past_segments_by_profile_ids(self, account_id: str, profile_ids: list) -> list:
         """
         Parameters
         ----------
@@ -173,17 +162,19 @@ class _SegmentationRepository(SegmentationInterface):
         segments : list
         """
         query = {
-            '$and' : [
-                {"account_id" : { "$eq" : account_id}},
-                {"segment_type" : { "$eq" : "past"}},
-                {"status" : { "$eq" : "active"}},
-                {"profile_ids" : { "$in" : profile_ids}}
-        ]}
-        results_cursor = tbl_segments._get_collection().find(query)
-        segments = json.loads(dumps(list(results_cursor), indent = 2))
+            "$and": [
+                {"account_id": account_id},
+                {"segment_type": "past"},
+                {"status": "active"},
+                {"profile_ids": {"$in": profile_ids}}
+            ]
+        }
+        
+        cursor = self.collection().find(query)
+        segments = await cursor.to_list(length=None)
         return segments
 
-    def get_segments(self, account_id : str, segment_type : str, status : str, cursor : int, internal : bool = False) -> Union[list, int]:
+    async def get_segments(self, account_id: str, segment_type: str, status: str, cursor: int, internal: bool = False) -> Union[list, int]:
         """
         Parameters
         ----------
@@ -200,69 +191,68 @@ class _SegmentationRepository(SegmentationInterface):
         ----------
         found_segments, total : list, int
         """
+        query = {"account_id": account_id}
+        
+        if status != 'all':
+            query["status"] = status
+            
+        if segment_type != 'all':
+            query["segment_type"] = segment_type
+
+        cursor_data = self.collection().find(query).skip(cursor).limit(100)
+        docs = await cursor_data.to_list(length=100)
+        total = await self.collection().count_documents(query)
+        
         found_segments = []
-        if status == 'all':
-            if segment_type == 'all':
-                segments = tbl_segments.objects(Q(account_id__exact=account_id)).skip(cursor).limit(100)
-                total = tbl_segments.objects(Q(account_id__exact=account_id)).count()
-            else:
-                segments = tbl_segments.objects((Q(account_id__exact=account_id) & Q(segment_type__exact=segment_type))).skip(cursor).limit(100)
-                total = tbl_segments.objects((Q(account_id__exact=account_id) & Q(segment_type__exact=segment_type))).count()
-
-        else:
-            if segment_type == 'all':
-                segments = tbl_segments.objects((Q(status__exact=status) & Q(account_id__exact=account_id))).skip(cursor).limit(100)
-                total = tbl_segments.objects((Q(status__exact=status) & Q(account_id__exact=account_id))).count()
-            else:
-                segments = tbl_segments.objects((Q(status__exact=status) & Q(account_id__exact=account_id) & Q(segment_type__exact=segment_type))).skip(cursor).limit(100)
-                total = tbl_segments.objects((Q(status__exact=status) & Q(account_id__exact=account_id) & Q(segment_type__exact=segment_type))).count()
-
-            # segments = tbl_segments.objects((Q(status__exact=status) & Q(account_id__exact=account_id))).skip(cursor).limit(100)
-            # total = tbl_segments.objects((Q(status__exact=status) & Q(account_id__exact=account_id))).count()
-        for segment in segments:
-            segment_dict = json.loads(segment.to_json())
-            segment_dict['segment_id'] = segment_dict['_id']
-            segment_dict = _format_segment(segment_dict, internal=internal)
-            found_segments.append(segment_dict)
+        for segment in docs:
+            segment['segment_id'] = segment['_id']
+            segment = _format_segment(segment, internal=internal)
+            found_segments.append(segment)
+            
         return found_segments, total
 
-    def create_segment(self, segment : object) -> None:
+    async def create_segment(self, segment: dict) -> None:
         """
         Parameters
         ----------
-        segment : CreateSegment
-            CreateSegment request model instance
+        segment : dict
+            Segment data
 
         Returns
         ----------
         None
         """
+        # Format event sequence
         event_sequence = []
-        for es in segment['event_sequence']:
-            event_sequence.append(
-                EventSequence(
-                    # event=es.event,
-                    event_type=es.event_type,
-                    exp_timeframe=es.exp_timeframe,
-                    action_inaction=es.action_inaction,
-                    event_properties=es.event_properties
-                )
-            )
-        new_segment = tbl_segments(
-            segment_id=segment['segment_id'],
-            account_id=segment['account_id'],
-            segment_name=segment['segment_name'],
-            segment_type=segment['segment_type'],
-            segment_sub_type=segment['segment_sub_type'],
-            segment_timeframe=segment['segment_timeframe'],
-            event_sequence=event_sequence,
-            profile_property_name=segment['profile_property_name'],
-            profile_property_value=segment['profile_property_value']
-        )
+        for es in segment.get('event_sequence', []):
+            if hasattr(es, 'dict'):
+                event_sequence.append(es.dict())
+            else:
+                event_sequence.append({
+                    'event_type': es.get('event_type'),
+                    'exp_timeframe': es.get('exp_timeframe'),
+                    'action_inaction': es.get('action_inaction'),
+                    'event_properties': es.get('event_properties')
+                })
 
-        new_segment.save()
+        new_segment = {
+            "_id": segment['segment_id'],
+            "account_id": segment['account_id'],
+            "segment_name": segment['segment_name'],
+            "segment_type": segment['segment_type'],
+            "segment_sub_type": segment['segment_sub_type'],
+            "segment_timeframe": segment['segment_timeframe'],
+            "event_sequence": event_sequence,
+            "profile_property_name": segment.get('profile_property_name'),
+            "profile_property_value": segment.get('profile_property_value'),
+            "status": "active",
+            "created_at": int(time.time() * 1000),
+            "profile_ids": []
+        }
 
-    async def update_segment_status(self, account_id : str, segment_ids : list, status : str) -> Union[list, list]:
+        await self.collection().insert_one(new_segment)
+
+    async def update_segment_status(self, account_id: str, segment_ids: list, status: str) -> Union[list, list]:
         """
         Parameters
         ----------
@@ -280,36 +270,41 @@ class _SegmentationRepository(SegmentationInterface):
         pending_deleted_segments = []
         failed_to_update = []
 
-        #BULK UPDATE OPERATION
-        bulk_operation = tbl_segments._get_collection().initialize_unordered_bulk_op()
+        # Bulk update operation
+        bulk_ops = []
         for s in segment_ids:
-            bulk_operation.find({
-                '$and' : [
-                    {"_id" : { "$eq" : s['segment_id']}},
-                    {"account_id" : { "$eq" : account_id}}
-                ]
-            }).update(
-                {
-                    "$set" : {"status" : status}
+            bulk_ops.append({
+                "update_one": {
+                    "filter": {
+                        "$and": [
+                            {"_id": s['segment_id']},
+                            {"account_id": account_id}
+                        ]
+                    },
+                    "update": {"$set": {"status": status}}
                 }
-            )
+            })
 
         try:
-            bulk_operation.execute()
+            if bulk_ops:
+                result = await self.collection().bulk_write(bulk_ops, ordered=False)
+                # Add successfully updated segments to pending list
+                for s in segment_ids:
+                    pending_deleted_segments.append(s)
         except BulkWriteError as bwe:
-            for err in bwe.details['writeErrors']:
-                mes = f"Unknown error occurred when updating segment with segment_id : {err['op']['u']['$set']['segment_id']}"
+            for err in bwe.details.get('writeErrors', []):
+                segment_id = err.get('op', {}).get('u', {}).get('$set', {}).get('segment_id')
+                mes = f"Unknown error occurred when updating segment with segment_id : {segment_id}"
                 failed_to_update.append({
-                        'segment_id' : err['op']['u']['$set']['segment_id'],
-                        'error_message' : mes
-                    })
-
-
-                pending_deleted_segments = list(filter(lambda i : i['segment_id'] != err['op']['u']['$set']['segment_id'], pending_deleted_segments))
+                    'segment_id': segment_id,
+                    'error_message': mes
+                })
+                # Remove from pending list
+                pending_deleted_segments = [i for i in pending_deleted_segments if i['segment_id'] != segment_id]
 
         return pending_deleted_segments, failed_to_update
 
-    async def update_past_segment_profile_ids(self, account_id : str, segment_id : str, profile_ids : list) -> None:
+    async def update_past_segment_profile_ids(self, account_id: str, segment_id: str, profile_ids: list) -> None:
         """
         Parameters
         ----------
@@ -325,12 +320,17 @@ class _SegmentationRepository(SegmentationInterface):
         None
         """
         try:
-            tbl_segments.objects(Q(account_id__exact=account_id) \
-                & Q(segment_id__exact=segment_id)).update(set__profile_ids=profile_ids)
-        except OperationError as e:
+            await self.collection().update_one(
+                {
+                    "account_id": account_id,
+                    "segment_id": segment_id
+                },
+                {"$set": {"profile_ids": profile_ids}}
+            )
+        except OperationFailure as e:
             raise Exception(f"[toxic]:: {e}")
 
-    async def delete_segments(self, account_id : str, segment_ids : list) -> None:
+    async def delete_segments(self, account_id: str, segment_ids: list) -> None:
         """
         Parameters
         ----------
@@ -343,19 +343,23 @@ class _SegmentationRepository(SegmentationInterface):
         ----------
         None
         """
-
-        bulk_operation = tbl_segments._get_collection().initialize_unordered_bulk_op()
+        bulk_ops = []
         for segment in segment_ids:
-            bulk_operation.find({
-                '$and' : [
-                    {  "_id" : { "$eq" : segment['segment_id'] }  },
-                    {  "account_id" : { "$eq" : account_id }  }
-                ]
-            }).remove()
+            bulk_ops.append({
+                "delete_one": {
+                    "filter": {
+                        "$and": [
+                            {"_id": segment['segment_id']},
+                            {"account_id": account_id}
+                        ]
+                    }
+                }
+            })
 
-        bulk_operation.execute()
+        if bulk_ops:
+            await self.collection().bulk_write(bulk_ops, ordered=False)
 
-    def get_event_types_by_name(self, account_id : str, event_type_names : list) -> Union[list, list]:
+    async def get_event_types_by_name(self, account_id: str, event_type_names: list) -> Union[list, list]:
         """
         Parameters
         ----------
@@ -372,11 +376,11 @@ class _SegmentationRepository(SegmentationInterface):
         not_found = []
 
         # if none supplied return empty lists
-        if len(event_type_names) <1:
+        if len(event_type_names) < 1:
             return found_event_types, not_found
 
         payload = {
-            'account_id' : account_id,
+            'account_id': account_id,
             'event_type_names': event_type_names
         }
         url = f"{Config['EVENT_SERVICE_CLUSTER_IP']}/v1/internal/events/types"
@@ -408,39 +412,57 @@ class _SegmentationRepository(SegmentationInterface):
 
         return found_event_types, not_found
 
+    async def delete_account_segments(self, account_id: str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+            Octy account id
+
+        Returns
+        ----------
+        None
+        """
+        result = await self.collection().delete_many({"account_id": account_id})
+        return result.deleted_count > 0
+
+
 segmentationRepository = _SegmentationRepository()
 
-def _format_segment(segment : dict, internal : bool = False) -> dict:
+
+def _format_segment(segment: dict, internal: bool = False) -> dict:
     '''
         Format segment objects
     '''
     # Ensure Event Property keys is supplied with each event sequence object
-    for event in segment['event_sequence']:
-        try:
-            event['event_properties']
-        except KeyError:
+    for event in segment.get('event_sequence', []):
+        if 'event_properties' not in event:
             event['event_properties'] = None
 
-    if not internal:    
+    if not internal:
         segment.pop('account_id', None)
         segment.pop('_id', None)
         segment.pop('id', None)
 
-        if segment['segment_sub_type'] < 3:
+        if segment.get('segment_sub_type', 0) < 3:
             segment.pop('profile_property_name', None)
             segment.pop('profile_property_value', None)
 
         try:
-            segment['created_at'] = int_to_dt(segment['created_at']['$date'], as_str=True) if segment['created_at'] != None else None
-            # try:
-            #     segment['updated_at'] = int_to_dt(segment['updated_at']['$date'], as_str=True) if segment['updated_at'] != None else None
-            # except TypeError:
-            #     segment['updated_at'] = segment['updated_at'].strftime('%a, %d %b %Y %H:%M:%S GMT')
-        except KeyError:
+            created_at = segment.get('created_at')
+            if created_at:
+                if isinstance(created_at, dict) and '$date' in created_at:
+                    segment['created_at'] = int_to_dt(created_at['$date'], as_str=True)
+                else:
+                    segment['created_at'] = int_to_dt(created_at, as_str=True)
+            else:
+                segment['created_at'] = None
+        except (KeyError, TypeError):
             pass
-        segment['profile_count'] = len(segment['profile_ids'])
+            
+        segment['profile_count'] = len(segment.get('profile_ids', []))
         segment.pop('profile_ids', None)
         return segment
+    
     segment.pop('_id', None)
     return segment
-    

@@ -51,5 +51,24 @@ class _ChurnPredictionRepository(ChurnPredInterface):
         hp_tuning_job = json.loads(dumps(list(results_cursor), indent = 2))
         return hp_tuning_job
     
+    # delete churn data to do with account_id
+    async def delete_account_churn_predictions(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+
+        Returns
+        ----------
+        True if account churn data was deleted successfully, False otherwise : bool
+        """
+        query = {'$and' : [
+            {"account_id" : { "$eq" : account_id}},
+        ]}
+        tbl_hparam_tuning_jobs._get_collection().delete_many(query)
+        return True
+
+
+    
 
 churnPredictionRepository = _ChurnPredictionRepository()

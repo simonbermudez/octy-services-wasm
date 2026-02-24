@@ -318,6 +318,20 @@ class _TemplatesRepository(TemplatesInterface):
 
         return deleted_templates, failed_to_delete
 
+    # delete templates to do with account_id
+    async def delete_account_templates(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+
+        Returns
+        ----------
+        bool
+        """
+        tbl_templates.objects(account_id__exact=account_id).delete()
+        return True
+    
 async def _format_template(template : dict):
     '''
     Format template objects

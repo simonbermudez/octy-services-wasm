@@ -9,7 +9,7 @@ class CreateEvent(BaseModel):
     event_type : str
     event_properties : dict
     profile_id : str
-    created_at : Optional[str] # only acknowledged if batch create
+    created_at : Optional[str] = None
 
 ### Delete event types Input Schema
 class BatchCreateEvents(BaseModel):
@@ -27,3 +27,8 @@ class GetEventsInternal(BaseModel):
     event_sequence_event : Optional[Dict]
     profile_ids : Optional[List[str]]
     event_type : Optional[str]
+
+
+### Delete events for an account Input Schema
+class DeleteEventsInternal(BaseModel):
+    account_id : str

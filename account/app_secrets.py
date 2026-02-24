@@ -5,4 +5,4 @@ import json
 try:
     Secrets = json.loads(base64_decode(os.environ.get('ACCOUNT_SECRETS')))
 except TypeError:
-    Secrets = base64_decode(os.environ.get('ACCOUNT_SECRETS'))
+    Secrets = base64_decode(os.environ.get('ACCOUNT_SECRETS'))  

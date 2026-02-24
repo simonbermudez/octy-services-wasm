@@ -1,9 +1,9 @@
 # module imports
 from data.repositories.Ievent_types_repository import EventTypesInterface
-from data.models.db_schemas import tbl_custom_event_types
 from utils.utils import *
 from api.routers.error_handlers import *
-
+import data.context.db_context as ctx
+from config import Config
 
 # python imports
 from typing import *
@@ -12,277 +12,186 @@ from datetime import datetime as dt
 import time
 
 # external imports
-from mongoengine.errors import NotUniqueError, DoesNotExist, BulkWriteError
-from mongoengine.queryset.visitor import Q
 from pymongo.errors import BulkWriteError, OperationFailure
 from bson.json_util import dumps
-
+from bson import ObjectId
 
 class _EventTypesRepository(EventTypesInterface):
-    """
-        _EventTypesRepository
-        Handles:
-        - Retrieving event types
-        - Creating event types
-        - Deleting event types
-        ...
+    def __init__(self):
+        self.collection = lambda: ctx.contextManager.db["tbl_custom_event_types"]
 
-        Attributes
-        ----------
-        none
-    """
-    def __init__(self): pass
+    async def get_event_types_count(self, account_id: str):
+        return await self.collection().count_documents({"account_id": account_id})
 
+    async def get_event_type_by_ids(self, account_id: str, event_type_ids: list) -> list:
+        query = {
+            "$and": [
+                {"event_type_id": {"$in": event_type_ids}},
+                {"account_id": account_id}
+            ]
+        }
+        cursor = self.collection().find(query)
+        docs = await cursor.to_list(length=None)
+        for doc in docs:
+            doc["event_type_id"] = doc["_id"]
+            _format_event_type(doc)
+        return docs
 
-    def get_event_types_count(self, account_id : str):
-        """
-        Parameters
-        ----------
-        account_id : str
-            Octy account id
-
-        Returns
-        ----------
-        count : int
-        """
-        return tbl_custom_event_types.objects(account_id__exact=account_id).count()
-
-    def get_event_type_by_ids(self, account_id : str, event_type_ids : list) -> list:
-        """
-        Parameters
-        ----------
-        account_id : str
-            Octy account id
-        event_type_ids : list
-            list of event_type_id(s)
-
-        Returns
-        ----------
-        event types : list
-        """
-        event_types_dicts = []
-        event_types = tbl_custom_event_types.objects((Q(event_type_id__in=event_type_ids) & Q(account_id__exact=account_id)))
-        if event_types:
-            event_types_dicts = json.loads(event_types.to_json())
-        
-        for event_type in event_types_dicts:
-            event_type['event_type_id'] = event_type['_id']
-            _format_event_type(event_type)
-
-        return event_types_dicts
-    
-    def get_event_type_by_name(self, account_id : str, event_type : str) -> dict:
-        """
-        Parameters
-        ----------
-        account_id : str
-            Octy account id
-        event_type : str
-            The event_type name of the event type that should be returned.
-
-        Returns
-        ----------
-        result : dict
-        """
-        event_types = tbl_custom_event_types.objects((Q(event_type__exact=event_type) & Q(account_id__exact=account_id)))
-        if event_types:
-            event_type_dict = json.loads(event_types.to_json())
-            event_type_dict[0]['event_type_id'] = event_type_dict[0]['_id']
-            event_type_dict= _format_event_type(event_type_dict[0])
-            return event_type_dict
+    async def get_event_type_by_name(self, account_id: str, event_type: str) -> dict:
+        doc = await self.collection().find_one({"account_id": account_id, "event_type": event_type})
+        if doc:
+            doc["event_type_id"] = doc["_id"]
+            return _format_event_type(doc)
         return None
-    
-    def get_event_types_by_name(self, account_id : str, event_type_names : list) -> Union[list, list]:
-        """
-        Parameters
-        ----------
-        account_id : str
-            Octy account id
-        event_type_names : list
-            list of event_type names
 
-        Returns
-        ----------
-        result : list, list
-        """
+    async def get_event_types_by_name(self, account_id: str, event_type_names: list) -> tuple[list, list]:
         found_event_types = []
         not_found = []
 
-        event_types = tbl_custom_event_types.objects((Q(event_type__in=event_type_names) & Q(account_id__exact=account_id)))
+        cursor = self.collection().find({
+            "account_id": account_id,
+            "event_type": {"$in": event_type_names}
+        })
+        docs = await cursor.to_list(length=None)
 
-        for event_type in event_types:
-            event_type_dict = json.loads(event_type.to_json())
-            event_type_dict['profile_id'] = event_type_dict['_id']
-            event_type_dict= _format_event_type(event_type_dict)
-            found_event_types.append(event_type_dict)
-        
-        # get all not found ids
-        for etm in event_type_names:
-            exists=next((key for key in found_event_types if key['event_type'] == etm), None)
-            if not exists:
-                not_found.append(etm)
-        
+        for doc in docs:
+            doc["profile_id"] = doc["_id"]
+            found_event_types.append(_format_event_type(doc))
+
+        for name in event_type_names:
+            if not any(et["event_type"] == name for et in found_event_types):
+                not_found.append(name)
+
         return found_event_types, not_found
 
-    def get_all_event_types(self, account_id : str, cursor : int) -> Union[dict, int]:
-        """
-        Parameters
-        ----------
-        account_id : str
-            Octy account id
-        cursor : int
+    async def get_all_event_types(self, account_id: str, cursor: int) -> tuple[list, int]:
+        cursor_data = self.collection().find({"account_id": account_id}).skip(cursor).limit(100)
+        docs = await cursor_data.to_list(length=100)
+        total = await self.collection().count_documents({"account_id": account_id})
+        for doc in docs:
+            doc["event_type_id"] = doc["_id"]
+            _format_event_type(doc)
+        return docs, total
 
-        Returns
-        ----------
-        results : dict
-        total : int
-        """
-        event_type_dict={}
-        total=0
-        event_types = tbl_custom_event_types.objects(account_id__exact=account_id).skip(cursor).limit(100)
-        if event_types:
-            total += tbl_custom_event_types.objects(account_id__exact=account_id).count()
-            event_type_dict = json.loads(event_types.to_json())
-        
-        #format items
-        for event_type in event_type_dict:
-            event_type['event_type_id'] = event_type['_id']
-            _format_event_type(event_type)
-        return event_type_dict, total
-
-    def create_event_types(self, event_types : list) -> Union[list, list]:
-        """
-        Parameters
-        ----------
-        event_types : list
-
-        Returns
-        ----------
-        created_event_types, failed_to_create event_types
-        """
-        failed_to_create=[]
-        event_type_instances = []
+    async def create_event_types(self, event_types: list) -> tuple[list, list]:
+        failed_to_create = []
+        valid_docs = []
         event_type_ids = []
-        for event_type in event_types:
 
-            if event_type['event_type'] in Config['SYSTEM_EVENT_TYPES']:
-                failed_to_create.append(
-                    {
-                        'event_type': event_type['event_type'],
-                        'error_message' : f'A system event type exists with provided event_type : {event_type["event_type"]}.'
-                    }
-                )
+        for et in event_types:
+            if et['event_type'] in Config['SYSTEM_EVENT_TYPES']:
+                failed_to_create.append({
+                    'event_type': et['event_type'],
+                    'error_message': f'System event type exists: {et["event_type"]}'
+                })
                 continue
 
-            event_type_instances.append(
-                tbl_custom_event_types(
-                    event_type_id=event_type['event_type_id'],
-                    account_id=event_type['account_id'],
-                    event_type=event_type['event_type'],
-                    event_properties=event_type['event_properties']
-                )
-            )
-            event_type_ids.append(event_type['event_type'])
+            valid_docs.append({
+                "_id": et['event_type_id'],
+                "account_id": et['account_id'],
+                "event_type": et['event_type'],
+                "event_properties": et['event_properties'],
+                "created_at": et.get('created_at') or int(time.time() * 1000)
+            })
+            event_type_ids.append(et['event_type'])
 
-        #BULK WRITE OPERATION
-        invalid=[]
-        bulk_operation = tbl_custom_event_types._get_collection().initialize_unordered_bulk_op()
-        for event_type in event_type_instances:
-            bulk_operation.insert(event_type.to_mongo())
         try:
-            bulk_operation.execute()
-        except BulkWriteError as bwe:
-            for err in bwe.details['writeErrors']:
-                invalid.append(err['op'].to_dict()['event_type'])
+            if valid_docs:
+                await self.collection().insert_many(valid_docs, ordered=False)
+        except Exception as e:
+            # Check for duplicate errors
+            from pymongo.errors import BulkWriteError
+            if isinstance(e, BulkWriteError):
+                for err in e.details.get('writeErrors', []):
+                    conflict_type = err['op']['event_type']
+                    failed_to_create.append({
+                        'event_type': conflict_type,
+                        'error_message': f'Conflict: {conflict_type}'
+                    })
 
-        valid = list(set(event_type_ids) - set(invalid))
+        created = []
+        for et in event_types:
+            if not any(f['event_type'] == et['event_type'] for f in failed_to_create):
+                copy_et = et.copy()
+                copy_et.pop('account_id', None)
+                created.append(copy_et)
 
+        return created, failed_to_create
 
-        for in_ in invalid:
-            failed_to_create.append(
-                {
-                    'event_type': in_,
-                    'error_message' : f'Another custom event type exists with provided event_type : {in_}'
-                }
-            )
-        created_event_types=[]
-        for v in valid:
-            et=next((d for i,d in enumerate(event_types) if v == d['event_type']),None)
-            if et:
-                et.pop('account_id', None)
-                created_event_types.append(et)
-        
-        return created_event_types, failed_to_create
+    async def delete_event_types(self, event_types_batch: list) -> tuple[list, list]:
+        deleted_event_types = []
+        failed_to_delete = []
 
-    def delete_event_types(self, event_types_batch : list) -> Union[list, list]:
-        """
-        Parameters
-        ----------
-        event_types_batch : list[str]
-
-        Returns
-        ----------
-        deleted_event_types : list
-        failed_to_delete : list
-        """
-        deleted_event_types=[]
-        failed_to_delete=[]
-        event_type_ids=[]
-
-        for event_type in event_types_batch:
-            event_type_ids.append(event_type['event_type_id'])
-
-
-        event_types = json.loads(tbl_custom_event_types.objects(event_type_id__in=event_type_ids).to_json())
-        if not event_types:
-            for event_type in event_types_batch:
-                failed_to_delete.append(
-                    {
-                        'event_type_id' : event_type['event_type_id'],
-                        'error_message' : f'No event type found with event_type_id : {event_type["event_type_id"]}'
-                    }
-                )
-            return deleted_event_types, failed_to_delete
-
-        
-        
-        bulk_operation = tbl_custom_event_types._get_collection().initialize_unordered_bulk_op()
-        for event_type in event_types_batch:
-            et_object=next((key for key in event_types if key['_id'] == event_type['event_type_id'] and key['account_id'] == event_type['account_id']), None)
-            if et_object:
-                deleted_event_types.append(
-                    {
-                        'event_type_id': et_object['_id']
-                    }
-                )
+        for et in event_types_batch:
+            result = await self.collection().delete_one({
+                "_id": et["event_type_id"],
+                "account_id": et["account_id"]
+            })
+            if result.deleted_count > 0:
+                deleted_event_types.append({"event_type_id": et["event_type_id"]})
             else:
-                failed_to_delete.append(
-                    {
-                        'event_type_id' : event_type['event_type_id'],
-                        'error_message' : f'No event type found with event_type_id : {event_type["event_type_id"]}'
-                    }
-                )
-
-            bulk_operation.find({
-                '$and' : [
-                    {  "_id" : { "$eq" : event_type['event_type_id'] }  },
-                    {  "account_id" : { "$eq" : event_type['account_id'] }  }
-                ]
-            }).remove()
-
-        bulk_operation.execute()
-
+                failed_to_delete.append({
+                    "event_type_id": et["event_type_id"],
+                    "error_message": "No match found for deletion"
+                })
         return deleted_event_types, failed_to_delete
 
+    async def delete_all_event_types_by_account(self, account_id: str) -> tuple[list, list]:
+        deleted = []
+        failed = []
+
+        cursor = self.collection().find({"account_id": account_id})
+        docs = await cursor.to_list(length=None)
+        if not docs:
+            return [], [{
+                "account_id": account_id,
+                "error_message": f"No event types found for account_id: {account_id}"
+            }]
+
+        for doc in docs:
+            deleted.append({"event_type_id": doc["_id"], "event_type": doc.get("event_type", "unknown")})
+
+        try:
+            await self.collection().delete_many({"account_id": account_id})
+        except Exception as e:
+            return [], [{
+                "account_id": account_id,
+                "error_message": f"Failed to delete: {str(e)}"
+            }]
+
+        return deleted, failed
+
+    async def delete_account_event_types(self, account_id: str) -> bool:
+        result = await self.collection().delete_many({"account_id": account_id})
+        return result.deleted_count > 0
 
 eventTypesRepository = _EventTypesRepository()
 
-def _format_event_type(event_type : dict):
-    '''
-        Format event type object
-    '''
-    event_type.pop('_id', None)
-    event_type.pop('account_id', None)
-    event_type['created_at'] = int_to_dt(event_type['created_at']['$date'], as_str=True) if event_type['created_at'] != None else None
- 
+def _format_event_type(event_type: dict) -> dict:
+    """
+    Formats an event type dictionary for output.
+
+    Parameters
+    ----------
+    event_type : dict
+        The raw event type document from the database.
+
+    Returns
+    ----------
+    dict
+        The formatted event type.
+    """
+    created_at = event_type.get('created_at')
+
+    if created_at is not None:
+        if isinstance(created_at, datetime):
+            millis = int(created_at.timestamp() * 1000)
+            event_type['created_at'] = int_to_dt(millis, as_str=True)
+        elif isinstance(created_at, dict) and '$date' in created_at:
+            event_type['created_at'] = int_to_dt(created_at['$date'], as_str=True)
+        else:
+            event_type['created_at'] = None
+    else:
+        event_type['created_at'] = None
+
     return event_type

@@ -147,6 +147,23 @@ class _BillingRepository(BillingInterface):
             unit["created_at"] = int_to_dt(unit['created_at']['$date'], as_str=True) if unit['created_at'] != None else None
         
         return raw_units, total
+    
+    # Delete billable units to do with account_id
+    async def delete_account_billable_units(self, account_id : str) -> bool:
+        """
+        Parameters
+        ----------
+        account_id : str
+
+        Returns
+        ----------
+        bool
+        """
+        try:
+            tbl_billable_units.objects(account_id=account_id).delete()
+            return True
+        except Exception as ex:
+            raise Exception(f"Failed to delete billable units. Exception: {ex}")
 
 
 billingRepository = _BillingRepository()

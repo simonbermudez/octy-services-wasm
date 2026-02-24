@@ -1,9 +1,9 @@
 # module imports
 from data.repositories.Inotifications_repository import NotificationsInterface
-from data.models.db_schemas import tbl_notifications, tbl_accounts
-from secrets import Secrets
+from app_secrets import Secrets
 from config import Config
 from utils.utils import *
+import data.context.db_context as ctx
 
 # python imports
 from typing import *
@@ -13,6 +13,7 @@ import requests
 # external imports
 from mailjet_rest import Client
 from sentry_sdk import capture_exception
+from datetime import datetime
 
 
 class NotificationsRepository(NotificationsInterface):
@@ -30,11 +31,11 @@ class NotificationsRepository(NotificationsInterface):
             MongoDB Document instance of tbl_account
 
     """
+    def __init__(self, account: dict = None):
+        self.account = account
+        self.collection = lambda: ctx.contextManager.db["tbl_notifications"]
 
-    def __init__(self, account: object = None):
-            self.account = account
-
-    def email(self, payload: Dict) -> bool:
+    async def email(self, payload: Dict) -> bool:
         """
         A method used to send an email notification
 
@@ -48,8 +49,6 @@ class NotificationsRepository(NotificationsInterface):
         ----------
         result : bool
         """
-
-        # Create Messages array for mailjet api
         notification_id = generate_uid('notification')
         data = {
             'Messages': [
@@ -72,32 +71,41 @@ class NotificationsRepository(NotificationsInterface):
             ]
         }
 
-        # send email
+        data_to_octy = {
+            'Messages': [
+                {
+                    "From": {
+                        "Email": Config['SUPPORT_EMAIL'],
+                        "Name": "Octy.ai"
+                    },
+                    "To": [
+                        {
+                            "Email": "ops@octy.ai",
+                            "Name": payload['contact_name']
+                        }
+                    ],
+                    "Subject": payload['subject'],
+                    "TextPart": payload['body'],
+                    "HTMLPart": "",
+                    "CustomID": notification_id
+                }
+            ]
+        }
+
         try:
-            mailjet = Client(auth=(Secrets['MAIL_JET_API_KEY'],
-                                   Secrets['MAIL_JET_API_SECRET']),
-                             version='v3.1')
-            result = mailjet.send.create(data=data)
+            mailjet = Client(auth=(Secrets['MAIL_JET_API_KEY'], Secrets['MAIL_JET_API_SECRET']), version='v3.1')
+            to_client_result = mailjet.send.create(data=data)
+            to_octy_result = mailjet.send.create(data=data_to_octy)
         except Exception as err:
             capture_exception(err)
             return False
 
-        did_succeed = False
-        if result.status_code == 200:
-            did_succeed = True
+        did_succeed = to_octy_result.status_code == 200 and to_client_result.status_code == 200
 
-        # Create notification reference
-        _create_notification_ref(self.account,
-                                 payload['body'],
-                                 'email',
-                                 payload['contact_email_address'],
-                                 notification_id,
-                                 did_succeed)
-        if did_succeed:
-            return True
-        return False
+        await self._create_notification_ref(payload['body'], 'email', payload['contact_email_address'], notification_id, did_succeed)
+        return did_succeed
 
-    def webhook(self, payload: object) -> None:
+    async def webhook(self, payload: object) -> None:
         """
         A method used to send an webhook notification
 
@@ -110,73 +118,29 @@ class NotificationsRepository(NotificationsInterface):
         ----------
         None
         """
-
         notification_id = generate_uid('notification')
 
-        # send webhook request
-        result = requests.post(self.account.account_configurations.webhook_url,
-                               data=json.dumps(payload))
-        did_succeed = False
-        if 200 < result.status_code < 300:
-            did_succeed = True
+        try:
+            result = requests.post(self.account['account_configurations']['webhook_url'], data=json.dumps(payload))
+            did_succeed = result.status_code >= 200 and result.status_code < 300
+        except Exception as e:
+            capture_exception(e)
+            did_succeed = False
 
-        # Create notification reference
-        _create_notification_ref(self.account,
-                                 payload,
-                                 'webhook',
-                                 self.account.account_configurations.webhook_url,
-                                 notification_id,
-                                 did_succeed)
+        await self._create_notification_ref(payload, 'webhook', self.account['account_configurations']['webhook_url'], notification_id, did_succeed)
 
-
-# Helpers
-
-def _create_notification_ref(account,
-                             notification_content : object,
-                             notification_type : str,
-                             destination : str,
-                             notification_id : str,
-                             did_succeed : bool) -> None:
-    """
-    A helper function used to create a log of notification
-    and it's delivery status.
-
-    Parameters
-    ----------
-    account : MongoDB Document
-            MongoDB Document instance of an tbl_account
-
-    notification_content : object
-        Dictionary object containing message content and meta data
-
-    notification_type : str
-        The type of notification. email or webhook
-
-    destination : str
-        the email address or webhook url the notification was sent to.
-
-    notification_id : str
-        Octy generated unique identifier
-
-    did_succeed : bool
-        Whether the notification sent successfully or failed.
+    async def _create_notification_ref(self, notification_content: object, notification_type: str, destination: str, notification_id: str, did_succeed: bool) -> None:
+        try:
+            await self.collection().insert_one({
+                "notification_id": notification_id,
+                "account_id": self.account.get("account_id"),
+                "notification_content": json.dumps(notification_content),
+                "notification_type": notification_type,
+                "destination": destination,
+                "did_succeed": did_succeed,
+                "created_at": datetime.utcnow()
+            })
+        except Exception as err:
+            capture_exception(err)
 
 
-    Returns
-    ----------
-    None
-    """
-
-    try:
-
-        tbl_notifications(
-            notification_id=notification_id,
-            account=account,
-            notification_content=json.dumps(notification_content),
-            notification_type=notification_type,
-            destination=destination,
-            did_succeed=did_succeed
-        ).save()
-
-    except Exception as err:
-        capture_exception(err)
