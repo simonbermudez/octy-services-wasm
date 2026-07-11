@@ -1,0 +1,46 @@
+# Recommendation worker as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/workers/recommendation):
+#   spin build
+#   spin registry push <registry>/octy-recommendation-worker:0.1.0
+#
+# `/internal/amqp/consume` is invoked only by recommendation-worker-gateway
+# inside the cluster — do not add it to any ingress.
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-recommendation-worker
+spec:
+  image: "<registry>/octy-recommendation-worker:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 1
+  variables:
+    - name: gateway_url
+      value: "http://recommendation-worker-gateway:8090"
+    # recommendation_worker_config / recommendation_worker_secrets come from
+    # the same base64-encoded blobs the Python deployment used
+    # (RECOMMENDATION_WORKER_CONFIG / RECOMMENDATION_WORKER_SECRETS).
+    - name: recommendation_worker_config
+      valueFrom:
+        configMapKeyRef:
+          name: recommendation-worker-config
+          key: recommendation_worker_config
+    - name: recommendation_worker_secrets
+      valueFrom:
+        secretKeyRef:
+          name: recommendation-worker-secrets
+          key: recommendation_worker_secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation-worker-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-recommendation-worker
+  ports:
+    - port: 80
+      targetPort: 80

@@ -1,0 +1,36 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-churn_prediction_worker"
+version = "0.1.0"
+description = "Octy churn_prediction_worker (Rust/WASM port of workers/churn_prediction/)"
+
+[variables]
+churn_prediction_worker_config = { required = true }
+churn_prediction_worker_secrets = { required = true, secret = true }
+octy_public_key = { default = "" }
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "churn_prediction_worker"
+
+[component.churn_prediction_worker]
+source = "../../target/wasm32-wasip1/release/churn_prediction_worker.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.churn_prediction_worker.variables]
+churn_prediction_worker_config = "{{ churn_prediction_worker_config }}"
+churn_prediction_worker_secrets = "{{ churn_prediction_worker_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.churn_prediction_worker.build]
+command = "cargo build -p churn-prediction-worker --target wasm32-wasip1 --release"
+workdir = "../.."

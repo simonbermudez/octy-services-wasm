@@ -1,0 +1,48 @@
+# Profile-identification worker as a WASM container on Kubernetes via
+# SpinKube (https://www.spinkube.dev). Requires the spin-operator + a
+# containerd shim (runtime class wasmtime-spin-v2) installed on the cluster,
+# e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/workers/profile-identification):
+#   spin build
+#   spin registry push <registry>/octy-profile-identification-worker:0.1.0
+#
+# `/internal/amqp/consume` is invoked only by
+# profile-identification-worker-gateway inside the cluster — do not add it
+# to any ingress.
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-profile-identification-worker
+spec:
+  image: "<registry>/octy-profile-identification-worker:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 1
+  variables:
+    - name: gateway_url
+      value: "http://profile-identification-worker-gateway:8090"
+    # profile_identification_worker_config / profile_identification_worker_secrets
+    # come from the same base64-encoded blobs the Python deployment used
+    # (PROFILE_IDENTIFICATION_WORKER_CONFIG / PROFILE_IDENTIFICATION_WORKER_SECRETS).
+    - name: profile_identification_worker_config
+      valueFrom:
+        configMapKeyRef:
+          name: profile-identification-worker-config
+          key: profile_identification_worker_config
+    - name: profile_identification_worker_secrets
+      valueFrom:
+        secretKeyRef:
+          name: profile-identification-worker-secrets
+          key: profile_identification_worker_secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: profile-identification-worker-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-profile-identification-worker
+  ports:
+    - port: 80
+      targetPort: 80

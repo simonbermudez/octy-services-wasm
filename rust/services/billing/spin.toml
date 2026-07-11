@@ -1,0 +1,38 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-billing"
+version = "0.1.0"
+description = "Octy billing service (Rust/WASM port of billing/)"
+
+[variables]
+# Same base64-encoded JSON blobs the Python service consumed via env vars
+# (BILLING_CONFIG / BILLING_SECRETS).
+billing_config = { required = true }
+billing_secrets = { required = true, secret = true }
+# Base URL of the octy-data-gateway sidecar (MongoDB / AMQP bridge).
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "billing"
+
+[component.billing]
+source = "../../target/wasm32-wasip1/release/billing_service.wasm"
+# Only the data gateway is called from this component (no Redis, no JWT
+# verification, no third-party APIs). Tighten to the concrete gateway host
+# per environment.
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+]
+
+[component.billing.variables]
+billing_config = "{{ billing_config }}"
+billing_secrets = "{{ billing_secrets }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.billing.build]
+command = "cargo build -p billing-service --target wasm32-wasip1 --release"
+workdir = "../.."
+watch = ["src/**/*.rs", "Cargo.toml", "../../crates/octy-shared/src/**/*.rs"]

@@ -1,0 +1,52 @@
+# Segmentation service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/services/segmentation):
+#   spin build
+#   spin registry push <registry>/octy-segmentation:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-segmentation
+spec:
+  image: "<registry>/octy-segmentation:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 2
+  variables:
+    - name: gateway_url
+      value: "http://octy-data-gateway-segmentation:8090"
+    # segmentation_config / segmentation_secrets come from the same
+    # base64-encoded blobs the Python deployment used (SEGMENTATION_CONFIG /
+    # SEGMENTATION_SECRETS env vars).
+    - name: segmentation_config
+      valueFrom:
+        configMapKeyRef:
+          name: segmentation-config
+          key: SEGMENTATION_CONFIG
+    - name: segmentation_secrets
+      valueFrom:
+        secretKeyRef:
+          name: segmentation-secrets
+          key: SEGMENTATION_SECRETS
+    # RSA public key (PEM, base64-encoded) used to verify the X-AUTH-JWT fat
+    # token. The spin.toml default ("") means the component falls back to the
+    # packaged keys/octy-public-key.pub (baked in via spin.toml `files`) when
+    # this is left unset — set it here only if the deployment key differs.
+    - name: octy_public_key
+      valueFrom:
+        secretKeyRef:
+          name: segmentation-secrets
+          key: OCTY_PUBLIC_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: segmentation-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-segmentation
+  ports:
+    - port: 80
+      targetPort: 80

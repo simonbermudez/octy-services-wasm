@@ -1,0 +1,19 @@
+[package]
+name = "churn-prediction-service"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# Rust/WASM port of `churn_prediction/`.
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+octy-shared.workspace = true
+octy-spin.workspace = true
+
+spin-sdk.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true

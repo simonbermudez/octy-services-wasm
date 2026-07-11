@@ -1,0 +1,36 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-recommendation_worker"
+version = "0.1.0"
+description = "Octy recommendation_worker (Rust/WASM port of workers/recommendation/)"
+
+[variables]
+recommendation_worker_config = { required = true }
+recommendation_worker_secrets = { required = true, secret = true }
+octy_public_key = { default = "" }
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "recommendation_worker"
+
+[component.recommendation_worker]
+source = "../../target/wasm32-wasip1/release/recommendation_worker.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.recommendation_worker.variables]
+recommendation_worker_config = "{{ recommendation_worker_config }}"
+recommendation_worker_secrets = "{{ recommendation_worker_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.recommendation_worker.build]
+command = "cargo build -p recommendation-worker --target wasm32-wasip1 --release"
+workdir = "../.."

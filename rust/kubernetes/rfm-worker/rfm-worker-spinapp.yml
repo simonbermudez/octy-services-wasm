@@ -1,0 +1,42 @@
+# rfm-worker as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster.
+#
+# Build & push the app (from rust/workers/rfm):
+#   spin build
+#   spin registry push <registry>/octy-rfm-worker:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-rfm-worker
+spec:
+  image: "<registry>/octy-rfm-worker:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 1
+  variables:
+    - name: gateway_url
+      value: "http://octy-data-gateway-rfm-worker:8090"
+    # rfm_worker_config / rfm_worker_secrets come from the same
+    # base64-encoded blobs the Python deployment used
+    # (workers/rfm/kubernetes/production/configMaps/configMap.yaml).
+    - name: rfm_worker_config
+      valueFrom:
+        configMapKeyRef:
+          name: rfm-worker-config
+          key: rfm_worker_config
+    - name: rfm_worker_secrets
+      valueFrom:
+        secretKeyRef:
+          name: rfm-worker-secrets
+          key: rfm_worker_secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rfm-worker-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-rfm-worker
+  ports:
+    - port: 80
+      targetPort: 80

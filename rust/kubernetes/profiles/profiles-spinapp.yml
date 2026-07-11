@@ -1,0 +1,50 @@
+# Profiles service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/services/profiles):
+#   spin build
+#   spin registry push <registry>/octy-profiles:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-profiles
+spec:
+  image: "<registry>/octy-profiles:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 2
+  variables:
+    - name: gateway_url
+      value: "http://octy-profiles-data-gateway:8090"
+    # profiles_config / profiles_secrets come from the same base64-encoded
+    # blobs the Python deployment used (env vars PROFILES_CONFIG /
+    # PROFILES_SECRETS in config.py / app_secrets.py).
+    - name: profiles_config
+      valueFrom:
+        configMapKeyRef:
+          name: profiles-config
+          key: PROFILES_CONFIG
+    - name: profiles_secrets
+      valueFrom:
+        secretKeyRef:
+          name: profiles-secrets
+          key: PROFILES_SECRETS
+    # RS256 public key used to verify the X-AUTH-JWT fat token minted by the
+    # account service (same key referenced by account's octy_private_key).
+    - name: octy_public_key
+      valueFrom:
+        secretKeyRef:
+          name: profiles-secrets
+          key: OCTY_PUBLIC_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: profiles-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-profiles
+  ports:
+    - port: 80
+      targetPort: 80

@@ -1,0 +1,38 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-churn_prediction"
+version = "0.1.0"
+description = "Octy churn_prediction (Rust/WASM port of churn_prediction/)"
+
+[variables]
+# Same base64-encoded JSON blobs the Python service consumed via env vars.
+churn_prediction_config = { required = true }
+churn_prediction_secrets = { required = true, secret = true }
+# base64-encoded RSA public key PEM (falls back to raw PEM), used to verify
+# the X-AUTH-JWT fat tokens (RS256). The Python image baked the same key in
+# at keys/octy-public-key.pub.
+octy_public_key = { required = true }
+# Base URL of the octy-data-gateway sidecar (MongoDB bridge).
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "churn_prediction"
+
+[component.churn_prediction]
+source = "../../target/wasm32-wasip1/release/churn_prediction_service.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+# The service only talks to the octy-data-gateway sidecar (no Redis / AMQP /
+# S3 / SageMaker usage). Tighten to the concrete gateway host per environment.
+allowed_outbound_hosts = ["http://*:*"]
+
+[component.churn_prediction.variables]
+churn_prediction_config = "{{ churn_prediction_config }}"
+churn_prediction_secrets = "{{ churn_prediction_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.churn_prediction.build]
+command = "cargo build -p churn-prediction-service --target wasm32-wasip1 --release"
+workdir = "../.."

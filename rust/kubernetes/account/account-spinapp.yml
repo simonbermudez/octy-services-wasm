@@ -1,0 +1,47 @@
+# Account service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/services/account):
+#   spin build
+#   spin registry push <registry>/octy-account:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-account
+spec:
+  image: "<registry>/octy-account:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 2
+  variables:
+    - name: gateway_url
+      value: "http://octy-data-gateway:8090"
+    # account_config / account_secrets / octy_private_key come from the same
+    # base64-encoded blobs the Python deployment used.
+    - name: account_config
+      valueFrom:
+        configMapKeyRef:
+          name: account-config
+          key: ACCOUNT_CONFIG
+    - name: account_secrets
+      valueFrom:
+        secretKeyRef:
+          name: account-secrets
+          key: ACCOUNT_SECRETS
+    - name: octy_private_key
+      valueFrom:
+        secretKeyRef:
+          name: account-secrets
+          key: OCTY_PRIVATE_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-account
+  ports:
+    - port: 80
+      targetPort: 80

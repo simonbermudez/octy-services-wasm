@@ -1,0 +1,40 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-admin"
+version = "0.1.0"
+description = "Octy admin (Rust/WASM port of admin/)"
+
+[variables]
+# Same base64-encoded JSON blobs the Python service consumed via the
+# ADMIN_CONFIG / ADMIN_SECRETS env vars.
+admin_config = { required = true }
+admin_secrets = { required = true, secret = true }
+# Base URL of the octy-data-gateway sidecar. The admin service itself never
+# calls it (Redis-only service) — kept for Ctx parity with the other services.
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "admin"
+
+[component.admin]
+source = "../../target/wasm32-wasip1/release/admin_service.wasm"
+# The static resource-format examples the Python service shipped in its image
+# (`Config['RESOURCE_FORMAT_EXAMPLES_DIR']` points here at runtime).
+files = [{ source = "content/resource_formats", destination = "/data/repositories/content/resource_formats" }]
+allowed_outbound_hosts = [
+    "http://*:*",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.admin.variables]
+admin_config = "{{ admin_config }}"
+admin_secrets = "{{ admin_secrets }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.admin.build]
+command = "cargo build -p admin-service --target wasm32-wasip1 --release"
+workdir = "../.."
+watch = ["src/**/*.rs", "Cargo.toml", "../../crates/octy-shared/src/**/*.rs"]

@@ -1,0 +1,44 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-configurations"
+version = "0.1.0"
+description = "Octy configurations service (Rust/WASM port of configurations/)"
+
+[variables]
+# Same base64-encoded JSON blob the Python service consumed via the
+# CONFIGURATIONS_CONFIG env var. The Python service had no secrets blob, so
+# configurations_secrets defaults to an empty JSON object (Ctx::load still
+# expects the variable to resolve).
+configurations_config = { required = true }
+configurations_secrets = { default = "{}", secret = true }
+# base64-encoded RSA public key PEM (falls back to raw PEM) used to verify
+# X-AUTH-JWT tokens; falls back to the packaged keys/octy-public-key.pub.
+octy_public_key = { default = "" }
+# Base URL of the octy-data-gateway sidecar (AMQP publish bridge).
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "configurations"
+
+[component.configurations]
+source = "../../target/wasm32-wasip1/release/configurations_service.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+# Outbound: the data gateway (AMQP publish) and the items service
+# (ITEM_SERVICE_CLUSTER_IP) — tighten to concrete hosts per environment.
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+]
+
+[component.configurations.variables]
+configurations_config = "{{ configurations_config }}"
+configurations_secrets = "{{ configurations_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.configurations.build]
+command = "cargo build -p configurations-service --target wasm32-wasip1 --release"
+workdir = "../.."
+watch = ["src/**/*.rs", "Cargo.toml", "../../crates/octy-shared/src/**/*.rs", "../../crates/octy-spin/src/**/*.rs"]

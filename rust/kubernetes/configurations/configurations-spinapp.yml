@@ -1,0 +1,47 @@
+# Configurations service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/services/configurations):
+#   spin build
+#   spin registry push <registry>/octy-configurations:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-configurations
+spec:
+  image: "<registry>/octy-configurations:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 2
+  variables:
+    - name: gateway_url
+      value: "http://octy-configurations-data-gateway:8090"
+    # configurations_config is the same base64-encoded JSON blob the Python
+    # deployment consumed as CONFIGURATIONS_CONFIG. The Python service had no
+    # secrets blob, so configurations_secrets keeps its "{}" default.
+    - name: configurations_config
+      valueFrom:
+        configMapKeyRef:
+          name: configurations-config
+          key: CONFIGURATIONS_CONFIG
+    # base64-encoded RSA public key used to verify X-AUTH-JWT tokens
+    # (optional — falls back to the keys/octy-public-key.pub packaged with
+    # the component).
+    - name: octy_public_key
+      valueFrom:
+        configMapKeyRef:
+          name: configurations-config
+          key: OCTY_PUBLIC_KEY
+          optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: configurations-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-configurations
+  ports:
+    - port: 80
+      targetPort: 80

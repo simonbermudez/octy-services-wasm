@@ -1,0 +1,50 @@
+# Churn-prediction service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/services/churn-prediction):
+#   spin build
+#   spin registry push <registry>/octy-churn-prediction:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-churn-prediction
+spec:
+  image: "<registry>/octy-churn-prediction:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 2
+  variables:
+    - name: gateway_url
+      value: "http://octy-data-gateway-churn-prediction:8090"
+    # churn_prediction_config / churn_prediction_secrets come from the same
+    # base64-encoded blobs the Python deployment used
+    # (CHURN_PREDICTION_CONFIG / CHURN_PREDICTION_SECRETS).
+    - name: churn_prediction_config
+      valueFrom:
+        configMapKeyRef:
+          name: churn-prediction-config
+          key: CHURN_PREDICTION_CONFIG
+    - name: churn_prediction_secrets
+      valueFrom:
+        secretKeyRef:
+          name: churn-prediction-secrets
+          key: CHURN_PREDICTION_SECRETS
+    # base64-encoded RSA public key PEM used to verify X-AUTH-JWT tokens
+    # (the Python image baked this in at keys/octy-public-key.pub).
+    - name: octy_public_key
+      valueFrom:
+        secretKeyRef:
+          name: churn-prediction-secrets
+          key: OCTY_PUBLIC_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: churn-prediction-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-churn-prediction
+  ports:
+    - port: 80
+      targetPort: 80

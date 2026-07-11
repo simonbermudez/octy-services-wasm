@@ -1,0 +1,36 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-rfm_worker"
+version = "0.1.0"
+description = "Octy rfm_worker (Rust/WASM port of workers/rfm/)"
+
+[variables]
+rfm_worker_config = { required = true }
+rfm_worker_secrets = { required = true, secret = true }
+octy_public_key = { default = "" }
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "rfm_worker"
+
+[component.rfm_worker]
+source = "../../target/wasm32-wasip1/release/rfm_worker.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.rfm_worker.variables]
+rfm_worker_config = "{{ rfm_worker_config }}"
+rfm_worker_secrets = "{{ rfm_worker_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.rfm_worker.build]
+command = "cargo build -p rfm-worker --target wasm32-wasip1 --release"
+workdir = "../.."

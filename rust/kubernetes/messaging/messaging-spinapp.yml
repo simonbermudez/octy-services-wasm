@@ -1,0 +1,53 @@
+# Messaging service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/services/messaging):
+#   spin build
+#   spin registry push <registry>/octy-messaging:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-messaging
+spec:
+  image: "<registry>/octy-messaging:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 2
+  variables:
+    - name: gateway_url
+      value: "http://octy-data-gateway-messaging:8090"
+    # messaging_config / messaging_secrets come from the same base64-encoded
+    # blobs the Python deployment used (MESSAGING_CONFIG / MESSAGING_SECRETS).
+    # The Python service never actually read any key out of Secrets — the
+    # blob is kept only for contract parity; an empty base64-encoded `{}` is
+    # sufficient.
+    - name: messaging_config
+      valueFrom:
+        configMapKeyRef:
+          name: messaging-config
+          key: MESSAGING_CONFIG
+    - name: messaging_secrets
+      valueFrom:
+        secretKeyRef:
+          name: messaging-secrets
+          key: MESSAGING_SECRETS
+    # RS256 public key used to verify the X-AUTH-JWT fat token minted by the
+    # account service (base64-encoded PEM, or leave unset to use the
+    # packaged keys/octy-public-key.pub file baked into the component).
+    - name: octy_public_key
+      valueFrom:
+        secretKeyRef:
+          name: messaging-secrets
+          key: OCTY_PUBLIC_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-messaging
+  ports:
+    - port: 80
+      targetPort: 80

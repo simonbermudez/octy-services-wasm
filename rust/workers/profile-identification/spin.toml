@@ -1,0 +1,36 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-profile_identification_worker"
+version = "0.1.0"
+description = "Octy profile_identification_worker (Rust/WASM port of workers/profile_identification/)"
+
+[variables]
+profile_identification_worker_config = { required = true }
+profile_identification_worker_secrets = { required = true, secret = true }
+octy_public_key = { default = "" }
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "profile_identification_worker"
+
+[component.profile_identification_worker]
+source = "../../target/wasm32-wasip1/release/profile_identification_worker.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.profile_identification_worker.variables]
+profile_identification_worker_config = "{{ profile_identification_worker_config }}"
+profile_identification_worker_secrets = "{{ profile_identification_worker_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.profile_identification_worker.build]
+command = "cargo build -p profile-identification-worker --target wasm32-wasip1 --release"
+workdir = "../.."

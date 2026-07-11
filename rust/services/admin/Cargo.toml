@@ -1,0 +1,23 @@
+[package]
+name = "admin-service"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# Rust/WASM port of `admin/`.
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+octy-shared.workspace = true
+octy-spin.workspace = true
+
+spin-sdk.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+url.workspace = true
+
+# GitHub webhook signatures are HMAC-SHA1 (`X-Hub-Signature`).
+hmac.workspace = true
+sha1 = "0.10"
