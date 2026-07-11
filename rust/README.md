@@ -179,14 +179,21 @@ issues that surfaced while researching the [local dev guide](local-dev/README.md
 * **`redis_insecure_tls` escape hatch (added)** — see the comment on
   `redis_address()` in `ctx.rs` and the [local dev guide](local-dev/README.md)
   for why local Redis needs this and production must never set it.
-* **Flagged, not fixed** (per the audit's scope — comment-only unless
-  explicitly asked to fix): `segmentation`-service's Mongo write-failure path
-  never actually produces the `"[toxic]::"` marker its own AMQP consumer
-  checks for non-retryable rejection (so those failures currently requeue
-  instead of dead-lettering); `profile-identification-worker` sends AMQP/
-  webhook payloads as a single message with no size-based chunking, unlike
-  the Python original's ~100MB split. Both are marked `// NOTE:` at the
-  relevant code.
+* **`segmentation`'s missing toxic marker (fixed)** — its Mongo write-failure
+  path never actually produced the `"[toxic]::"` marker its own AMQP
+  consumer checks for non-retryable rejection, so those failures would
+  requeue forever instead of dead-lettering. Fixed in
+  [`repos/segmentation.rs::update_past_segment_profile_ids`](services/segmentation/src/repos/segmentation.rs) —
+  mirrors the Python's literal behavior (its try block wraps *any* exception
+  from that one call, not just Mongo-specific ones).
+* **`profile-identification-worker`'s missing payload chunking (fixed)** —
+  it sent AMQP/webhook payloads as a single message with no size limit. The
+  Python's own ~100MB guard measured `sys.getsizeof(list)` — the list's
+  pointer-array size, not its serialized contents — so it needed roughly 13
+  million elements to ever trigger and was a no-op in practice; rather than
+  port that placebo, [`job.rs::chunk_by_byte_size`](workers/profile-identification/src/job.rs)
+  measures actual serialized JSON bytes and splits genuinely oversized
+  batches, which is what the Python code was trying (and failing) to do.
 
 ## The ML workers
 

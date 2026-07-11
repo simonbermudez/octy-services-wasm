@@ -16,6 +16,35 @@ use crate::matching;
 use crate::models::AccountData;
 use crate::repos;
 
+/// Port of the Python's `amqp_message_size_limit`/`webhook_payload_size_limit`
+/// (100MB) safety net, splitting an oversized list into multiple messages
+/// rather than sending one that could exceed the broker's or the receiving
+/// webhook's message-size limit.
+///
+/// The Python measured `sys.getsizeof(list)`, which is the size of the list's
+/// *pointer array* (roughly `56 + 8*len`), not its serialized contents — for
+/// a 100MB threshold that requires ~13 million elements to ever trigger, so
+/// in practice the Python check never chunks anything. That's a no-op, not
+/// an intentional design choice worth preserving bug-for-bug (unlike the
+/// deliberate ordering/business-rule bugs elsewhere in this port): the actual
+/// risk this code exists to guard against — an oversized AMQP/webhook
+/// payload — is real, so this measures the serialized JSON byte size
+/// instead.
+const MESSAGE_SIZE_LIMIT_BYTES: usize = 100 * 1024 * 1024;
+
+fn chunk_by_byte_size(items: Vec<Value>) -> Vec<Vec<Value>> {
+    if items.is_empty() {
+        return vec![items];
+    }
+    let total_bytes = serde_json::to_vec(&items).map(|v| v.len()).unwrap_or(0);
+    if total_bytes < MESSAGE_SIZE_LIMIT_BYTES {
+        return vec![items];
+    }
+    let num_chunks = total_bytes.div_ceil(MESSAGE_SIZE_LIMIT_BYTES).max(1);
+    let chunk_len = items.len().div_ceil(num_chunks).max(1);
+    items.chunks(chunk_len).map(|c| c.to_vec()).collect()
+}
+
 pub struct ProfileIdentificationJob {
     account_id: String,
     webhook_url: String,
@@ -208,24 +237,26 @@ impl ProfileIdentificationJob {
         // entry regardless of contents; preserved bug-for-bug rather than
         // skipping empty publishes.
         //
-        // NOTE: the Python also split each list into ~100MB
-        // (`amqp_message_size_limit`) chunks across multiple AMQP messages
-        // before publishing, to stay under the broker's message size limit.
-        // This port always publishes each list as a single message; an
-        // unusually large merge batch could exceed that limit.
-        let publishes: [(&str, Value); 5] = [
-            ("events.cmd.update", Value::Array(event_instance_profiles_message)),
-            ("reccache.cmd.delete", Value::Array(rec_cache_delete_message)),
-            ("profiles.cmd.update", Value::Array(profiles_message)),
-            ("profiles.cmd.delete", Value::Array(profiles_delete_message)),
-            ("segment.profiles.cmd.update", Value::Array(past_segment_profiles_message)),
+        // Split any oversized list across multiple AMQP messages so a single
+        // publish never exceeds MESSAGE_SIZE_LIMIT_BYTES — see
+        // chunk_by_byte_size's doc comment for why this measures serialized
+        // bytes rather than porting the Python's non-functional list-size
+        // check literally.
+        let publishes: [(&str, Vec<Value>); 5] = [
+            ("events.cmd.update", event_instance_profiles_message),
+            ("reccache.cmd.delete", rec_cache_delete_message),
+            ("profiles.cmd.update", profiles_message),
+            ("profiles.cmd.delete", profiles_delete_message),
+            ("segment.profiles.cmd.update", past_segment_profiles_message),
         ];
         for (routing_key, messages) in publishes {
-            let payload = json!({ "account_id": self.account_id, "profiles": messages });
-            ctx.gateway
-                .amqp_publish(routing_key, &payload)
-                .await
-                .map_err(|e| format!("failed to publish {routing_key}: {e}"))?;
+            for chunk in chunk_by_byte_size(messages) {
+                let payload = json!({ "account_id": self.account_id, "profiles": chunk });
+                ctx.gateway
+                    .amqp_publish(routing_key, &payload)
+                    .await
+                    .map_err(|e| format!("failed to publish {routing_key}: {e}"))?;
+            }
         }
 
         // create_merged_profiles_ref
@@ -254,15 +285,16 @@ impl ProfileIdentificationJob {
             })
             .collect();
 
-        let payload = json!({
-            "subject": "Profile identification service output",
-            "body": { "profiles": dropped_account_profiles },
-            "date_time": Utc::now().to_rfc3339(),
-        });
-        // NOTE: the Python also chunked this payload at ~100MB
-        // (`webhook_payload_size_limit`), posting multiple requests for an
-        // oversized batch. This port always sends it in one request.
-        http::post_webhook_best_effort(&self.webhook_url, &payload).await;
+        // Split an oversized profile batch across multiple webhook requests
+        // — see chunk_by_byte_size's doc comment.
+        for chunk in chunk_by_byte_size(dropped_account_profiles) {
+            let payload = json!({
+                "subject": "Profile identification service output",
+                "body": { "profiles": chunk },
+                "date_time": Utc::now().to_rfc3339(),
+            });
+            http::post_webhook_best_effort(&self.webhook_url, &payload).await;
+        }
 
         let job_service_url = ctx.config.get_str("OCTY_JOB_SERVICE_CLUSTER_IP").unwrap_or("");
         http::post_job_callback(
@@ -274,5 +306,42 @@ impl ProfileIdentificationJob {
         )
         .await
         .map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn small_list_is_not_chunked() {
+        let items: Vec<Value> = (0..10).map(|i| json!({ "profile_id": i })).collect();
+        let chunks = chunk_by_byte_size(items.clone());
+        assert_eq!(chunks, vec![items]);
+    }
+
+    #[test]
+    fn empty_list_is_not_chunked() {
+        assert_eq!(chunk_by_byte_size(vec![]), vec![Vec::<Value>::new()]);
+    }
+
+    #[test]
+    fn oversized_list_splits_into_multiple_chunks_preserving_all_items() {
+        // Each element serializes to well over 100 bytes; use a tiny
+        // effective limit by inflating element count far past what a real
+        // 100MB payload would need, so the test runs fast while still
+        // exercising the split path.
+        let big_string = "x".repeat(1000);
+        let items: Vec<Value> = (0..200_000)
+            .map(|i| json!({ "profile_id": i, "padding": big_string }))
+            .collect();
+        let total_bytes = serde_json::to_vec(&items).unwrap().len();
+        assert!(total_bytes > MESSAGE_SIZE_LIMIT_BYTES, "test setup should exceed the limit");
+
+        let chunks = chunk_by_byte_size(items.clone());
+        assert!(chunks.len() > 1, "expected the oversized list to be split");
+
+        let rejoined: Vec<Value> = chunks.into_iter().flatten().collect();
+        assert_eq!(rejoined, items, "chunking must not drop or reorder items");
     }
 }

@@ -302,10 +302,11 @@ pub async fn update_past_segment_profile_ids(
     segment_id: &Value,
     profile_ids: &[Value],
 ) -> Result<(), OctyError> {
-    // NOTE: the Python wrapped a Mongo `OperationFailure` from this update as
-    // `Exception(f"[toxic]:: {e}")`; the AMQP consumer treats that marker as
-    // non-retryable (reject without requeue, see amqp.rs). This port does not
-    // currently tag gateway errors from here with that marker.
+    // The Python wrapped *any* exception from this specific await as
+    // `Exception(f"[toxic]:: {e}")` — its try block contains nothing else —
+    // so the AMQP consumer treats a failure here as non-retryable (reject
+    // without requeue, see amqp.rs) regardless of the underlying cause.
+    // Mirror that literally: tag every error from this call with the marker.
     ctx.gateway
         .update_one(
             COLLECTION,
@@ -313,6 +314,7 @@ pub async fn update_past_segment_profile_ids(
             json!({ "$set": { "profile_ids": profile_ids } }),
         )
         .await
+        .map_err(|e| OctyError::internal(format!("[toxic]:: {e}")))
 }
 
 /// Port of the bulk `delete_one` operations (the gateway has no bulk-write
