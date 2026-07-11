@@ -35,6 +35,7 @@ fn limit_exceeded_error(ctx: &Ctx, max: i64) -> OctyError {
     )
 }
 
+/// GET /healthz — k8s liveness/readiness probe. No auth, no rate limit.
 pub async fn healthz(_req: Request, _params: Params) -> Response {
     json_response(200, &json!("OK"))
 }

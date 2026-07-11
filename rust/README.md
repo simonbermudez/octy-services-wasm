@@ -6,9 +6,13 @@ containers** on Kubernetes ([SpinKube](https://www.spinkube.dev) /
 `containerd-shim-spin`).
 
 Status: **all 17 services/workers ported**, workspace builds clean to
-`wasm32-wasip1` (zero errors, one harmless dead-code warning), 43 native unit
+`wasm32-wasip1` (zero errors, one harmless dead-code warning), 51 native unit
 tests pass, and `account`/`billing`/`admin` have been smoke-tested end-to-end
 under `spin up`.
+
+**Setting up a local testbed?** See [`local-dev/README.md`](local-dev/README.md) —
+minikube + local MongoDB/Redis/RabbitMQ/MinIO, ready-made per-service
+config/secrets files, and a fast `spin up` iteration loop.
 
 ## Layout
 
@@ -143,6 +147,46 @@ relevant call sites.
   original chunk-count *validation* logic is preserved, just not the
   chunked transfer itself). Add `/v1/s3/{create,upload-part,complete,abort}-multipart-upload`
   if dataset sizes exceed what a single PUT can carry.
+
+## Post-port hardening pass
+
+After the initial port, every crate went through a second pass to backport
+non-obvious business-rule comments from the Python source (comment-only —
+verified with `git diff` per crate to confirm no logic changed) and to fix
+issues that surfaced while researching the [local dev guide](local-dev/README.md):
+
+* **AMQP exchange name mismatch (fixed)** — 6 of 17 gateway manifests
+  declared `AMQP_EXCHANGE: "octy"` while the other 11 declared
+  `"octy-services"`. RabbitMQ topic exchanges are independent namespaces; a
+  publisher and consumer on different exchanges never see each other's
+  messages, silently. Standardized all 17 manifests to `"octy-services"`
+  ([kubernetes/*/data-gateway.yml](kubernetes/)) — **verify this matches your
+  real deployment's `Config['EXCHANGE']` value before deploying**, since it
+  couldn't be confirmed against a live production config blob during this
+  pass.
+* **`octy_public_key` empty-default fallback (fixed)** — 5 of 6
+  JWT-verifying services declared this Spin variable with `default = ""`
+  rather than `required = true`. An unset variable then resolves to `""`
+  (a successful lookup, not an error), which skipped straight past the
+  intended fallback to the packaged `keys/octy-public-key.pub` file and
+  turned every authenticated request into a PEM-parse 500. Fixed once in
+  [`octy_spin::auth::load_public_key_pem`](crates/octy-spin/src/auth.rs) —
+  a blank variable value is now treated as unset.
+* **MinIO/S3-compatible endpoint support (added)** — `octy-data-gateway` now
+  respects `AWS_ENDPOINT_URL` (standard `aws-config` env resolution) and a
+  new `S3_FORCE_PATH_STYLE` env var, purely additive and inert unless set —
+  see [`gateway/octy-data-gateway/src/s3.rs`](gateway/octy-data-gateway/src/s3.rs).
+* **`redis_insecure_tls` escape hatch (added)** — see the comment on
+  `redis_address()` in `ctx.rs` and the [local dev guide](local-dev/README.md)
+  for why local Redis needs this and production must never set it.
+* **Flagged, not fixed** (per the audit's scope — comment-only unless
+  explicitly asked to fix): `segmentation`-service's Mongo write-failure path
+  never actually produces the `"[toxic]::"` marker its own AMQP consumer
+  checks for non-retryable rejection (so those failures currently requeue
+  instead of dead-lettering); `profile-identification-worker` sends AMQP/
+  webhook payloads as a single message with no size-based chunking, unlike
+  the Python original's ~100MB split. Both are marked `// NOTE:` at the
+  relevant code.
 
 ## The ML workers
 

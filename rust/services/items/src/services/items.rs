@@ -23,6 +23,9 @@ struct LimitCounts {
     remainder: i64,
 }
 
+/// `li` (set once in the Auth JWT) is `*`-delimited:
+/// `profiles*items*event_types*events*segments*mes_templates`,
+/// e.g. `50000*150*100*100000*25*50` — hence index 1 for items above.
 fn assess_resource_limit(
     limits: &str,
     current_count: i64,

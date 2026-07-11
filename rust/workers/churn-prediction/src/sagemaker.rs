@@ -82,7 +82,7 @@ pub async fn create_hyper_parameter_tuning_job(
                         "S3DataDistributionType": "FullyReplicated"
                     }
                 },
-                "ContentType": "text/csv",
+                "ContentType": "text/csv", // Python noted the alternative: application/x-recordio-protobuf
                 "CompressionType": "None",
                 "RecordWrapperType": "None",
                 "InputMode": input_mode

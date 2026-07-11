@@ -126,6 +126,9 @@ impl<'a> RfmCompleteAnalysis<'a> {
 
     async fn re_schedule_job(&self) -> Result<(), OctyError> {
         eprintln!("[rfm-worker] Rescheduling job");
+        // Status "failed" here does not mean the job failed — it is how the
+        // Octy Job Scheduler is told to re-run this job on its next tick
+        // while the SageMaker training job is still `InProgress`.
         send_job_callback(self.ctx, &self.account_id, &self.octy_job_id, "RFM analysis Job still processing", "failed").await
     }
 
@@ -261,6 +264,10 @@ impl<'a> RfmCompleteAnalysis<'a> {
         let Some(url) = &self.webhook_url else {
             return Ok(());
         };
+        // NOTE: Python sent `str(dt.now())` — a naive local-time string like
+        // "2024-01-01 12:00:00.123456" — for this webhook's `date_time`
+        // field. This port sends UTC RFC 3339 instead; harmless unless a
+        // downstream webhook consumer parses the exact Python format.
         let payload = json!({
             "subject": subject,
             "body": { "algorithm": "rfm-analysis", "job_status": job_status, "message": message },

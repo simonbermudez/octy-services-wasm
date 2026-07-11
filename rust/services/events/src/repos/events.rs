@@ -125,6 +125,10 @@ pub async fn batch_create_events(
 /// account's total event count. The Python used a single `$facet` aggregation;
 /// per-type sorted finds are semantically identical and avoid needing an
 /// aggregate endpoint on the gateway.
+///
+/// Used by `verify_event` to infer each event property's expected data type
+/// from the most recent instance, and by the resource-limit check to confirm
+/// the account hasn't exceeded its event creation limit.
 pub async fn get_events_meta(
     ctx: &Ctx,
     account_id: &str,

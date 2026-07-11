@@ -19,13 +19,26 @@ pub struct S3Buckets {
 }
 
 impl S3Buckets {
+    /// Standard AWS by default. For local development against a MinIO (or
+    /// other S3-compatible) instance, set `AWS_ENDPOINT_URL` (respected by
+    /// `aws-config`'s standard env resolution) and `S3_FORCE_PATH_STYLE=true`
+    /// — MinIO needs path-style addressing (`endpoint/bucket/key`) since it
+    /// doesn't do virtual-hosted-style DNS routing. Neither variable changes
+    /// behavior when unset, so this has no effect on the real AWS path.
     pub async fn from_env() -> Self {
         let region = std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string());
+        let force_path_style = std::env::var("S3_FORCE_PATH_STYLE")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
         match std::env::var("AWS_ACCESS_KEY_ID") {
             Ok(_) => {
                 let config = aws_config::load_from_env().await;
+                let mut s3_config = aws_sdk_s3::config::Builder::from(&config);
+                if force_path_style {
+                    s3_config = s3_config.force_path_style(true);
+                }
                 Self {
-                    client: Some(aws_sdk_s3::Client::new(&config)),
+                    client: Some(aws_sdk_s3::Client::from_conf(s3_config.build())),
                     region,
                 }
             }

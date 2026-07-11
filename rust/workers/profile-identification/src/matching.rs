@@ -72,12 +72,15 @@ pub fn parse_profile_dt(s: Option<&str>, now: DateTime<Utc>) -> DateTime<Utc> {
 pub fn score_profile(profile: &Value, now: DateTime<Utc>) -> i64 {
     let mut score = 0i64;
 
+    // Presence of these prediction attributes means enough data existed for
+    // this profile to have completed analysis jobs — a light positive signal.
     if present_not_null(profile.get("rfm_score")) {
         score += 1;
     }
     if present_not_null(profile.get("churn_probability")) {
         score += 1;
     }
+    // An active profile is weighted far above a churned one.
     if profile.get("status").and_then(Value::as_str) == Some("active") {
         score += 5;
     }
@@ -98,6 +101,8 @@ pub fn score_profile(profile: &Value, now: DateTime<Utc>) -> i64 {
         score += points;
     }
 
+    // `updated_at` recency is a proxy for how recently the profile was
+    // active; the fresher the update, the higher the score.
     let updated_at = parse_profile_dt(profile.get("updated_at").and_then(Value::as_str), now);
     let delta_days = (now - updated_at).num_days();
     score += if delta_days <= 5 {
@@ -112,6 +117,8 @@ pub fn score_profile(profile: &Value, now: DateTime<Utc>) -> i64 {
         1
     };
 
+    // Active segment tag count is a proxy for the number of events that have
+    // occurred for this profile.
     let active_tag_count = profile
         .get("segment_tags")
         .and_then(Value::as_array)
@@ -329,6 +336,10 @@ pub fn format_parent_profile(profile: &Value, merged_segment_tags: Vec<Value>, k
     map.remove("created_at");
     map.remove("updated_at");
 
+    // Python's pandas dataframe silently coerced the whole `rfm_score`
+    // column to float (any missing score in the batch becomes NaN, which
+    // forces the column dtype) then explicitly cast it back to int with a
+    // 0 default; forced to int/0 here directly for the same result.
     let rfm_score = match map.get("rfm_score") {
         Some(Value::Number(n)) => n.as_i64().or_else(|| n.as_f64().map(|f| f.trunc() as i64)).unwrap_or(0),
         Some(Value::String(s)) => s.trim().parse::<i64>().unwrap_or(0),

@@ -166,6 +166,8 @@ pub async fn create_hparam_tuning_job_ref(
     meta_data: &Value,
 ) -> Result<()> {
     let mut lfm_idx_map: Vec<Value> = Vec::new();
+    // Each row's position in items_df/profiles_df is its LFM index, so the
+    // enumerate() index here is what prediction.rs later looks up embeddings by.
     let mut build_input = |ids: Vec<Value>, type_: &str| {
         for (i, id_) in ids.into_iter().enumerate() {
             lfm_idx_map.push(json!({

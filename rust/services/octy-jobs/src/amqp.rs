@@ -12,6 +12,10 @@
 //!   5xx → reject, requeue
 //!
 //! Expose this route only inside the cluster — do not add it to the ingress.
+//!
+//! NOTE: the Python capped concurrent delivery handling at 10 via a
+//! `threading.BoundedSemaphore(10)`; that throttle has no equivalent here —
+//! concurrency is whatever the gateway/host chooses to dispatch.
 
 use serde_json::Value;
 

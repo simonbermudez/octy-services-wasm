@@ -17,8 +17,9 @@ pub fn account_id_str(account: &AuthAccount) -> String {
     account.account_oid().unwrap_or_default().to_string()
 }
 
-/// `assess_resource_limit` from `utils/utils.py` — index 5 of the `li` blob
-/// is the message-template limit.
+/// `assess_resource_limit` from `utils/utils.py` — the `li` blob is
+/// `*`-separated as `profiles*items*event_types*events*segments*mes_templates`
+/// (e.g. `50000*150*100*100000*25*50`); index 5 is the message-template limit.
 fn assess_resource_limit(
     limits: &str,
     current_count: i64,

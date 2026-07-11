@@ -36,7 +36,7 @@ spec:
                   name: segmentation-secrets
                   key: AMQP_URL
             - name: AMQP_EXCHANGE
-              value: "octy"
+              value: "octy-services"
             - name: AMQP_QUEUE_PREFIX
               value: "segmentation"
             # Routing key consumed by amqp/consumer.py -> POST /internal/amqp/consume.

@@ -69,7 +69,8 @@ pub struct BillingFilters {
     pub created_at_lower_range: Option<DateTime<Utc>>,
 }
 
-/// `create_billable_units_ref` — bulk unordered insert of computed units.
+/// `create_billable_units_ref` — bulk unordered insert of computed units
+/// (unordered: one failing document doesn't block the rest from inserting).
 /// Each document gets the mongoengine `created_at` default (`dt.now`).
 pub async fn create_billable_units_ref(_ctx: &Ctx, units: &[Value]) -> Result<(), OctyError> {
     let documents: Vec<Value> = units
@@ -142,6 +143,8 @@ pub async fn filter_billable_units(
     };
 
     let mut units = ctx.gateway.find(COLLECTION, query.clone(), cursor, PAGE_LIMIT).await?;
+    // total is a separate, unpaginated count of the full filtered set — it does
+    // not just reflect the page returned above.
     let total = ctx.gateway.count(COLLECTION, query).await?;
 
     for unit in &mut units {

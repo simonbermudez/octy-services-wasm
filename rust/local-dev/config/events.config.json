@@ -1,0 +1,12 @@
+{
+  "EVENTS_EXTENDED_HELP": "https://octy.ai/docs/api#events",
+  "CUSTOM_EVENTS_EXTENDED_HELP": "https://octy.ai/docs/api#custom-events",
+  "ERRORS_OVERVIEW_EXTENDED_HELP": "https://octy.ai/docs/errors",
+  "RATE_LIMIT_EXTENDED_HELP": "https://octy.ai/docs/api#limits",
+  "AUTH_EXTENDED_HELP": "https://octy.ai/docs/api#authentication",
+  "SUPPORT_EMAIL": "support@octy.local",
+  "MAX_CREATE_EVENTS": 100,
+  "MAX_CREATE_EVENT_TYPES": 20,
+  "MAX_GET_EVENT_TYPES": 100,
+  "MAX_DELETE_EVENT_TYPES": 20
+}

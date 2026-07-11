@@ -87,6 +87,8 @@ impl<'a> RecommenderCompleteTrainingJob<'a> {
             "message": message,
             "status": status,
         });
+        // No cursor header here (unlike training.rs's send_job_callback) — matches
+        // the Python source's inconsistency between the two job classes.
         post_json_with_retry(&url, &[], &payload).await?;
         Ok(())
     }

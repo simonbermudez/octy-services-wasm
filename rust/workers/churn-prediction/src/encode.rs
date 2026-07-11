@@ -38,6 +38,8 @@ pub fn numerical_cluster_encoding(
 
     let len_unique = df.unique_len_with_null(feature)?;
     eprintln!("Number of unique values in column {feature} : {len_unique}");
+    // Python: range(1, 10) — the elbow sweep only tests cluster sizes 1..9
+    // when the column has at least that many unique values.
     let k_end = if len_unique < 10 { len_unique } else { 10 };
     if k_end <= 1 {
         return Err(format!(

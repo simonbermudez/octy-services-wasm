@@ -335,7 +335,9 @@ fn build_event_item_row(event: &serde_json::Value, items: &[serde_json::Value]) 
     Some(TrainingRow { profile_id, item_price, created_at })
 }
 
-/// `_generate_file_key`.
+/// `_generate_file_key`. Extension is picked by a `"meta_data"` substring
+/// match on the resource name (else `.csv`) — inherited from Python; this
+/// port only ever names the resource `"training"`, so it always lands on `.csv`.
 fn generate_file_key(ctx: &Ctx, resource_friendly_name: &str, training_job_id: &str) -> Result<String, OctyError> {
     let data_dir = ctx.config.get_str("RFM_DATA_DIR")?;
     let key = generate_uid("key");

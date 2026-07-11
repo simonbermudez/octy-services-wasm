@@ -49,6 +49,7 @@ pub async fn create_event(
         events_repo::get_events_meta(ctx, &account_id, &[event.event_type.clone()]).await?;
 
     let limits = account_limits(account)?;
+    // resource_key=3 → events slot
     let (count_res, counts) = assess_resource_limit(&limits, event_count, 1, 3)?;
     if !count_res {
         return Err(resource_limit_error(ctx, counts.limit, counts.remainder, "events"));
@@ -187,6 +188,7 @@ pub async fn batch_create_events(
         events_repo::get_events_meta(ctx, &account_id, &event_types).await?;
 
     let limits = account_limits(account)?;
+    // resource_key=3 → events slot
     let (res, counts) =
         assess_resource_limit(&limits, event_count, events.events.len() as i64, 3)?;
     if !res {
@@ -452,6 +454,9 @@ async fn verify_event(
                         "Invalid event data provided".to_string(),
                     )));
                 }
+                // NOTE: requires length > 1, not > 0 — single-character values
+                // are silently treated as absent. Matches the Python's
+                // `len(v) > 1` check exactly (unclear if intentional).
                 let len = v.as_str().map(|s| s.chars().count()).unwrap_or(0);
                 if k == "payment_method" && len > 1 {
                     payment_method = Some(v);
@@ -466,7 +471,10 @@ async fn verify_event(
                 )));
             }
         } else if event_type == "churned" {
-            // AMQP call to set the customer profile status = 'churned'
+            // AMQP call to set the customer profile status = 'churned'. The
+            // Python's comment noted this should only apply "if profile is
+            // active" — that check (if any) happens downstream in the
+            // profiles service, not here.
             ctx.gateway
                 .amqp_publish(
                     "profiles.cmd.update",
@@ -540,7 +548,9 @@ async fn verify_event(
                 None => ep.to_string(),
             };
             if event_instance_exists {
-                // assess required data type (KeyError on either side → pass)
+                // assess required data type (KeyError on either side → pass).
+                // If this property wasn't present on the previous event, this
+                // event's value becomes the reference type for future events.
                 if let Some(new_value) = event_properties.get(&ep_key) {
                     if let Some(old_value) = latest_event
                         .and_then(|le| le.get("event_properties"))

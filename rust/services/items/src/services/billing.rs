@@ -190,7 +190,9 @@ fn bytes_to_metric(bytes: i64, metric: &str) -> Result<i64, OctyError> {
 }
 
 /// Approximation of `_get_size` (recursive `sys.getsizeof`) for JSON values,
-/// using CPython 64-bit object sizes.
+/// using CPython 64-bit object sizes. Python tracked visited object ids to
+/// guard against self-referential cycles; `serde_json::Value` is a tree with
+/// no shared/cyclic references, so that bookkeeping isn't needed here.
 fn py_get_size(value: &Value) -> i64 {
     match value {
         Value::Null => 16,

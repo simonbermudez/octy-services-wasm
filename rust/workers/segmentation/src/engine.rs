@@ -174,6 +174,10 @@ struct EventMapEntry {
     action_inaction: String,
 }
 
+/// If a segment definition supplies no `event_properties`, the client is
+/// assumed to want to segment on event type alone. When properties *are*
+/// supplied, the event only needs to contain that key:value subset — extra
+/// keys on the actual event are ignored, it's not an exact-match comparison.
 fn event_properties_match(required: &Value, actual_event_properties: &Value) -> bool {
     match required {
         Value::Null => true,

@@ -322,6 +322,8 @@ impl<'a> TemplateEngine<'a> {
             let profile_ids = self.parse_group_profile_ids(messages);
             self.get_recommendations(&profile_ids).await?;
             self.get_items().await?;
+            // Only worth the round trip to tbl_currency_rates if there are
+            // items to price.
             if !self.items.is_empty() {
                 self.get_currency_rates().await?;
             }
@@ -386,6 +388,9 @@ impl<'a> TemplateEngine<'a> {
                 };
 
                 if key.contains("item_rec") {
+                    // Placeholder keys are `item_rec.<item attribute>` (e.g.
+                    // `item_rec.item_price`); `attr` is the part after the
+                    // dot, used to look it up on the recommended item.
                     let attr = key.splitn(2, '.').nth(1).unwrap_or_default();
                     let populated = item_rec
                         .populate_value(key, attr, value, self.currency_rates.as_ref())

@@ -14,6 +14,10 @@
 //! Rybbon reward-card APIs are called directly from the component via Spin's
 //! outbound HTTP capability. The Python service used no Redis and no AMQP
 //! publish/consume — none is wired up here either (see the port report).
+//!
+//! NOTE: the Python service also rate-limited every route below to 120
+//! requests/minute per client IP (`slowapi.Limiter`), returning a dedicated
+//! 429 envelope when exceeded. No rate limiting is implemented in this port.
 
 mod currency;
 mod handlers;

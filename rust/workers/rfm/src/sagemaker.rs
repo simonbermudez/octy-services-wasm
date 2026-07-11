@@ -77,7 +77,7 @@ pub async fn create_training_job(
                         "S3DataDistributionType": "FullyReplicated",
                     }
                 },
-                "ContentType": "text/csv",
+                "ContentType": "text/csv", // SageMaker also accepts application/x-recordio-protobuf; csv is what this pipeline produces
                 "CompressionType": "None",
                 "RecordWrapperType": "None",
                 "InputMode": input_mode,

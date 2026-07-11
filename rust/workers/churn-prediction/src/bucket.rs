@@ -46,6 +46,10 @@ impl S3 {
         Ok(parsed)
     }
 
+    // NOTE: the Python only passed `ServerSideEncryption=Config['AWS_SERVER_SIDE_ENCRYPTION']`
+    // (AES256) on the `create_multipart_upload` call, never on `single_upload`'s
+    // `upload_fileobj`. Both paths now go through this one `put-object` gateway
+    // call, which sets no server-side encryption at all.
     pub async fn put_object(&self, bucket: &str, key: &str, data: &[u8]) -> Result<(), OctyError> {
         let body = json!({
             "bucket": bucket,

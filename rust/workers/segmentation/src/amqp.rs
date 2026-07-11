@@ -18,6 +18,10 @@
 //! for an unparseable/invalid payload, or ack after `run()` returns (`run()`
 //! internally catches every exception and reports failure via the job-service
 //! callback instead of raising) — so this port never returns a 5xx.
+//!
+//! Rejecting without requeue is intentional even on failure: the Octy Job
+//! Scheduler (not RabbitMQ redelivery) owns retries for these jobs, so the
+//! AMQP message itself doesn't need to come back around.
 
 use serde_json::Value;
 

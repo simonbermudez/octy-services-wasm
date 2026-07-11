@@ -14,6 +14,12 @@
 //! An unparseable envelope or unrecognized routing key is a 400 (the Python
 //! `UnboundLocalError` / pydantic `ValidationError` path also rejected
 //! without requeue).
+//!
+//! NOTE: the Python consumer capped concurrent job threads at 10
+//! (`threading.BoundedSemaphore(10)`) to avoid overloading the pod. There is
+//! no equivalent cap here — each delivery is one Spin HTTP request handled
+//! synchronously, so concurrency is bounded by whatever the host/gateway
+//! allows rather than by this worker.
 
 use serde_json::Value;
 

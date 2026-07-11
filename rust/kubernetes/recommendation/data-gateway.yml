@@ -40,7 +40,7 @@ spec:
                   name: recommendation-secrets
                   key: AMQP_URL
             - name: AMQP_EXCHANGE
-              value: "octy"
+              value: "octy-services"
             - name: AMQP_QUEUE_PREFIX
               value: "recommendation"
             - name: AMQP_CONSUMERS

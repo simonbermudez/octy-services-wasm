@@ -15,6 +15,10 @@ use crate::repos::{account as account_repo, content, notifications};
 pub async fn create_account(ctx: &Ctx, account: &CreateAccount) -> Result<Value, OctyError> {
     let bucket_name = generate_uid("bucket");
 
+    // NOTE (carried over from a Python TODO): the account row is written
+    // before its bucket exists. If bucket creation/config fails below we
+    // roll the account back, but there's a window where the account exists
+    // without a usable bucket. Consider provisioning the bucket first.
     let (new_account, sk) = account_repo::create_account(ctx, account, &bucket_name).await?;
     let account_id = new_account["account_id"].as_str().unwrap_or_default().to_string();
 
@@ -36,6 +40,9 @@ pub async fn create_account(ctx: &Ctx, account: &CreateAccount) -> Result<Value,
         ));
     }
 
+    // Pre-create the folder skeleton (raw_data, training_job_data, templates,
+    // models, ...) that downstream services (recommendations, churn, rfm,
+    // ltv training jobs) expect to already exist in the account's bucket.
     for dir in ctx.config.get_array("BUCKET_REQUIRED_DIRS")? {
         if let Some(dir) = dir.as_str() {
             ctx.gateway.create_directory(&bucket_name, dir).await;

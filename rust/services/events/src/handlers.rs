@@ -109,7 +109,8 @@ pub async fn get_latest_checkout_info_submmited_event(req: Request, _params: Par
     }
 }
 
-/// POST /v1/internal/events — cluster-internal only.
+/// POST /v1/internal/events — cluster-internal only. Do not expose this
+/// route in the ingress.
 pub async fn get_events_internal(req: Request, _params: Params) -> Response {
     let ctx = match ctx_or_response() {
         Ok(ctx) => ctx,
@@ -147,7 +148,8 @@ pub async fn get_events_internal(req: Request, _params: Params) -> Response {
     }
 }
 
-/// POST /v1/internal/events/delete — account deletion fan-out.
+/// POST /v1/internal/events/delete — cluster-internal only, account deletion
+/// fan-out. Do not expose this route in the ingress.
 pub async fn delete_events_internal(req: Request, _params: Params) -> Response {
     let ctx = match ctx_or_response() {
         Ok(ctx) => ctx,
@@ -321,7 +323,8 @@ pub async fn delete_all_custom_event_types(req: Request, _params: Params) -> Res
     }
 }
 
-/// POST /v1/internal/events/types — cluster-internal only.
+/// POST /v1/internal/events/types — cluster-internal only. Do not expose
+/// this route in the ingress.
 pub async fn get_event_types_internal(req: Request, _params: Params) -> Response {
     let ctx = match ctx_or_response() {
         Ok(ctx) => ctx,

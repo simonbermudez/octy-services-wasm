@@ -252,7 +252,10 @@ fn build_map(profiles: &[Value]) -> Result<Vec<(String, String)>, String> {
     Ok(map)
 }
 
-/// Port of `_validate_profile_key_types`.
+/// Port of `_validate_profile_key_types`. Enforces that every `profile_data`/
+/// `platform_info` key uses the same JSON type across *all* profiles in the
+/// account (first-seen type wins) — training data is built from these
+/// profiles, and a mixed-type key would corrupt it downstream.
 fn validate_profile_key_types(ctx: &Ctx, account_id: &str, new_customer_profiles: &[Value]) -> Result<(), String> {
     const GENERIC_ERROR: &str = "Unknown error occurred. Typically, this is caused by malformed profile_data or platform_info. Please ensure you provided a valid JSON key pair object within both profile_data and platform_info for each new profile.";
 
@@ -381,6 +384,11 @@ pub async fn create_profiles(
 // POST /v1/retention/profiles/update  (HTTP + AMQP `profiles.cmd.update`)
 // ---------------------------------------------------------------------
 
+/// `internal` gates which fields are writable: HTTP clients may only touch
+/// the basic profile fields, while `rfm_score`/`rfm_segment_desc`/
+/// `churn_probability`/`ltv_prediction`/`current_ltv`/`segment_tags` are
+/// updatable only via the internal AMQP path (segmentation/RFM/churn
+/// workers), never directly by a client.
 pub async fn update_profiles(
     ctx: &Ctx,
     account_id: &str,
@@ -578,6 +586,11 @@ pub async fn delete_profiles(
 // Internal: POST /v1/internal/profiles
 // ---------------------------------------------------------------------
 
+/// Two retrieval modes exist for two different classes of internal caller:
+/// bounded id lookups (event creation, rec-engine predictions, message
+/// personalization) pass explicit `profiles` ids and need no pagination,
+/// while corpus-wide consumers (training data export) set `get_all` and
+/// page through the account's full profile set.
 pub async fn get_profiles_internal(
     ctx: &Ctx,
     account_id: &str,
@@ -620,7 +633,10 @@ pub async fn delete_account_profiles_internal(ctx: &Ctx, account_id: &str) -> Re
 // Internal: AMQP `grouped.segmentation.operations.cmd`
 // ---------------------------------------------------------------------
 
-/// Port of `grouped_segmentation_database_operations`.
+/// Port of `grouped_segmentation_database_operations`. The segmentation
+/// worker batches per-profile tag create/update/delete operations that must
+/// happen synchronously into a single AMQP message; they are applied here in
+/// the same order the worker produced them.
 ///
 /// NOTE (divergence): the Python `except KeyError: continue` only swallows a
 /// missing dict key within one operation — any *other* exception (e.g. a

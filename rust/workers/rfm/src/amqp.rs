@@ -61,6 +61,11 @@ pub async fn handle_delivery(ctx: &Ctx, body: &[u8]) -> AmqpOutcome {
                 job.account_data.bucket,
             ) {
                 Ok(a) => a,
+                // Python acks this failure mode with requeue=False, relying on
+                // the separate Octy Job Scheduler's own poll/retry cycle
+                // (driven by stored job records, not AMQP redelivery) to
+                // re-run the job. This port's 500 instead maps to
+                // reject+requeue at the gateway.
                 Err(e) => return AmqpOutcome { status: 500, detail: format!("failed to initialize RFMAnalysis: {e}") },
             };
             analysis.run().await;

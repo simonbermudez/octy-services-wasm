@@ -36,7 +36,7 @@ spec:
                   name: events-secrets
                   key: AMQP_URL
             - name: AMQP_EXCHANGE
-              value: "octy"
+              value: "octy-services"
             - name: AMQP_QUEUE_PREFIX
               value: "events"
             # Port of `amqp/consumer.py::handle_message` routing keys.

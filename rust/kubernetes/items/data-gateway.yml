@@ -45,7 +45,7 @@ spec:
                   name: items-secrets
                   key: AMQP_URL
             - name: AMQP_EXCHANGE
-              value: "octy"
+              value: "octy-services"
           readinessProbe:
             httpGet:
               path: /healthz

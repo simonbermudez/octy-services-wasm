@@ -41,6 +41,9 @@ pub async fn create_new_job(ctx: &Ctx, octy_job: &CreateOctyJob) -> Result<(), O
             },
             "amqp_routing_key": meta.amqp_routing_key,
             "job_type": meta.job_type,
+            // 0 means "unlimited": a huge sentinel stands in so
+            // successful_runs/failed_runs (which only ever grow) can never
+            // reach it and the job is never treated as exceeded/failed-out.
             "desired_runs": if meta.desired_runs != 0 { meta.desired_runs } else { 1_000_000_000_000i64 },
             "time_interval": meta.time_interval,
             "fail_threshold": if meta.fail_threshold != 0 { meta.fail_threshold } else { 1_000_000_000_000i64 },
@@ -293,6 +296,7 @@ async fn filter_pending_exceeded_jobs(
 
         let time_interval = meta_i64(job, "time_interval");
         if time_interval == 0 {
+            // time_interval == 0 means "run on every tick" — no interval gate.
             runnable.push((*job).clone());
         } else {
             // COMPARE MINUTES: round((now - last_run).total_seconds() / 60)

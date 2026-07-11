@@ -29,9 +29,16 @@ pub struct AuthAccount {
 }
 
 fn load_public_key_pem() -> Result<String, OctyError> {
-    // Preferred: the octy_public_key variable (base64 or raw PEM).
+    // Preferred: the octy_public_key variable (base64 or raw PEM). Several
+    // services declare this variable with `default = ""` rather than
+    // `required = true` — an unset variable then resolves to `""` instead of
+    // erroring, which would otherwise short-circuit past the file fallback
+    // below and turn every authenticated request into a PEM-parse 500. Treat
+    // a blank value the same as "not set" so the fallback still runs.
     if let Ok(raw) = variable("octy_public_key", "OCTY_PUBLIC_KEY") {
-        return Ok(base64_decode_str(&raw));
+        if !raw.trim().is_empty() {
+            return Ok(base64_decode_str(&raw));
+        }
     }
     // Fallback: the packaged key file (spin.toml `files`), matching the
     // Python `open('keys/octy-public-key.pub')`.

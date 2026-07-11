@@ -181,6 +181,10 @@ impl ChurnPredictionTraining {
         Ok(())
     }
 
+    /// `_dynamic_null_drop`: drop whole columns that are mostly null instead
+    /// of dropping rows for them — losing a row per null column would shrink
+    /// the dataset far more than dropping the column outright. Any remaining
+    /// nulls (in columns under the threshold) are then dropped row-wise.
     async fn dynamic_null_drop(&mut self, ctx: &Ctx) -> Result<(), OctyError> {
         let allowed = ctx.config.get_i64("ALLOWED_COL_NULL_COUNT")? as f64;
         let algo_features = algo_profile_features(&self.algorithm_configurations);
@@ -367,6 +371,10 @@ impl ChurnPredictionTraining {
                 eprintln!("Dropping numerical column: {n_col} due to insufficient number of unique values");
                 continue;
             }
+            // Feature-engineering split (Python comment): columns with >= 10
+            // unique observations are numerically cluster-encoded; columns
+            // with 2-9 are too low-cardinality for clustering to be useful
+            // and are bin-encoded (dynamic categorical limits) instead.
             if unique < 10 {
                 num_bin_cols.push(n_col);
             } else {

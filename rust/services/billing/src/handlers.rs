@@ -111,6 +111,7 @@ pub async fn get_billable_units(req: Request, _params: Params) -> Response {
 }
 
 /// GET /v1/admin/billing/subscriptions
+/// (admin pk/sk auth is enforced upstream of this service, as in the Python)
 pub async fn get_subscription_plans(req: Request, _params: Params) -> Response {
     let ctx = match ctx_or_response() {
         Ok(ctx) => ctx,

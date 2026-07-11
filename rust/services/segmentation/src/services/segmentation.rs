@@ -634,7 +634,9 @@ impl<'a> SegmentValidation<'a> {
 }
 
 // ===========================================================================
-// utils.assess_resource_limit (segment limit is index 4 of the `li` string)
+// utils.assess_resource_limit — `li` (from the auth JWT) is an
+// asterisk-delimited string: profiles*items*event_types*events*segments*mes_templates
+// e.g. "50000*150*100*100000*25*50"; segment limit is index 4.
 // ===========================================================================
 
 fn assess_resource_limit(

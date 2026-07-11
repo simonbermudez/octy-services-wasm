@@ -272,6 +272,10 @@ impl BaseSetAlgoConfigs {
                     if allowed_algorithms.iter().any(|a| a == &Value::String(name.clone())) {
                         algorithm_name = name;
                     } else {
+                        // NOTE: message is a hardcoded 'rec'/'churn' string, not
+                        // derived from `allowed_algorithms` — mismatches silently
+                        // if OCTY_ALGO_TYPES ever grows a third value (Python did
+                        // the same).
                         errs.push(field_error(
                             vec![json!("body"), json!("algorithm_name")],
                             "Invalid algorithm name provided. Allowed algorithm names : 'rec' or 'churn'",
@@ -316,6 +320,8 @@ pub struct RecConfigs {
     pub recommend_interacted_items: bool,
     pub item_id_stop_list: Vec<String>,
     pub profile_features: Vec<String>,
+    // Users will not set these — internal defaults, hence stripped back out
+    // of `return_configs` before the response is sent.
     pub event_type: Value,
     pub rec_item_identifier: Value,
 }
@@ -401,6 +407,8 @@ impl RecConfigs {
 #[derive(Debug, Clone)]
 pub struct ChurnPredConfigs {
     pub profile_features: Vec<String>,
+    // Users will not set these — internal defaults, hence stripped back out
+    // of `return_configs` before the response is sent.
     pub event_type: Value,
     pub churn_item_identifier: Value,
 }

@@ -384,7 +384,9 @@ pub async fn delete_items(
             .await?;
     }
 
-    // update item_id_stop_list in account configurations
+    // The "rec" algorithm config carries an item_id_stop_list of items it
+    // must not recommend; once an item is deleted its entry has to be pruned
+    // here or the algorithm keeps a dangling reference to a nonexistent item.
     let rec_configs = account
         .algorithm_configurations
         .as_array()

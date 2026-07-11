@@ -73,6 +73,10 @@ fn redis_conn(ctx: &Ctx) -> Result<Connection, OctyError> {
 // ---------------------------------------------------------------------------
 
 pub async fn create_octy_job(ctx: &Ctx, account_id: &str, octy_job: &Value) -> Result<(), OctyError> {
+    // Dedupe: an identical job (same account/job_type/routing_key/job_data)
+    // is only re-created once the existing one is exhausted (hit its desired
+    // run count or its failure threshold) — otherwise the existing row is
+    // left alone so the tick keeps driving it instead of double-scheduling.
     let query = json!({
         "$and": [
             { "account_id": account_id },
@@ -121,6 +125,9 @@ pub async fn update_octy_job(ctx: &Ctx, octy_job_updates: &[JobUpdate]) -> Resul
         });
 
         let update = if job.status == "processing" {
+            // last_run is stamped only on the transition into "processing" —
+            // it's the anchor filter_pending_exceeded_jobs uses to detect a
+            // job that has hung (stuck processing for >= 24h).
             json!({
                 "$set": {
                     "job_meta.status": job.status,
@@ -236,7 +243,9 @@ pub async fn get_pending_job_accounts(
 }
 
 /// `SET key pod_id NX EX 86400`; on conflict the claim belongs to whichever
-/// pod's id is stored.
+/// pod's id is stored. The 86400s (24h) TTL matches the hung-job window in
+/// `filter_pending_exceeded_jobs` — a claim outlives one tick but expires
+/// around the same time a stuck job would be reset back to "pending".
 pub fn claim_pending_job(
     ctx: &Ctx,
     account_id: &str,

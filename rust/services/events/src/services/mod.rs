@@ -23,7 +23,8 @@ pub struct LimitCounts {
 }
 
 /// Port of `utils.assess_resource_limit` — `limits` is the packed string from
-/// the JWT (`"50000*150*100*100000*25*50"`), `resource_key` selects the slot.
+/// the JWT (`"50000*150*100*100000*25*50"`), `resource_key` selects the slot:
+/// 0=profiles 1=items 2=event_types 3=events 4=segments 5=mes_templates.
 /// Malformed limits raised IndexError/ValueError → generic 500 in Python.
 pub fn assess_resource_limit(
     limits: &str,

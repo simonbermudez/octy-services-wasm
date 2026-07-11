@@ -73,6 +73,8 @@ fn validate_customer_id(value: &str, loc: &[&str]) -> Option<Value> {
     None
 }
 
+// Profiles default to "active"; "churned" is set when a churn-type event
+// fires for that profile (see `data/models/db_schemas.py::tbl_profiles.status`).
 const ALLOWED_STATUSES: &[&str] = &["active", "inactive", "churned"];
 
 fn validate_status(value: &str, loc: &[&str]) -> Option<Value> {
@@ -167,6 +169,10 @@ impl CreateProfiles {
 // Segment tags (shared shape; AMQP variant carries an optional `status`)
 // ---------------------------------------------------------------------
 
+// Beyond "active"/"pending_deletion" (see repos::profiles), the
+// segmentation worker also writes "pending" (tag belongs to a live,
+// in-progress segmentation run) and "inactive" (belongs to a past run)
+// statuses here — see `data/models/db_schemas.py::SegmentTags.status`.
 #[derive(Debug, Clone)]
 pub struct SegmentTagInput {
     pub segment_id: String,

@@ -32,6 +32,9 @@ pub fn required_gb(mut num_bytes: f64) -> i64 {
     for unit in units {
         if num_bytes < step_unit {
             return match unit {
+                // +1 before truncating so the SageMaker EBS volume is never
+                // undersized by the `as i64` rounding-down (e.g. 2.7 GB of
+                // data must provision at least 3 GB, not 2).
                 "GB" => (num_bytes + 1.0) as i64,
                 "bytes" | "KB" | "MB" => 1,
                 "TB" => ((num_bytes * 1000.0) + 1.0) as i64,

@@ -1,4 +1,10 @@
 //! Port of `segmentation_engine.py::PendingLiveSegmentation`.
+//!
+//! This job is only ever scheduled to run *after* a sub_type-2 segment's
+//! action->inaction deadline has passed, so by the time it runs we can
+//! assert the deadline is already behind us. It re-fetches events for the
+//! deadline window; if no matching "inaction" event turns up, the pending
+//! tag is promoted to active, otherwise it's deleted.
 
 use super::*;
 
@@ -198,17 +204,22 @@ impl<'a> PendingLiveSegmentation<'a> {
             let sequence = self.segment.as_ref().and_then(|s| s.get("event_sequence")).and_then(Value::as_array).cloned().unwrap_or_default();
             let (events_map, invalid_event_sequence) = event_sequence_analysis(&sequence, &self.found_past_inaction_events, true);
             if invalid_event_sequence {
+                // No valid inaction event occurred within the defined timeframe.
                 self.update_live_segment_tag("active").await?;
                 self.delete_octy_jobs().await;
             }
             let meets_criteria = event_map_analysis(&events_map);
             if meets_criteria {
+                // No valid inaction event occurred within the defined timeframe.
                 self.update_live_segment_tag("active").await?;
                 self.delete_octy_jobs().await;
             } else {
+                // A valid inaction event did occur within the timeframe.
                 self.delete_live_segment_tag().await;
             }
         } else {
+            // No inaction events at all were found for this profile -> the
+            // deadline is behind us and nothing ever fired, so activate.
             self.update_live_segment_tag("active").await?;
             self.delete_octy_jobs().await;
         }

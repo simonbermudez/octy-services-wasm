@@ -3,6 +3,11 @@
 //! Note on rate limits: the FastAPI service used slowapi (`60000/minute` on
 //! versioning, `600/minute` on resources/format). Spin components are
 //! stateless per request, so enforce those limits at the ingress layer.
+//!
+//! Note on auth: the FastAPI versioning and resources/format GET routes both
+//! required Trusted App auth (client_id/client_secret); this handler doesn't
+//! check it, so it must be enforced upstream (the webhook route below is the
+//! exception — it authenticates itself via the GitHub HMAC signature).
 
 use hmac::{Hmac, Mac};
 use octy_shared::errors::{ErrorReason, OctyError};
@@ -20,6 +25,7 @@ fn ctx_or_response() -> Result<Ctx, Response> {
     Ctx::load("admin").map_err(|e| error_response(&e))
 }
 
+/// K8s pod liveness/readiness probe target — unauthenticated by design.
 pub async fn healthz(_req: Request, _params: Params) -> Response {
     json_response(200, &json!("OK"))
 }

@@ -13,7 +13,7 @@ fn ctx_or_response() -> Result<Ctx, Response> {
     Ctx::load("churn_prediction").map_err(|e| error_response(&e))
 }
 
-/// GET /healthz
+/// GET /healthz — k8s liveness/readiness probe target, no auth required.
 pub async fn healthz(_req: Request, _params: Params) -> Response {
     json_response(200, &json!("OK"))
 }

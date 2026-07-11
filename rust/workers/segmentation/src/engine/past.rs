@@ -63,6 +63,10 @@ impl<'a> PastSegmentation<'a> {
         }
         for tag in &tags {
             let status = tag.get("status").and_then(Value::as_str).unwrap_or("");
+            // Both `active` and `pending` tags are deleted outright rather than
+            // moved to a "pending deletion" state — there should only ever be
+            // one pending tag per segment/profile at a time, so an outright
+            // delete avoids needing to track a second pending-deletion status.
             if status == "active" || status == "pending" {
                 self.delete_tag(tag, &profile_id).await;
             }
@@ -114,7 +118,11 @@ impl<'a> PastSegmentation<'a> {
         true
     }
 
-    /// `_get_profiles`.
+    /// `_get_profiles`. Unions profiles that met this segment's criteria on
+    /// the *previous* run (`segment.profile_ids`) with profiles behind this
+    /// run's matched events, so profiles that no longer qualify are still
+    /// re-evaluated (and have their tag revoked) rather than silently
+    /// dropped from consideration.
     async fn get_profiles(&mut self, past_events: &[Value]) -> Result<Vec<Value>, OctyError> {
         let mut ids: Vec<String> = self
             .segment

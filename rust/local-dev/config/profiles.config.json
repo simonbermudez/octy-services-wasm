@@ -1,0 +1,10 @@
+{
+  "PROFILES_EXTENDED_HELP": "https://octy.ai/docs/api#profiles",
+  "ERRORS_OVERVIEW_EXTENDED_HELP": "https://octy.ai/docs/errors",
+  "RATE_LIMIT_EXTENDED_HELP": "https://octy.ai/docs/api#limits",
+  "AUTH_EXTENDED_HELP": "https://octy.ai/docs/api#authentication",
+  "MAX_GET_PROFILES": 100,
+  "MAX_CREATE_PROFILES": 100,
+  "MAX_UPDATE_DELETE_PROFILES": 100,
+  "MAX_IDENTIFY_PROFILES": 100
+}

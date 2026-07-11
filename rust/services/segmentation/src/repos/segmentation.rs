@@ -98,6 +98,8 @@ pub fn format_segment(mut segment: Value, internal: bool) -> Value {
         }
     }
 
+    // profile_ids tracks the profiles that matched this (past) segment's
+    // criteria on its last run; only the count is exposed externally.
     let profile_count = obj
         .get("profile_ids")
         .and_then(Value::as_array)
@@ -300,6 +302,10 @@ pub async fn update_past_segment_profile_ids(
     segment_id: &Value,
     profile_ids: &[Value],
 ) -> Result<(), OctyError> {
+    // NOTE: the Python wrapped a Mongo `OperationFailure` from this update as
+    // `Exception(f"[toxic]:: {e}")`; the AMQP consumer treats that marker as
+    // non-retryable (reject without requeue, see amqp.rs). This port does not
+    // currently tag gateway errors from here with that marker.
     ctx.gateway
         .update_one(
             COLLECTION,

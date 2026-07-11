@@ -172,6 +172,9 @@ pub async fn get_events(
 /// `get_segment_definitions` — reads `tbl_segments` via the gateway.
 /// `segment_id` takes priority over `type_`, matching the Python signature
 /// `get_segment_definitions(account_id, type_=None, segment_id=None)`.
+/// The `status: "active"` filter is a soft-delete check — segments the user
+/// has asked to delete are flipped to `pending_deletion` rather than removed,
+/// so this filter is what actually excludes them from every run.
 pub async fn get_segment_definitions(
     ctx: &Ctx,
     account_id: &str,

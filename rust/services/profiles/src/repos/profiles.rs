@@ -348,7 +348,10 @@ pub async fn delete_profile(ctx: &Ctx, profile_id: &str, account_id: &str) -> Re
         .await
 }
 
-/// Port of `update_delete_segment_tags`.
+/// Port of `update_delete_segment_tags`, invoked when a segment *definition*
+/// is deleted elsewhere in the system: `"update"` soft-deletes by flipping
+/// every matching tag to `pending_deletion` status, `"delete"` removes them
+/// outright.
 pub async fn update_delete_segment_tags(ctx: &Ctx, account_id: &str, segment_ids: &[String], action: &str) -> Result<(), OctyError> {
     let _ = ctx;
     match action {

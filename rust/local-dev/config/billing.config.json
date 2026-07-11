@@ -1,0 +1,17 @@
+{
+  "UNITS": [
+    {
+      "unit_type": "compute",
+      "metrics": [{ "name": "hours", "costs": { "GBP": { "startup": 168, "pro": 134, "enterprise": 112 } } }]
+    },
+    {
+      "unit_type": "data",
+      "metrics": [{ "name": "MB", "costs": { "GBP": { "startup": 5, "pro": 3, "enterprise": 2 } } }]
+    }
+  ],
+  "SUBSCRIPTIONS": [
+    { "plan": "startup", "costs": { "GBP": { "monthly": 4900 } } },
+    { "plan": "pro", "costs": { "GBP": { "monthly": 49900 } } },
+    { "plan": "enterprise", "costs": { "GBP": { "monthly": 99900 } } }
+  ]
+}

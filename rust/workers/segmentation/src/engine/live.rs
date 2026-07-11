@@ -187,6 +187,11 @@ impl<'a> LiveSegmentation<'a> {
         if let Some(tag) = tags.first() {
             let tag_status = tag.get("status").and_then(Value::as_str).unwrap_or("");
             if tag_status == "active" {
+                // Replacing an existing active tag (rather than leaving it in
+                // place) acts as a change agent to keep live segment tags up
+                // to date, and lets the "segment tag created" webhook fire
+                // again EACH TIME a profile re-meets this segment's
+                // definition, not just on first match.
                 eprintln!(
                     "[segmentation-worker] Active tag exists for segment with ID: {segment_id:?}. Deleting existing active tag"
                 );
@@ -276,6 +281,9 @@ impl<'a> LiveSegmentation<'a> {
                     if !res {
                         return Err(OctyError::internal("Unexpected error occurred when attempting to create segment tag"));
                     }
+                    // A pending tag means the validation octy-job for this
+                    // profile/segment combo was already created on a prior
+                    // event; ensure a second one isn't created here.
                     if status.as_deref() == Some("pending") {
                         eprintln!("[segmentation-worker] Octy job exists for this profile and segment.. continuing to next live segment definition");
                         return Ok(());
@@ -309,6 +317,10 @@ impl<'a> LiveSegmentation<'a> {
                 segment.get("segment_id")
             );
             let sub_type = segment.get("segment_sub_type").and_then(Value::as_i64).unwrap_or(0);
+            // sub_type 1: single action (should be exactly one event in the
+            // sequence). sub_type 2: a single action followed by a single
+            // inaction — the "pending" tag below marks that the action half
+            // has already fired for this profile.
             if sub_type == 1 {
                 self.segment_type_one_analysis(segment).await?;
             } else if sub_type == 2 {

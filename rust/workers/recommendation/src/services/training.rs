@@ -115,6 +115,7 @@ impl<'a> RecommenderTraining<'a> {
         let mut profiles_list: Vec<Map<String, Value>> = Vec::with_capacity(profiles.len());
         for p in &profiles {
             let rfm_raw = p.get("rfm_score").cloned().unwrap_or(Value::Null);
+            // Unset RFM score defaults to 111 — the lowest possible RFM score.
             let rfm_score = match &rfm_raw {
                 Value::Null => json!(111),
                 Value::String(s) if s.is_empty() => json!(111),
@@ -174,6 +175,8 @@ impl<'a> RecommenderTraining<'a> {
         let mut profiles_df = Frame::from_records(&profiles_list);
         profiles_df.dropna();
         profiles_df.drop_columns(&["segment_tags"])?;
+        // profile_LFM_IDX must be a sequential index matching each row's position —
+        // SageMaker/LightFM assigns user embeddings by that same row order.
         profiles_df.insert_range_index("profile_LFM_IDX");
 
         self.profiles_ids = profiles_df
@@ -271,6 +274,7 @@ impl<'a> RecommenderTraining<'a> {
             .map(str::to_string)
             .collect();
         items_df.set_columns(&renamed)?;
+        // Same rationale as profile_LFM_IDX: row position becomes the item embedding index.
         items_df.insert_range_index("item_LFM_IDX");
         self.items_df = Some(items_df);
         Ok(())
@@ -450,6 +454,9 @@ impl<'a> RecommenderTraining<'a> {
             "message": message,
             "status": status,
         });
+        // NOTE: the Python training job callback sent a `cursor: 0` header here while
+        // the completion job's equivalent callback (prediction.rs) sent none — an
+        // inconsistency in the original, not a typo here. Preserved for parity.
         post_json_with_retry(&url, &[("cursor", "0")], &payload).await?;
         Ok(())
     }

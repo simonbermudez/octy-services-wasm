@@ -207,6 +207,12 @@ impl ProfileIdentificationJob {
         // Python's `for mes in self.amqp_messages` loop published every
         // entry regardless of contents; preserved bug-for-bug rather than
         // skipping empty publishes.
+        //
+        // NOTE: the Python also split each list into ~100MB
+        // (`amqp_message_size_limit`) chunks across multiple AMQP messages
+        // before publishing, to stay under the broker's message size limit.
+        // This port always publishes each list as a single message; an
+        // unusually large merge batch could exceed that limit.
         let publishes: [(&str, Value); 5] = [
             ("events.cmd.update", Value::Array(event_instance_profiles_message)),
             ("reccache.cmd.delete", Value::Array(rec_cache_delete_message)),
@@ -253,6 +259,9 @@ impl ProfileIdentificationJob {
             "body": { "profiles": dropped_account_profiles },
             "date_time": Utc::now().to_rfc3339(),
         });
+        // NOTE: the Python also chunked this payload at ~100MB
+        // (`webhook_payload_size_limit`), posting multiple requests for an
+        // oversized batch. This port always sends it in one request.
         http::post_webhook_best_effort(&self.webhook_url, &payload).await;
 
         let job_service_url = ctx.config.get_str("OCTY_JOB_SERVICE_CLUSTER_IP").unwrap_or("");

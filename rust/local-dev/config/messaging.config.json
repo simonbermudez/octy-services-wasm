@@ -1,0 +1,20 @@
+{
+  "MESSAGING_EXTENDED_HELP": "https://octy.ai/docs/api#messaging",
+  "ERRORS_OVERVIEW_EXTENDED_HELP": "https://octy.ai/docs/errors",
+  "RATE_LIMIT_EXTENDED_HELP": "https://octy.ai/docs/api#limits",
+  "AUTH_EXTENDED_HELP": "https://octy.ai/docs/api#authentication",
+  "MAX_GET_TEMPLATES": 100,
+  "MAX_UPDATE_DELETE_TEMPLATES": 100,
+  "MAX_MESSAGE_DATA": 100,
+  "MAX_REQUIRED_DATA": 100,
+  "MESSAGE_GEN_LIMIT": 100,
+  "ALLOWED_CURRENCIES": ["GBP", "USD", "EUR"],
+  "ITEM_ATTRIBUTES": ["item_price", "item_name", "item_id"],
+  "ITEM_SERVICE_CLUSTER_IP": "http://items-service",
+  "REC_SERVICE_CLUSTER_IP": "http://recommendation-service",
+  "RYBBON_AUTH_URL": "https://api.rybbon.net/v1/dev/auth",
+  "RYBBON_CAMPAIGNS_URL": "https://api.rybbon.net/v1/dev/campaigns",
+  "RYBBON_REWARD_CLAIM_URL": "https://api.rybbon.net/v1/dev/rewards",
+  "RYBBON_CLIENT_ID": "dev-client-id",
+  "RYBBON_PARTNER_ID": "dev-partner-id"
+}
