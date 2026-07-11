@@ -1,0 +1,6 @@
+{
+  "OCTY_JOB_SERVICE_CLUSTER_IP": "http://octy-jobs-service",
+  "PROFILE_SERVICE_CLUSTER_IP": "http://profiles-service",
+  "REDIS_PUB_HOST": "redis.octy-local",
+  "REDIS_PORT": 6379
+}

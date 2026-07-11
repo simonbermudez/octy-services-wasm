@@ -1,0 +1,36 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-profiles"
+version = "0.1.0"
+description = "Octy profiles (Rust/WASM port of profiles/)"
+
+[variables]
+profiles_config = { required = true }
+profiles_secrets = { required = true, secret = true }
+octy_public_key = { default = "" }
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "profiles"
+
+[component.profiles]
+source = "../../target/wasm32-wasip1/release/profiles_service.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.profiles.variables]
+profiles_config = "{{ profiles_config }}"
+profiles_secrets = "{{ profiles_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.profiles.build]
+command = "cargo build -p profiles-service --target wasm32-wasip1 --release"
+workdir = "../.."

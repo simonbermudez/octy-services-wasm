@@ -1,0 +1,38 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-events"
+version = "0.1.0"
+description = "Octy events (Rust/WASM port of events/)"
+
+[variables]
+events_config = { required = true }
+events_secrets = { required = true, secret = true }
+octy_public_key = { default = "" }
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "events"
+
+[component.events]
+source = "../../target/wasm32-wasip1/release/events_service.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+# The events service has no Redis cache of its own; outbound hosts are the
+# gateway sidecar plus the profiles/segmentation cluster-internal services
+# reached directly (port of `requests_retry_session`). Tighten to concrete
+# hosts per environment.
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+]
+
+[component.events.variables]
+events_config = "{{ events_config }}"
+events_secrets = "{{ events_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.events.build]
+command = "cargo build -p events-service --target wasm32-wasip1 --release"
+workdir = "../.."

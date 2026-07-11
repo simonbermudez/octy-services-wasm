@@ -1,0 +1,51 @@
+{
+  "AUTH_EXTENDED_HELP": "https://octy.ai/docs/api#authentication",
+  "ERRORS_OVERVIEW_EXTENDED_HELP": "https://octy.ai/docs/errors",
+  "DOCS_ROOT_URL": "https://octy.ai/docs",
+  "SUPPORT_EMAIL": "support@octy.local",
+  "BUCKET_REQUIRED_DIRS": [
+    "resources/raw_data/customer_profiles",
+    "resources/raw_data/items",
+    "resources/templates",
+    "models/recommendation_models",
+    "models/churn_prediction_models",
+    "models/rfm_dataframes"
+  ],
+  "OCTY_JOBS": [],
+  "RESOURCE_LIMITS": {
+    "startup": {
+      "MAX_TOTAL_PROFILES": 5000,
+      "MAX_TOTAL_ITEMS": 500,
+      "MAX_TOTAL_CUSTOM_EVENT_TYPES": 20,
+      "MAX_TOTAL_EVENTS": 50000,
+      "MAX_TOTAL_SEGMENT_DEFINITIONS": 10,
+      "MAX_TOTAL_MESSAGE_TEMPLATES": 10
+    },
+    "pro": {
+      "MAX_TOTAL_PROFILES": 50000,
+      "MAX_TOTAL_ITEMS": 5000,
+      "MAX_TOTAL_CUSTOM_EVENT_TYPES": 100,
+      "MAX_TOTAL_EVENTS": 1000000,
+      "MAX_TOTAL_SEGMENT_DEFINITIONS": 50,
+      "MAX_TOTAL_MESSAGE_TEMPLATES": 50
+    },
+    "enterprise": {
+      "MAX_TOTAL_PROFILES": 1000000,
+      "MAX_TOTAL_ITEMS": 100000,
+      "MAX_TOTAL_CUSTOM_EVENT_TYPES": 500,
+      "MAX_TOTAL_EVENTS": 100000000,
+      "MAX_TOTAL_SEGMENT_DEFINITIONS": 200,
+      "MAX_TOTAL_MESSAGE_TEMPLATES": 200
+    }
+  },
+  "EVENTS_SERVICE_CLUSTER_IP": "http://events-service",
+  "PROFILES_SERVICE_CLUSTER_IP": "http://profiles-service",
+  "OCTY_JOBS_SERVICE_CLUSTER_IP": "http://octy-jobs-service",
+  "ITEMS_SERVICE_CLUSTER_IP": "http://items-service",
+  "RECOMMENDATION_SERVICE_CLUSTER_IP": "http://recommendation-service",
+  "SEGMENTATION_SERVICE_CLUSTER_IP": "http://segmentation-service",
+  "CHURN_PREDICTION_SERVICE_CLUSTER_IP": "http://churn-prediction-service",
+  "AWS_REGION": "us-east-1",
+  "REDIS_PUB_HOST": "redis.octy-local",
+  "REDIS_PORT": 6379
+}

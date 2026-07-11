@@ -1,0 +1,25 @@
+[package]
+name = "items-service"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# Rust/WASM port of `items/`.
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+octy-shared.workspace = true
+octy-spin.workspace = true
+
+spin-sdk.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+# preserve_order keeps response-object key order identical to the Python
+# service's dicts (byte-for-byte DTO parity).
+serde_json = { version = "1", features = ["preserve_order"] }
+base64.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+regex-lite.workspace = true

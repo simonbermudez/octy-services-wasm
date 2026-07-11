@@ -1,0 +1,6 @@
+{
+  "ACCOUNT_SERVICE_CLUSTER_IP": "http://account-service",
+  "ERRORS_OVERVIEW_EXTENDED_HELP": "https://octy.ai/docs/errors",
+  "REDIS_PUB_HOST": "redis.octy-local",
+  "REDIS_PORT": 6379
+}

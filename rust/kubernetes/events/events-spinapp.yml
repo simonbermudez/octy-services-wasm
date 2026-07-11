@@ -1,0 +1,57 @@
+# Events service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/services/events):
+#   spin build
+#   spin registry push <registry>/octy-events:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-events
+spec:
+  image: "<registry>/octy-events:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 2
+  variables:
+    - name: gateway_url
+      value: "http://octy-data-gateway-events:8090"
+    # events_config / events_secrets come from the same base64-encoded blobs
+    # the Python deployment used (EVENTS_CONFIG / EVENTS_SECRETS). The
+    # PROFILE_SERVICE_CLUSTER_IP / SEGMENTATION_SERVICE_CLUSTER_IP the
+    # profile/segment lookups need travel inside events_config, unchanged
+    # from the Python `Config[...]` reads.
+    - name: events_config
+      valueFrom:
+        configMapKeyRef:
+          name: events-config
+          key: EVENTS_CONFIG
+    - name: events_secrets
+      valueFrom:
+        secretKeyRef:
+          name: events-secrets
+          key: EVENTS_SECRETS
+    # RS256 public key used to verify the X-AUTH-JWT fat token minted by the
+    # account service (same key across all services). The component also
+    # bundles keys/octy-public-key.pub (spin.toml `files`) matching the
+    # Python `open('keys/octy-public-key.pub')`, but the packaged copy is
+    # only reached when this variable is left completely unset (no
+    # `default` in spin.toml) — set it explicitly here so key rotation
+    # doesn't require a rebuild.
+    - name: octy_public_key
+      valueFrom:
+        secretKeyRef:
+          name: events-secrets
+          key: OCTY_PUBLIC_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: events-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-events
+  ports:
+    - port: 80
+      targetPort: 80

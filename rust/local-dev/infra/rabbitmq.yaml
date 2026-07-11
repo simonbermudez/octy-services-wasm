@@ -1,0 +1,54 @@
+# RabbitMQ for the local testbed, with the management UI on :15672.
+# RABBITMQ_DEFAULT_USER/PASS create a real user — the image's default `guest`
+# account only accepts connections from localhost inside the container, which
+# would reject every service's remote AMQP connection.
+#   AMQP_URL: amqp://octy:octy@rabbitmq.octy-local:5672/%2f
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: octy-local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.13-management
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: "octy"
+            - name: RABBITMQ_DEFAULT_PASS
+              value: "octy"
+          ports:
+            - containerPort: 5672
+              name: amqp
+            - containerPort: 15672
+              name: management
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: octy-local
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - port: 5672
+      targetPort: 5672
+      name: amqp
+    - port: 15672
+      targetPort: 15672
+      name: management

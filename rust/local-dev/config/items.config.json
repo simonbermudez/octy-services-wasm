@@ -1,0 +1,10 @@
+{
+  "ITEMS_EXTENDED_HELP": "https://octy.ai/docs/api#items",
+  "ERRORS_OVERVIEW_EXTENDED_HELP": "https://octy.ai/docs/errors",
+  "RATE_LIMIT_EXTENDED_HELP": "https://octy.ai/docs/api#limits",
+  "AUTH_EXTENDED_HELP": "https://octy.ai/docs/api#authentication",
+  "SUPPORT_EMAIL": "support@octy.local",
+  "MAX_GET_ITEMS": 100,
+  "MAX_CREATE_ITEMS": 100,
+  "MAX_UPDATE_DELETE_ITEMS": 100
+}

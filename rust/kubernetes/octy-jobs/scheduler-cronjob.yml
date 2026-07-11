@@ -1,0 +1,32 @@
+# Replaces the Python in-process job-queue scheduler:
+#   OctyJobQueue(logger, 2)  →  _process_octy_jobs every 2 minutes.
+#
+# A per-request WASM component cannot run a background loop, so each cron run
+# performs exactly one scheduling pass via POST /internal/scheduler/tick.
+# concurrencyPolicy: Forbid stands in for the Python `is_processing`
+# re-entrancy guard (a tick still in flight blocks the next one).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: octy-jobs-scheduler
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: tick
+              image: curlimages/curl:8.10.1
+              args:
+                - "-sS"
+                - "--fail-with-body"
+                - "-X"
+                - "POST"
+                - "http://octy-jobs-service/internal/scheduler/tick"

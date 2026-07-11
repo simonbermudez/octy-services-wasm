@@ -1,0 +1,6 @@
+{
+  "REPOSITORIES": ["octy-services", "octy-cli"],
+  "RESOURCE_FORMAT_EXAMPLES_DIR": "/data/repositories/content/resource_formats/",
+  "REDIS_PUB_HOST": "redis.octy-local",
+  "REDIS_PORT": 6379
+}

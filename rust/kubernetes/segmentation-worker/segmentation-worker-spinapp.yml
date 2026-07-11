@@ -1,0 +1,49 @@
+# segmentation_worker as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/workers/segmentation):
+#   spin build
+#   spin registry push <registry>/octy-segmentation-worker:0.1.0
+#
+# Unlike `account`, this component has no public HTTP surface worth exposing
+# outside the cluster — its only routes are GET /healthz and
+# POST /internal/amqp/consume (called by the paired octy-data-gateway
+# sidecar below). The Service stays ClusterIP-only, same as the Python
+# deployment it replaces.
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-segmentation-worker
+spec:
+  image: "<registry>/octy-segmentation-worker:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 1
+  variables:
+    - name: gateway_url
+      value: "http://segmentation-worker-gateway:8090"
+    # segmentation_worker_config / segmentation_worker_secrets carry the same
+    # base64-encoded blobs the Python deployment used
+    # (SEGMENTATION_WORKER_CONFIG / SEGMENTATION_WORKER_SECRETS env vars).
+    - name: segmentation_worker_config
+      valueFrom:
+        configMapKeyRef:
+          name: segmentation-worker-config
+          key: segmentation_worker_config
+    - name: segmentation_worker_secrets
+      valueFrom:
+        secretKeyRef:
+          name: segmentation-worker-secrets
+          key: segmentation_worker_secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: segmentation-worker-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-segmentation-worker
+  ports:
+    - port: 80
+      targetPort: 80

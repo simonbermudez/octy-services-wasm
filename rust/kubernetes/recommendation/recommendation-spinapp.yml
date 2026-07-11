@@ -1,0 +1,48 @@
+# Recommendation service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster, e.g.:
+#   kubectl apply -f https://github.com/spinframework/spin-operator/releases/latest/download/spin-operator.runtime-class.yaml
+#
+# Build & push the app (from rust/services/recommendation):
+#   spin build
+#   spin registry push <registry>/octy-recommendation:0.1.0
+#
+# The Octy public key used to verify X-AUTH-JWT tokens is packaged with the
+# component (spin.toml `files` → keys/octy-public-key.pub), matching the
+# Python image; set the octy_public_key variable instead to override it.
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-recommendation
+spec:
+  image: "<registry>/octy-recommendation:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 2
+  variables:
+    - name: gateway_url
+      value: "http://recommendation-data-gateway:8090"
+    # Same base64-encoded JSON blobs the Python deployment consumed via the
+    # RECOMMENDATION_CONFIG / RECOMMENDATION_SECRETS env vars.
+    - name: recommendation_config
+      valueFrom:
+        configMapKeyRef:
+          name: recommendation-config
+          key: RECOMMENDATION_CONFIG
+    - name: recommendation_secrets
+      valueFrom:
+        secretKeyRef:
+          name: recommendation-secrets
+          key: RECOMMENDATION_SECRETS
+---
+# NB: only /healthz and /v1/retention/recommendations may be exposed on the
+# ingress. /v1/internal/* and /internal/amqp/consume are cluster-internal.
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-recommendation
+  ports:
+    - port: 80
+      targetPort: 80

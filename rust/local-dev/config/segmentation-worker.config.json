@@ -1,0 +1,5 @@
+{
+  "EVENT_SERVICE_CLUSTER_IP": "http://events-service",
+  "PROFILE_SERVICE_CLUSTER_IP": "http://profiles-service",
+  "OCTY_JOB_SERVICE_CLUSTER_IP": "http://octy-jobs-service"
+}

@@ -1,0 +1,70 @@
+# octy-data-gateway — native sidecar deployment bridging the octy-jobs WASM
+# component to MongoDB / RabbitMQ. Same generic gateway image as the account
+# service; only the env differs.
+#
+# AMQP consumers: the Python service consumed the queues
+#   octy-job-create-queue  (routing key octy.job.cmd.create)
+#   octy-job-delete-queue  (routing key octy.job.cmd.delete)
+# The gateway names its queues "<prefix>.<routing-key>" — i.e.
+#   octy-jobs.octy.job.cmd.create / octy-jobs.octy.job.cmd.delete —
+# bound to the same routing keys on the same exchange. During a side-by-side
+# migration both old and new queues receive every message; drain/remove the
+# old octy-job-*-queue bindings when the Python deployment is retired.
+#
+# AMQP_EXCHANGE must match the Python Config['EXCHANGE'] ("octy-services" in
+# the production configMap).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octy-jobs-data-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: octy-jobs-data-gateway
+  template:
+    metadata:
+      labels:
+        app: octy-jobs-data-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: "<registry>/octy-data-gateway:0.1.0"
+          ports:
+            - containerPort: 8090
+          env:
+            - name: PORT
+              value: "8090"
+            - name: DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: octy-jobs-secrets
+                  key: DB_URI
+            - name: AMQP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: octy-jobs-secrets
+                  key: AMQP_URL
+            - name: AMQP_EXCHANGE
+              value: "octy-services"
+            - name: AMQP_QUEUE_PREFIX
+              value: "octy-jobs"
+            - name: AMQP_CONSUMERS
+              value: '["octy.job.cmd.create","octy.job.cmd.delete"]'
+            - name: AMQP_FORWARD_URL
+              value: "http://octy-jobs-service/internal/amqp/consume"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: octy-jobs-data-gateway
+spec:
+  selector:
+    app: octy-jobs-data-gateway
+  ports:
+    - port: 8090
+      targetPort: 8090

@@ -1,0 +1,8 @@
+/target
+services/*/.spin/
+
+# The repo-root .gitignore blanket-excludes *.json (it was written to keep
+# each Python service's real config.json/secrets.json — which contain live
+# credentials — out of git). These are synthetic, placeholder-only local-dev
+# values (see local-dev/README.md), not real secrets, so re-include them.
+!local-dev/config/*.json

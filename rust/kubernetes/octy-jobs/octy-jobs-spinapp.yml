@@ -1,0 +1,49 @@
+# Octy jobs service as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster.
+#
+# Build & push the app (from rust/services/octy-jobs):
+#   spin build
+#   spin registry push <registry>/octy-jobs:0.1.0
+#
+# NB: the Redis job-claim keys assume one logical scheduler identity; keep
+# `replicas: 1` (matching the Python deployment) or give each replica its own
+# pod_id and accept split claims.
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-jobs
+spec:
+  image: "<registry>/octy-jobs:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 1
+  variables:
+    - name: gateway_url
+      value: "http://octy-jobs-data-gateway:8090"
+    # Stands in for the Python POD_ID (fieldRef env is not available through
+    # SpinApp variables); used only as the Redis job-claim owner value.
+    - name: pod_id
+      value: "octy-jobs-wasm"
+    # octy_job_config / octy_job_secrets are the same base64-encoded blobs the
+    # Python deployment mounted as OCTY_JOB_CONFIG / OCTY_JOB_SECRETS.
+    - name: octy_job_config
+      valueFrom:
+        configMapKeyRef:
+          name: octy-jobs-config
+          key: octy_jobs_config
+    - name: octy_job_secrets
+      valueFrom:
+        secretKeyRef:
+          name: octy-jobs-secrets
+          key: octy_jobs_secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: octy-jobs-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-jobs
+  ports:
+    - port: 80
+      targetPort: 80

@@ -1,0 +1,44 @@
+# churn-prediction-worker as a WASM container on Kubernetes via SpinKube
+# (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
+# (runtime class wasmtime-spin-v2) installed on the cluster.
+#
+# Build & push the app (from rust/workers/churn-prediction):
+#   spin build
+#   spin registry push <registry>/octy-churn-prediction-worker:0.1.0
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: octy-churn-prediction-worker
+spec:
+  image: "<registry>/octy-churn-prediction-worker:0.1.0"
+  executor: containerd-shim-spin
+  replicas: 1
+  variables:
+    - name: gateway_url
+      value: "http://octy-data-gateway-churn-prediction-worker:8090"
+    # churn_prediction_worker_config / churn_prediction_worker_secrets come
+    # from the same base64-encoded blobs the Python deployment used
+    # (workers/churn_prediction/kubernetes/production/configMaps/configMap.yaml),
+    # read via CHURN_PREDICTION_WORKER_CONFIG / CHURN_PREDICTION_WORKER_SECRETS
+    # in the original service (config.py / secrets.py).
+    - name: churn_prediction_worker_config
+      valueFrom:
+        configMapKeyRef:
+          name: churn-prediction-worker-config
+          key: churn_prediction_worker_config
+    - name: churn_prediction_worker_secrets
+      valueFrom:
+        secretKeyRef:
+          name: churn-prediction-worker-secrets
+          key: churn_prediction_worker_secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: churn-prediction-worker-service
+spec:
+  selector:
+    core.spinkube.dev/app-name: octy-churn-prediction-worker
+  ports:
+    - port: 80
+      targetPort: 80

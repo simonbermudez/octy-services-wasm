@@ -1,0 +1,31 @@
+[package]
+name = "recommendation-worker"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# Rust/WASM port of `workers/recommendation/`.
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+octy-shared.workspace = true
+octy-spin.workspace = true
+
+spin-sdk.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+# `preserve_order` keeps JSON object key order (the Python worker relies on
+# dict insertion order for dataframe column order → CSV column order).
+serde_json = { version = "1", features = ["preserve_order"] }
+base64.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+regex-lite.workspace = true
+url = "2"
+
+# pandas.to_csv replacement (pure Rust, wasm32-wasip1 clean)
+csv = "1.3"
+# gunzip for the SageMaker model.tar.gz artifact (pure-Rust backend)
+flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }

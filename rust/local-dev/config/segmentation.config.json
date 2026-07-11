@@ -1,0 +1,11 @@
+{
+  "SEGMENTATION_EXTENDED_HELP": "https://octy.ai/docs/api#segmentation",
+  "ERRORS_OVERVIEW_EXTENDED_HELP": "https://octy.ai/docs/errors",
+  "RATE_LIMIT_EXTENDED_HELP": "https://octy.ai/docs/api#limits",
+  "AUTH_EXTENDED_HELP": "https://octy.ai/docs/api#authentication",
+  "MAX_GET_SEGMENTS": 100,
+  "MAX_DELETE_SEGMENTS": 100,
+  "PAST_SEGMENTATION_JOB_INTERVAL": 86400,
+  "EVENT_SERVICE_CLUSTER_IP": "http://events-service",
+  "SYSTEM_EVENT_TYPES_MAP": { "charged": "charged", "complaint": "complaint" }
+}

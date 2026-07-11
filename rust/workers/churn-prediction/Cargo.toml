@@ -1,0 +1,28 @@
+[package]
+name = "churn-prediction-worker"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# Rust/WASM port of `workers/churn_prediction/`.
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+octy-shared.workspace = true
+octy-spin.workspace = true
+
+spin-sdk.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+regex-lite.workspace = true
+
+# gzip decoder (pure-Rust miniz_oxide backend — compiles for wasm32-wasip1)
+# for the SageMaker `model.tar.gz` artifact bundle. The tar layer is
+# hand-rolled in `bucket.rs` to avoid native deps.
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }

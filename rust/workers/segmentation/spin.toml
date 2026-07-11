@@ -1,0 +1,36 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-segmentation_worker"
+version = "0.1.0"
+description = "Octy segmentation_worker (Rust/WASM port of workers/segmentation/)"
+
+[variables]
+segmentation_worker_config = { required = true }
+segmentation_worker_secrets = { required = true, secret = true }
+octy_public_key = { default = "" }
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "segmentation_worker"
+
+[component.segmentation_worker]
+source = "../../target/wasm32-wasip1/release/segmentation_worker.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.segmentation_worker.variables]
+segmentation_worker_config = "{{ segmentation_worker_config }}"
+segmentation_worker_secrets = "{{ segmentation_worker_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.segmentation_worker.build]
+command = "cargo build -p segmentation-worker --target wasm32-wasip1 --release"
+workdir = "../.."

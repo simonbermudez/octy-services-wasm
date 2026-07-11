@@ -1,0 +1,68 @@
+# octy-data-gateway — native sidecar deployment bridging the profiles WASM
+# component to MongoDB / RabbitMQ. One deployment per service (queue
+# bindings and forward URL are service-specific); the gateway image itself
+# is generic (same image as account/, etc.) — only its env differs.
+#
+# profiles/ has no S3/bucket usage, so no AWS_* env vars are configured here
+# (the gateway's S3 bridge degrades gracefully without AWS credentials).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octy-profiles-data-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: octy-profiles-data-gateway
+  template:
+    metadata:
+      labels:
+        app: octy-profiles-data-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: "<registry>/octy-data-gateway:0.1.0"
+          ports:
+            - containerPort: 8090
+          env:
+            - name: PORT
+              value: "8090"
+            - name: DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: profiles-secrets
+                  key: DB_URI
+            - name: AMQP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: profiles-secrets
+                  key: AMQP_URL
+            - name: AMQP_EXCHANGE
+              value: "octy-services"
+            - name: AMQP_QUEUE_PREFIX
+              value: "profiles"
+            # Matches profiles/config.py's (commented) AMQP_CONSUMERS
+            # template: profiles-update-queue, segment-tags-update-delete-queue,
+            # grouped-segmentation-operations-queue. `profiles.cmd.delete` is
+            # also handled by the component (see src/amqp.rs) but is not
+            # currently bound to a queue here, matching the Python template;
+            # add it if/when a publisher for that routing key is wired up.
+            - name: AMQP_CONSUMERS
+              value: '["profiles.cmd.update","segment.tags.cmd.update.delete","grouped.segmentation.operations.cmd"]'
+            - name: AMQP_FORWARD_URL
+              value: "http://profiles-service/internal/amqp/consume"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: octy-profiles-data-gateway
+spec:
+  selector:
+    app: octy-profiles-data-gateway
+  ports:
+    - port: 8090
+      targetPort: 8090

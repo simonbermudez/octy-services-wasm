@@ -1,0 +1,22 @@
+[package]
+name = "account-service"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+octy-shared.workspace = true
+octy-spin.workspace = true
+
+spin-sdk = "3"
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+argon2.workspace = true
+regex-lite.workspace = true

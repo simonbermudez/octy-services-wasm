@@ -1,0 +1,41 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-jobs"
+version = "0.1.0"
+description = "Octy jobs service (Rust/WASM port of octy_jobs/)"
+
+[variables]
+# Same base64-encoded JSON blobs the Python service consumed via env vars.
+# NB: the Python read OCTY_JOB_CONFIG / OCTY_JOB_SECRETS (singular "JOB"),
+# hence the octy_job_* variable names.
+octy_job_config = { required = true }
+octy_job_secrets = { required = true, secret = true }
+# Base URL of the octy-data-gateway sidecar (MongoDB / AMQP bridge).
+gateway_url = { default = "http://127.0.0.1:8090" }
+# Replaces the POD_ID env var used for the Redis job-claim keys.
+pod_id = { default = "" }
+
+[[trigger.http]]
+route = "/..."
+component = "octy_jobs"
+
+[component.octy_jobs]
+source = "../../target/wasm32-wasip1/release/octy_jobs_service.wasm"
+# Tighten these to the concrete gateway/redis/cluster hosts per environment.
+allowed_outbound_hosts = [
+    "http://*:*",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.octy_jobs.variables]
+octy_job_config = "{{ octy_job_config }}"
+octy_job_secrets = "{{ octy_job_secrets }}"
+gateway_url = "{{ gateway_url }}"
+pod_id = "{{ pod_id }}"
+
+[component.octy_jobs.build]
+command = "cargo build -p octy-jobs-service --target wasm32-wasip1 --release"
+workdir = "../.."
+watch = ["src/**/*.rs", "Cargo.toml", "../../crates/octy-shared/src/**/*.rs"]

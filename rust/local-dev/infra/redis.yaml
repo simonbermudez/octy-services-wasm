@@ -1,0 +1,105 @@
+# TLS-enabled Redis for the local testbed.
+#
+# Every Octy service builds its Redis connection string as `rediss://…`
+# unconditionally (see rust/crates/octy-spin/src/ctx.rs::redis_address) —
+# this matches the managed production Redis, which requires TLS. A local
+# Redis therefore also needs TLS, or the outbound connection is refused
+# before it gets anywhere near a handshake.
+#
+# The init container generates a throwaway self-signed CA + server cert on
+# every pod start (openssl, no external dependency) and writes it to an
+# emptyDir shared with the redis container. Because the cert isn't signed by
+# a CA your cluster nodes trust, set the `redis_insecure_tls: "true"`
+# SpinApp variable on any service that talks to this Redis — that appends
+# `#insecure` to the connection URL (a redis-rs extension that skips
+# certificate/hostname verification while keeping the connection encrypted).
+# NEVER set that variable in a real deployment; see the comment on
+# redis_address() for why.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: octy-local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      volumes:
+        - name: tls
+          emptyDir: {}
+      initContainers:
+        - name: gen-cert
+          image: alpine/openssl:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
+                -keyout /tls/ca.key -out /tls/ca.crt -subj "/CN=octy-local-dev-ca"
+              openssl req -newkey rsa:2048 -nodes \
+                -keyout /tls/redis.key -out /tls/redis.csr -subj "/CN=redis.octy-local"
+              openssl x509 -req -in /tls/redis.csr -CA /tls/ca.crt -CAkey /tls/ca.key \
+                -CAcreateserial -out /tls/redis.crt -days 3650
+              chmod 644 /tls/redis.key
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+      containers:
+        - name: redis
+          image: redis:7
+          command:
+            - redis-server
+            - --port
+            - "0"
+            - --tls-port
+            - "6379"
+            - --tls-cert-file
+            - /tls/redis.crt
+            - --tls-key-file
+            - /tls/redis.key
+            - --tls-ca-cert-file
+            - /tls/ca.crt
+            - --tls-auth-clients
+            - "no"
+            - --requirepass
+            - devpassword
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - --tls
+                - --cert
+                - /tls/redis.crt
+                - --key
+                - /tls/redis.key
+                - --cacert
+                - /tls/ca.crt
+                - -a
+                - devpassword
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: octy-local
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379

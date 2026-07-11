@@ -1,0 +1,38 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-messaging"
+version = "0.1.0"
+description = "Octy messaging (Rust/WASM port of messaging/)"
+
+[variables]
+messaging_config = { required = true }
+messaging_secrets = { required = true, secret = true }
+octy_public_key = { default = "" }
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "messaging"
+
+[component.messaging]
+source = "../../target/wasm32-wasip1/release/messaging_service.wasm"
+files = [{ source = "keys", destination = "/keys" }]
+# http(s) wildcard: gateway sidecar + recommendation/items services (internal
+# cluster URLs from config) + Rybbon reward-card API (external HTTPS host from
+# config). No Redis/AMQP is used by this service (see rust/README.md port notes).
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://*:*",
+]
+
+[component.messaging.variables]
+messaging_config = "{{ messaging_config }}"
+messaging_secrets = "{{ messaging_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.messaging.build]
+command = "cargo build -p messaging-service --target wasm32-wasip1 --release"
+workdir = "../.."
+watch = ["src/**/*.rs", "Cargo.toml", "../../crates/octy-shared/src/**/*.rs", "../../crates/octy-spin/src/**/*.rs"]

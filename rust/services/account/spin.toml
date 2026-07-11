@@ -1,0 +1,40 @@
+spin_manifest_version = 2
+
+[application]
+name = "octy-account"
+version = "0.1.0"
+description = "Octy account service (Rust/WASM port of account/)"
+
+[variables]
+# Same base64-encoded JSON blobs the Python service consumed via env vars.
+account_config = { required = true }
+account_secrets = { required = true, secret = true }
+# base64-encoded RSA private key PEM (falls back to raw PEM), used for RS256 JWTs.
+octy_private_key = { required = true, secret = true }
+# Base URL of the octy-data-gateway sidecar (MongoDB / AMQP / S3 bridge).
+gateway_url = { default = "http://127.0.0.1:8090" }
+
+[[trigger.http]]
+route = "/..."
+component = "account"
+
+[component.account]
+source = "../../target/wasm32-wasip1/release/account_service.wasm"
+# Tighten these to the concrete gateway/redis/cluster hosts per environment.
+allowed_outbound_hosts = [
+    "http://*:*",
+    "https://api.mailjet.com",
+    "redis://*:*",
+    "rediss://*:*",
+]
+
+[component.account.variables]
+account_config = "{{ account_config }}"
+account_secrets = "{{ account_secrets }}"
+octy_private_key = "{{ octy_private_key }}"
+gateway_url = "{{ gateway_url }}"
+
+[component.account.build]
+command = "cargo build -p account-service --target wasm32-wasip1 --release"
+workdir = "../.."
+watch = ["src/**/*.rs", "Cargo.toml", "../../crates/octy-shared/src/**/*.rs"]

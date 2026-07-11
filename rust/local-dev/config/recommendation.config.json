@@ -1,0 +1,7 @@
+{
+  "RECOMENDATIONS_EXTENDED_HELP": "https://octy.ai/docs/api#recommendations",
+  "ERRORS_OVERVIEW_EXTENDED_HELP": "https://octy.ai/docs/errors",
+  "RATE_LIMIT_EXTENDED_HELP": "https://octy.ai/docs/api#limits",
+  "AUTH_EXTENDED_HELP": "https://octy.ai/docs/api#authentication",
+  "MAX_REC_PREDICTIONS": 100
+}

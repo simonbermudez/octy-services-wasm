@@ -1,0 +1,62 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/octy-shared",
+    "crates/octy-spin",
+    "services/account",
+    "services/admin",
+    "services/billing",
+    "services/churn-prediction",
+    "services/configurations",
+    "services/events",
+    "services/items",
+    "services/messaging",
+    "services/octy-jobs",
+    "services/profiles",
+    "services/recommendation",
+    "services/segmentation",
+    "workers/churn-prediction",
+    "workers/profile-identification",
+    "workers/recommendation",
+    "workers/rfm",
+    "workers/segmentation",
+    "gateway/octy-data-gateway",
+]
+# `cargo build` / `cargo test` operate on the native members by default.
+# The Spin components only compile for wasm32:
+#   cargo build --workspace --exclude octy-data-gateway --target wasm32-wasip1 --release
+default-members = [
+    "crates/octy-shared",
+    "gateway/octy-data-gateway",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "UNLICENSED"
+publish = false
+
+[workspace.dependencies]
+octy-shared = { path = "crates/octy-shared" }
+octy-spin = { path = "crates/octy-spin" }
+spin-sdk = "3"
+
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+regex-lite = "0.1"
+url = "2"
+
+# crypto (pure Rust => portable to wasm32)
+rsa = { version = "0.9", features = ["sha2"] }
+sha2 = "0.10"
+hmac = "0.12"
+argon2 = "0.5"
+
+[profile.release]
+codegen-units = 1
+opt-level = "s"
+lto = true
