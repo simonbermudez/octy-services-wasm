@@ -82,6 +82,12 @@ class ProfileIdentification():
         ]
         self.amqp_message_size_limit = 104857600 #100 MB
         self.webhook_payload_size_limit = 104857600 #100 MB
+        # Guards against disposing of (billing capture + failure callback) the
+        # same job more than once. Some failures are detected by an early
+        # guard clause (e.g. "too few profiles") which calls _dispose_job()
+        # itself; that raised exception then propagates into run()'s except
+        # block, which must not repeat the same billing capture/dispose work.
+        self._job_disposed = False
 
     #Private Methods ***
 
@@ -143,6 +149,13 @@ class ProfileIdentification():
             self.logger.info(f'Took {t1 - t0} seconds')
 
     async def _dispose_job(self, ex : str) -> None:
+        if self._job_disposed:
+            # Already disposed of this job (billing captured + failure
+            # callback already sent) via an earlier call - do not repeat
+            # those side effects. Just propagate the failure.
+            raise Exception(ex)
+        self._job_disposed = True
+
         try:
             # HTTP call to confirm job completion with status
             await self._send_http_request(Config['OCTY_JOB_SERVICE_CLUSTER_IP']+'/v1/internal/jobs/callback', {
@@ -505,5 +518,15 @@ class ProfileIdentification():
         except Exception as e:
             capture_exception(e)
             self.logger.critical(e)
-            self.b.complete_compute_units()
+            if self._job_disposed:
+                # The job was already disposed of (billing captured + failure
+                # callback sent) by an earlier guard clause (e.g. the "too few
+                # profiles" check in _build_profiles_df) whose own exception
+                # propagated up to here. Avoid re-triggering billing capture
+                # and the failure callback for the same failure - just
+                # propagate it so the caller still sees the job failed.
+                raise
+            # _dispose_job() performs the billing capture itself; do not also
+            # call self.b.complete_compute_units() here, or it would be
+            # captured twice for a single failure.
             await self._dispose_job(ex=str(e))
