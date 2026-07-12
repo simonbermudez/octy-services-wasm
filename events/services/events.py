@@ -492,7 +492,7 @@ class EventsService():
 
         try:
             await eventsRepository.delete_account_events(self.account_id)
-            eventTypesRepository.delete_account_event_types(self.account_id)
+            await eventTypesRepository.delete_account_event_types(self.account_id)
             return True
         except Exception as x:
             raise OctyException(500, 'Server error', [{'error_message' : 'An error occurred while attempting to delete events for this account. Please try again later.', 'extended_help': ''}])
