@@ -61,7 +61,7 @@ async def get_custom_event_types(request: Request,
             raise OctyException(400,'Invalid Parameters', [{'error_message' : f'A maximum number of {Config["MAX_GET_EVENT_TYPES"]} identifiers can be provided with the "?ids=" query param per request', 
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
 
-    event_types, total = EventTypesService(current_account).get_event_types(event_type_ids=identifiers, cursor=cursor)
+    event_types, total = await EventTypesService(current_account).get_event_types(event_type_ids=identifiers, cursor=cursor)
 
 
     return GetEventTypesDTO(event_types,total, cursor).dto()
@@ -81,7 +81,7 @@ async def get_custom_event_types(request: Request,
 async def create_custom_event_types(request: Request, 
     event_types : CreateEventTypes,
     current_account: Account = Depends(decode_account_jwt)):
-    created, failed = EventTypesService(current_account).create_event_types(event_types)
+    created, failed = await EventTypesService(current_account).create_event_types(event_types)
     return CreateEventTypesDTO(created, failed).dto()
 
 ######################################
@@ -98,7 +98,7 @@ async def create_custom_event_types(request: Request,
 async def delete_custom_event_types(request: Request, 
     event_type_ids : DeleteEventTypes,
     current_account: Account = Depends(decode_account_jwt)):
-    delete_event_types, failed = EventTypesService(current_account).delete_event_types(event_type_ids)
+    delete_event_types, failed = await EventTypesService(current_account).delete_event_types(event_type_ids)
     return DeleteEventTypesDTO(delete_event_types, failed).dto()
 
 
@@ -115,7 +115,7 @@ async def delete_custom_event_types(request: Request,
 @limiter.limit("120/minute")
 async def delete_all_custom_event_types(request: Request, 
     current_account: Account = Depends(decode_account_jwt)):
-    delete_event_types, failed = EventTypesService(current_account).delete_all_event_types()
+    delete_event_types, failed = await EventTypesService(current_account).delete_all_event_types()
     return DeleteEventTypesDTO(delete_event_types, failed).dto()
 
 ######################################
@@ -136,6 +136,6 @@ async def get_profiles_internal(request: Request,  event_type_names : GetEventTy
         raise OctyException(400,'Exceeded resource request limit', [{'error_message' : 'can only get 200 event_type_names per request', 
             'extended_help': ''}])
 
-    found_event_types, not_found = EventTypesService(None).get_event_types_internal(account_id=event_type_names.account_id, event_type_names=event_type_names.event_type_names)
+    found_event_types, not_found = await EventTypesService(None).get_event_types_internal(account_id=event_type_names.account_id, event_type_names=event_type_names.event_type_names)
     
     return GetEventTypesInternalDTO(found_event_types, not_found).dto()
