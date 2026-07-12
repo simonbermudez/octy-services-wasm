@@ -55,23 +55,23 @@ class AuthService:
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         if pk == "" or pk == None:
-            _log_failed_auth(request, False)
+            await _log_failed_auth(request, False)
             raise OctyException(401,'Authentication failed', [{'error_message' : 'Please provide your Octy public key (username), encoded as a basic authorization token, within the Authorization header of this request.', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         if sk == "" or sk == None:
-            _log_failed_auth(request, False)
+            await _log_failed_auth(request, False)
             raise OctyException(401,'Authentication failed', [{'error_message' : 'Please provide your Octy secret key (password), encoded as a basic authorization token, within the Authorization header of this request.', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         # Assert the formats of each supplied key to ensure we have one pk and one sk
         if not re.match(r'[p][k][_][a-zA-Z0-9]',pk):
-            _log_failed_auth(request, False)
+            await _log_failed_auth(request, False)
             raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
         if not re.match(r'[s][k][_][a-zA-Z0-9]',sk):
-            _log_failed_auth(request, False)
+            await _log_failed_auth(request, False)
             raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
@@ -95,7 +95,7 @@ class AuthService:
         await accountRepository.refresh_account_data_cache(pk)
         valid_pk, valid_sk, account = await authRepository.verify_account_keys(pk, sk)
         if not valid_pk or not valid_sk:
-            _log_failed_auth(request, valid_pk)
+            await _log_failed_auth(request, valid_pk)
             raise OctyException(401,'Authentication failed', [{'error_message' : 'Invalid public_key or secret_key provided', 
                 'extended_help': Config['AUTH_EXTENDED_HELP']}])
 
@@ -141,7 +141,7 @@ async def _assess_request_limit(account : dict) -> bool:
         await accountRepository.update_account_cache(account)
     return True
 
-def _log_failed_auth(request : Request, valid_pk : bool) -> None:
+async def _log_failed_auth(request : Request, valid_pk : bool) -> None:
     """
         A function used to log failed authentication requests.
         Alert account holder of 20 number of failed auth attempts, from any single public key.
@@ -181,7 +181,7 @@ def _log_failed_auth(request : Request, valid_pk : bool) -> None:
         'server_port' : server_port,
         'request_type' : request_type
     }
-    auth_attempts = authRepository.log_failed_auth(failed_attempt)
+    auth_attempts = await authRepository.log_failed_auth(failed_attempt)
 
     if len(auth_attempts) > Config['FAILED_AUTH_ATTEMPT_LIMIT']:
 
