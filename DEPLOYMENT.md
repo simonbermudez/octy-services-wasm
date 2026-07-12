@@ -34,9 +34,10 @@ All 17 are independent FastAPI apps (the 5 workers expose only `/healthz` —
 their real work runs in an AMQP-consumer background thread started at
 `@app.on_event('startup')`). Shared infrastructure: MongoDB (`motor`/
 `mongoengine`), Redis (TLS-only, see [below](#redis-requires-tls-unconditionally)),
-RabbitMQ (via the **private** `octy-rabbitmq-lib` package — see
-[prerequisites](#0-prerequisites-read-this-first)), AWS S3, AWS SageMaker
-(the 3 ML workers), Mailjet (transactional email), and Sentry.
+RabbitMQ (via the [`octy-rabbitmq-lib`](https://github.com/Octy-ai/octy-rabbitmq-lib)
+package, now public — see [prerequisites](#0-prerequisites-read-this-first)),
+AWS S3, AWS SageMaker (the 3 ML workers), Mailjet (transactional email), and
+Sentry.
 
 ### How authentication actually works
 
@@ -63,16 +64,21 @@ but **not currently attached to any route** — see below).
   pre-existing inconsistency, not something introduced by this guide. Either
   version runs the actual application code fine locally; match whichever the
   service's own `Dockerfile` uses if you're building images.
-- **A GitHub token with read access to `Octy-ai/octy-rabbitmq-lib`.** Every
-  service imports `octy_rabbitmq.amqp_publisher`/`amqp_consumer` from this
-  *private* repository — `pip install -r requirements.txt` alone will not
-  work. You need:
+- Every service imports `octy_rabbitmq.amqp_publisher`/`amqp_consumer` from
+  [`Octy-ai/octy-rabbitmq-lib`](https://github.com/Octy-ai/octy-rabbitmq-lib) —
+  **this package is public now**, so no GitHub token or repo access is
+  needed. `pip install -r requirements.txt` alone still won't pull it in
+  (it's not in any `requirements.txt`, it's installed as a separate step in
+  every Dockerfile and in CI), so install it explicitly before each
+  service's own `requirements.txt`:
   ```bash
-  pip install git+https://<YOUR_GITHUB_TOKEN>@github.com/Octy-ai/octy-rabbitmq-lib.git@1.2.0
+  pip install git+https://github.com/Octy-ai/octy-rabbitmq-lib.git@1.2.0
   ```
-  before installing each service's own `requirements.txt`. Without this,
-  nothing in this repo runs — this is the single biggest blocker for a new
-  engineer, and isn't mentioned anywhere in the per-service READMEs.
+  (Previously this required a GitHub token with read access to the repo —
+  that's no longer the case. The Dockerfiles and `scripts/ci-deploy.sh`
+  still pass a `git_token` build arg into the equivalent `pip install`
+  command; it's harmless to keep supplying one, but an empty/omitted value
+  now works too since the repo is public.)
 - **Docker** and, for the Kubernetes path, **minikube** + **kubectl**.
 - ⚠️ **Before doing anything else**: [`.circleci/config.yml:15`](.circleci/config.yml)
   has a commented-out line containing what looks like a live GitHub personal
@@ -87,7 +93,7 @@ but **not currently attached to any route** — see below).
 ```bash
 cd account   # or any other service directory
 python3.11 -m venv venv && source venv/bin/activate
-pip install git+https://<GH_TOKEN>@github.com/Octy-ai/octy-rabbitmq-lib.git@1.2.0
+pip install git+https://github.com/Octy-ai/octy-rabbitmq-lib.git@1.2.0
 pip install -r requirements.txt
 ```
 
@@ -163,7 +169,7 @@ as part of this documentation pass — see [known gaps](#known-gaps--recommendat
 ### Local Kubernetes deploy (mirrors production)
 
 ```bash
-docker build --build-arg git_token=$GIT_TOKEN -t octy-account-service:dev -f account/Dockerfile .
+docker build -t octy-account-service:dev -f account/Dockerfile .   # git_token build arg no longer needed, octy-rabbitmq-lib is public
 minikube image load octy-account-service:dev
 # repeat per service — `minikube image load` copies a locally-built image
 # straight into the minikube node, so no registry/push step is needed at all
@@ -267,9 +273,10 @@ image name / Dockerfile / manifest path for all 17 — this is what CI actually
 reads, and is more trustworthy than any prose description):
 
 ```bash
-# 1. build + push the image (matches scripts/ci-deploy.sh)
-docker build --build-arg git_token=$GIT_TOKEN \
-  -t <dockerhub-user>/octy-account-service:latest -f account/Dockerfile .
+# 1. build + push the image (matches scripts/ci-deploy.sh; that script still
+#    passes a git_token build arg, which is now optional since
+#    octy-rabbitmq-lib is public)
+docker build -t <dockerhub-user>/octy-account-service:latest -f account/Dockerfile .
 docker push <dockerhub-user>/octy-account-service:latest
 
 # 2. base64-encode config/secrets into a ConfigMap/Secret
@@ -373,9 +380,10 @@ Rust-rewrite sibling:
   shape as your reference if you need to fix a dev manifest, or use this
   guide's [per-service deploy](#per-service-deploy) section, which shows the
   correct pattern directly.
-- **`octy-rabbitmq-lib` gates all local development** behind private-repo
-  access — see [prerequisites](#0-prerequisites-read-this-first). Worth
-  vendoring or open-sourcing if onboarding speed matters.
+- ~~`octy-rabbitmq-lib` gated all local development behind private-repo
+  access~~ — **resolved**, the repo is now public (see
+  [prerequisites](#0-prerequisites-read-this-first)); no GitHub token needed
+  to install it.
 - **A likely live GitHub token is committed** in `.circleci/config.yml` — see
   [prerequisites](#0-prerequisites-read-this-first).
 - **Redis requires TLS with no local-dev override** — see
