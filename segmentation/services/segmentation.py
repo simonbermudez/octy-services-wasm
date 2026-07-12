@@ -55,7 +55,7 @@ class SegmentValidatation():
                 [{'error_message' : f'segment_type must be type of \'live\' or \'past\'', 'extended_help': Config['SEGMENTATION_EXTENDED_HELP']}])
     
     async def _v_segment_duplicates(self) -> None:
-        exisitng_segment = segmentationRepository.get_segment_by_attr(self.account.account_id, self.segment)
+        exisitng_segment = await segmentationRepository.get_segment_by_attr(self.account.account_id, self.segment)
         if exisitng_segment:
             # determine why segment is duplicated
             # Check for duplicte name
@@ -72,7 +72,7 @@ class SegmentValidatation():
             if event.event_type not in self.system_event_types:
                 self.provided_custom_event_types.append(event.event_type)
         
-        found_event_types, _ = segmentationRepository.get_event_types_by_name(self.account.account_id, \
+        found_event_types, _ = await segmentationRepository.get_event_types_by_name(self.account.account_id, \
             self.provided_custom_event_types)
         
         for _, event in enumerate(self.segment.event_sequence):
@@ -530,9 +530,9 @@ class SegmentationService():
             if segment_id not in de_duped_segment_ids:
                 de_duped_segment_ids.append(segment_id)
 
-        segments = segmentationRepository.get_segments(account_id=self.account_id, 
+        segments = await segmentationRepository.get_segments(account_id=self.account_id,
                                                 segment_type='all',
-                                                status='active', 
+                                                status='active',
                                                 cursor=0)
         if len(segments)<1:
             raise OctyException(400,'No segments found', 
@@ -597,5 +597,5 @@ class SegmentationService():
         ----------
         True
         """
-        res = segmentationRepository.delete_account_segments(self.account_id)
+        res = await segmentationRepository.delete_account_segments(self.account_id)
         return res
