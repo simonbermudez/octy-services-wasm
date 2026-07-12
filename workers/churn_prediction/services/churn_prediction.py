@@ -283,6 +283,12 @@ class ChurnPredictionTraining():
 
         total_event_count = events_df.groupby('profile_id').count().reset_index()
         total_event_count = total_event_count.drop(drop_columns, axis=1)
+        # NOTE: events can carry an arbitrary number of dynamic 'event_properties' derived
+        # columns (see _build_training_dataset), so more than just 'profile_id' and
+        # 'event_type' may remain here. Only 'profile_id' and 'event_type' (a required,
+        # always-populated field on every event) are needed for the count, so restrict to
+        # those before renaming to avoid a column count mismatch on rename.
+        total_event_count = total_event_count[['profile_id', 'event_type']]
         total_event_count.columns = new_columns
         self.training_df = pd.merge(self.training_df, total_event_count, on='profile_id', how='outer')
         self.training_df[new_columns[1]].fillna(0, inplace=True)
@@ -305,7 +311,7 @@ class ChurnPredictionTraining():
 
             if unique_observations < 2:
                 self.logger.warning(f"Dropping numerical column: {n_col} due to insufficient number of unique values")
-                self.training_df.drop([n_col], axis = 1)
+                self.training_df = self.training_df.drop([n_col], axis = 1)
                 continue
             
             if unique_observations < 10:
@@ -847,7 +853,8 @@ class ChurnPredictionCompleteTrainingJob():
             await churnPredictionRepository.update_hparam_tuning_job_ref(account_id=self.account_id,
                                                                 hyperparam_tuning_job_id=self.hyperparam_tuning_job_id,
                                                                 best_model_training_job_id='--',
-                                                                status='Failed')
+                                                                status='Failed',
+                                                                model_meta=self.model_meta)
             # Delete Octy job
             self.loop.create_task(amqpPublisher.send_message(routing_key='octy.job.cmd.delete',
                 payload={
@@ -1028,6 +1035,13 @@ class ChurnPredictionCompleteTrainingJob():
     async def _assign_churn_scores(self) -> None:
         self.logger.info('Assigning churn prediction scores to profiles')
 
+        # NOTE: _numerical_clustering_encoding skips clustering (and never creates
+        # 'churn_prob_cluster') when there are fewer than 30 predictions to cluster.
+        # In that case, fall back to a single default label for all profiles instead
+        # of crashing with a KeyError below.
+        if 'churn_prob_cluster' not in self.predictions_df.columns:
+            self.predictions_df['churn_prob_cluster'] = 'not_specified'
+
         amqp_batch_profiles = []
         # convert predictions_df to list of dictonaries
         predictions_dicts = self.predictions_df.to_dict('records')
@@ -1046,9 +1060,10 @@ class ChurnPredictionCompleteTrainingJob():
                 amqp_batch_profiles.append(profile_updates)
                 # flush profile_updates
                 profile_updates = []
-        
-        # message limit no exceeded, append all profile_updates
-        if len(amqp_batch_profiles) < 1:
+
+        # flush any remaining profile_updates that never hit the size limit
+        # (this also covers the case where the limit was never exceeded at all)
+        if profile_updates:
             amqp_batch_profiles.append(profile_updates)
 
         for profiles_updates in amqp_batch_profiles:
@@ -1096,4 +1111,8 @@ class ChurnPredictionCompleteTrainingJob():
             self.logger.critical(str(e))
             capture_exception(e)
             self.b.complete_compute_units(additional_unit_hours=self.training_compute_units)
-            await self._re_schedule_job()
+            try:
+                await self._re_schedule_job()
+            except Exception as reschedule_err:
+                capture_exception(reschedule_err)
+                self.logger.critical(f'Error occurred when attempting to re-schedule job. {str(reschedule_err)}')
