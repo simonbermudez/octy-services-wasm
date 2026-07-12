@@ -45,8 +45,15 @@ class OctyJobQueueService():
                 'amqp_routing_key' : octy_job.job_meta.amqp_routing_key,
                 'job_type' : octy_job.job_meta.job_type,
                 'desired_runs' : octy_job.job_meta.desired_runs if octy_job.job_meta.desired_runs != 0 else 1000000000000,
+                'successful_runs' : 0,
+                'failed_runs' : 0,
+                'last_run' : None,
                 'time_interval' : octy_job.job_meta.time_interval,
                 'fail_threshold' : octy_job.job_meta.fail_threshold if octy_job.job_meta.fail_threshold != 0 else 1000000000000,
+                'status' : 'pending',
+                'created_at' : dt.now(),
+                'updated_at' : None,
+                'last_updated_action' : 'Job created',
             },
             'job_data' : octy_job.job_data
         }
@@ -61,7 +68,7 @@ class OctyJobQueueService():
         await octyJobsRepository.delete_all_octy_jobs(self.account_id)
 
         amqpPublisher.send_message(
-            routing_key='octy-job-delete-queue',
+            routing_key='octy.job.cmd.delete',
             payload=json.dumps({'account_id' : self.account_id})
         )
 
@@ -345,7 +352,7 @@ class OctyJobQueue():
 
                 account = next((key for key in self.accounts if key['_id'] == job['account_id']), None)
                 if not account:
-                    octy_job_updates.append([
+                    octy_job_updates.append(
                         {
                             'account_id' : job['account_id'],
                             'octy_job_id' : job['_id'],
@@ -354,7 +361,7 @@ class OctyJobQueue():
                             'status' : 'pending', # update back to pending for next tick to manage
                             'action' : f'octy job queue --> Error occurred during processing :: {job["account_id"]} was not returned by the account service.'
                         }
-                    ])
+                    )
                     continue
 
                 res, payload = await self._build_message_payload(account, job)
