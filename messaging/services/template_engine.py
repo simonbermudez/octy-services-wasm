@@ -173,11 +173,10 @@ class TemplateEngine():
             group_campaign_key = campaigns[0]['campaignKey']
             c = next((c for c in self.rybbon_campaigns if c['campaignKey'] == group_campaign_key), None)
             if c:
+                exceeded = len(campaigns) > c['availableRewards']
                 for campaign in campaigns:
                     campaign['active'] = True
-                
-                if len(campaigns) > c['availableRewards']:
-                    c['exceeded'] = True
+                    campaign['exceeded'] = exceeded
 
     async def _get_reward_claims(self) -> list:
         self.rybbon_rewards = await rybbonRewardCardsRepository.claim_rewards(self.rybbon_auth_token, self.customer_rybbon_campaign_map)
@@ -381,9 +380,9 @@ class ItemPrice:
             self.amount -= discount
 
         if self.params[1] == self.params[2]: # no currency conversion required
-            self.amount = Currency(self.params[1].upper()).get_money_format(int(self.amount)/100)
+            self.amount = Currency(self.params[1].upper()).get_money_format(self.amount)
         else:
-            self.amount = Currency(self.params[2].upper()).get_money_format(self._currency_conversion(self.params[1], self.params[2], int(self.amount)/100))
+            self.amount = Currency(self.params[2].upper()).get_money_format(self._currency_conversion(self.params[1], self.params[2], self.amount))
 
         return self.amount
 

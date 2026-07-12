@@ -99,7 +99,7 @@ class _RybbonRewardCardsRepository(RewardCardsInterface):
                 t1 = time.time()
                 print('Took', t1 - t0, 'seconds')
 
-            if 200 > response.status_code < 500:
+            if 200 <= response.status_code < 500:
                 exhausted_campaigns = True
                 
             body = json.loads(response.text)
