@@ -52,14 +52,23 @@ pub async fn http_post_json_with_retry(
     Err(last_err)
 }
 
+/// HTTP client for the (now single, multi-tenant) `octy-data-gateway`.
+/// Every request carries an `X-Octy-Service` header identifying the calling
+/// service, which the gateway uses to select that service's own MongoDB
+/// connection and AMQP consumer bindings — see
+/// `gateway/octy-data-gateway/src/main.rs`'s module doc for the full
+/// multi-tenant design. Callers never see this: it's attached once here,
+/// not by the ~60 call sites across every service's repository code.
 pub struct GatewayClient {
     base: String,
+    service_name: String,
 }
 
 impl GatewayClient {
-    pub fn new(base: String) -> Self {
+    pub fn new(base: String, service_name: String) -> Self {
         Self {
             base: base.trim_end_matches('/').to_string(),
+            service_name,
         }
     }
 
@@ -68,7 +77,10 @@ impl GatewayClient {
         let (status, response_body) = http_send(
             Method::Post,
             &url,
-            &[("content-type", "application/json")],
+            &[
+                ("content-type", "application/json"),
+                ("x-octy-service", &self.service_name),
+            ],
             Some(serde_json::to_vec(body).expect("serializable json")),
         )
         .await?;

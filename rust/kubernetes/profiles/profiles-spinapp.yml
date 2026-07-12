@@ -16,7 +16,7 @@ spec:
   replicas: 2
   variables:
     - name: gateway_url
-      value: "http://octy-profiles-data-gateway:8090"
+      value: "http://octy-gateway:8090"
     # profiles_config / profiles_secrets come from the same base64-encoded
     # blobs the Python deployment used (env vars PROFILES_CONFIG /
     # PROFILES_SECRETS in config.py / app_secrets.py).

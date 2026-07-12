@@ -16,7 +16,7 @@ spec:
   replicas: 2
   variables:
     - name: gateway_url
-      value: "http://octy-items-data-gateway:8090"
+      value: "http://octy-gateway:8090"
     # items_config / items_secrets come from the same base64-encoded blobs
     # the Python deployment used (ITEMS_CONFIG / ITEMS_SECRETS).
     - name: items_config

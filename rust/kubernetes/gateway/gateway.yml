@@ -1,0 +1,117 @@
+# octy-gateway — the ONE shared, multi-tenant octy-data-gateway deployment
+# for every WASM service (previously: one gateway Deployment per service).
+#
+# Each service's own SpinApp sets `gateway_url: "http://octy-gateway:8090"`
+# (see every kubernetes/<service>/<service>-spinapp.yml). The gateway
+# identifies which service is calling via the `X-Octy-Service` header —
+# attached automatically by octy_spin::gateway::GatewayClient, using the same
+# name each service passes to Ctx::load(...) — and looks up that service's
+# own MongoDB connection + AMQP consumer bindings from GATEWAY_TENANTS below.
+# AWS credentials and the AMQP connection/exchange are gateway-wide: S3
+# bucket names and Mongo collection names already travel per-request (this
+# was never tenant-specific config), and every service already shared one
+# RabbitMQ instance and topic exchange.
+#
+# GATEWAY_TENANTS replaces what used to be 16 separate services' worth of
+# DB_URI / AMQP_CONSUMERS / AMQP_QUEUE_PREFIX / AMQP_FORWARD_URL env vars —
+# see rust/local-dev/gateway-tenants.json for a fully worked example (used
+# as-is for local dev; for production, build the equivalent blob with each
+# tenant's real db_uri, e.g. by collecting the DB_URI values that used to
+# live in each service's own `<service>-secrets` Secret into this one).
+# "service" MUST exactly match the string each crate passes to
+# `Ctx::load(...)` (some differ from their directory name — e.g. octy_jobs's
+# is "octy_job", singular — grep `Ctx::load(` if unsure).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: octy-gateway-secrets
+type: Opaque
+stringData:
+  AMQP_URL: "<amqp://user:pass@host:5672/%2f>"
+  AWS_REGION: "<e.g. us-east-1>"
+  AWS_ACCESS_KEY_ID: "<...>"
+  AWS_SECRET_ACCESS_KEY: "<...>"
+  GATEWAY_TENANTS: |
+    [
+      {"service": "account", "db_uri": "<mongodb://.../account>", "routing_keys": ["account.configs.cmd.update","algo.configs.cmd.update","churn.info.cmd.update"], "forward_url": "http://account-service/internal/amqp/consume"},
+      {"service": "billing", "db_uri": "<mongodb://.../billing>", "routing_keys": ["account.billing.cmd.capture"], "forward_url": "http://billing-service/internal/amqp/consume"},
+      {"service": "churn_prediction", "db_uri": "<mongodb://.../churn_prediction>"},
+      {"service": "configurations"},
+      {"service": "events", "db_uri": "<mongodb://.../events>", "routing_keys": ["events.cmd.delete","events.cmd.update"], "forward_url": "http://events-service/internal/amqp/consume"},
+      {"service": "items", "db_uri": "<mongodb://.../items>"},
+      {"service": "messaging", "db_uri": "<mongodb://.../messaging>"},
+      {"service": "octy_job", "db_uri": "<mongodb://.../octy_jobs>", "routing_keys": ["octy.job.cmd.create","octy.job.cmd.delete"], "forward_url": "http://octy-jobs-service/internal/amqp/consume"},
+      {"service": "profiles", "db_uri": "<mongodb://.../profiles>", "routing_keys": ["profiles.cmd.update","segment.tags.cmd.update.delete","grouped.segmentation.operations.cmd"], "forward_url": "http://profiles-service/internal/amqp/consume"},
+      {"service": "recommendation", "db_uri": "<mongodb://.../recommendation>", "routing_keys": ["reccache.cmd.delete"], "forward_url": "http://recommendation-service/internal/amqp/consume"},
+      {"service": "segmentation", "db_uri": "<mongodb://.../segmentation>", "routing_keys": ["segment.profiles.cmd.update"], "forward_url": "http://segmentation-service/internal/amqp/consume"},
+      {"service": "churn_prediction_worker", "db_uri": "<mongodb://.../churn_prediction>", "routing_keys": ["churn.training.cmd.run","churn.training.complete.cmd.run"], "forward_url": "http://churn-prediction-worker-service/internal/amqp/consume"},
+      {"service": "profile_identification_worker", "db_uri": "<mongodb://.../profiles>", "routing_keys": ["profile.identification.cmd.run"], "forward_url": "http://profile-identification-worker-service/internal/amqp/consume"},
+      {"service": "recommendation_worker", "db_uri": "<mongodb://.../recommendation>", "routing_keys": ["rec.training.cmd.run","rec.training.complete.cmd.run"], "forward_url": "http://recommendation-worker-service/internal/amqp/consume"},
+      {"service": "rfm_worker", "db_uri": "<mongodb://.../rfm>", "routing_keys": ["rfm.training.cmd.run","rfm.training.complete.cmd.run"], "forward_url": "http://rfm-worker-service/internal/amqp/consume"},
+      {"service": "segmentation_worker", "db_uri": "<mongodb://.../segmentation>", "routing_keys": ["past.segmentation.cmd.run","live.segmentation.cmd.run"], "forward_url": "http://segmentation-worker-service/internal/amqp/consume"}
+    ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octy-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: octy-gateway
+  template:
+    metadata:
+      labels:
+        app: octy-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: "<registry>/octy-data-gateway:0.1.0"
+          ports:
+            - containerPort: 8090
+          env:
+            - name: PORT
+              value: "8090"
+            - name: AMQP_EXCHANGE
+              value: "octy-services"
+            - name: AMQP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: octy-gateway-secrets
+                  key: AMQP_URL
+            - name: GATEWAY_TENANTS
+              valueFrom:
+                secretKeyRef:
+                  name: octy-gateway-secrets
+                  key: GATEWAY_TENANTS
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: octy-gateway-secrets
+                  key: AWS_REGION
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: octy-gateway-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: octy-gateway-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: octy-gateway
+spec:
+  selector:
+    app: octy-gateway
+  ports:
+    - port: 8090
+      targetPort: 8090

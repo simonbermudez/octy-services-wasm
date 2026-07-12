@@ -2,14 +2,20 @@
 # (https://www.spinkube.dev). Requires the spin-operator + a containerd shim
 # (runtime class wasmtime-spin-v2) installed on the cluster.
 #
+# This deployable also serves everything that used to be the standalone
+# `configurations` service (folded in — see rust/services/admin/src/lib.rs
+# for why) — its routes are all under /v1/configurations/*, still reading
+# their own configurations_config/configurations_secrets blobs.
+#
 # Build & push the app (from rust/services/admin):
 #   spin build
 #   spin registry push <registry>/octy-admin:0.1.0
 #
-# NOTE: unlike the other services, admin has NO octy-data-gateway deployment.
-# The service is Redis-only (release-version cache in Redis db 0, reached
-# directly via Spin's outbound-Redis support) — it uses no MongoDB, AMQP or
-# S3, so there is nothing for a gateway sidecar to bridge.
+# NOTE: admin's own routes are Redis-only (release-version cache in Redis
+# db 0, reached directly via Spin's outbound-Redis support) and never touch
+# octy-data-gateway. Only the folded-in configurations routes do (AMQP
+# publish via gateway_url, JWT verification via octy_public_key) — see the
+# shared kubernetes/gateway/gateway.yml.
 apiVersion: core.spinkube.dev/v1alpha1
 kind: SpinApp
 metadata:
@@ -19,6 +25,8 @@ spec:
   executor: containerd-shim-spin
   replicas: 2
   variables:
+    - name: gateway_url
+      value: "http://octy-gateway:8090"
     # admin_config / admin_secrets are the same base64-encoded blobs the
     # Python deployment consumed (configMap admin-config key admin_config,
     # secret admin-secrets key admin_secrets).
@@ -32,6 +40,24 @@ spec:
         secretKeyRef:
           name: admin-secrets
           key: admin_secrets
+    # configurations_config / configurations_secrets / octy_public_key are
+    # the same blobs the standalone configurations-service deployment used
+    # to read (configMap configurations-config key CONFIGURATIONS_CONFIG).
+    - name: configurations_config
+      valueFrom:
+        configMapKeyRef:
+          name: configurations-config
+          key: CONFIGURATIONS_CONFIG
+    - name: configurations_secrets
+      valueFrom:
+        secretKeyRef:
+          name: configurations-secrets
+          key: CONFIGURATIONS_SECRETS
+    - name: octy_public_key
+      valueFrom:
+        configMapKeyRef:
+          name: configurations-config
+          key: OCTY_PUBLIC_KEY
 ---
 apiVersion: v1
 kind: Service

@@ -1,8 +1,12 @@
 //! Generic MongoDB collection operations exposed over HTTP.
 //! Documents/filters travel as legacy extended JSON (see `ejson`).
+//!
+//! Multi-tenant: every request identifies its caller via the `X-Octy-Service`
+//! header (set by `octy_spin::gateway::GatewayClient`), which selects that
+//! service's own `mongodb::Database` from `AppState::tenants`.
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
 use futures_util::TryStreamExt;
 use mongodb::bson::Document;
@@ -90,16 +94,47 @@ fn sort_document(sort: &Value) -> Document {
     doc
 }
 
-fn collection(state: &SharedState, name: &str) -> mongodb::Collection<Document> {
-    state.db.collection::<Document>(name)
+fn service_name(headers: &HeaderMap) -> Result<&str, (StatusCode, Json<Value>)> {
+    headers
+        .get("x-octy-service")
+        .and_then(|v| v.to_str().ok())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "missing X-Octy-Service header" })),
+            )
+        })
+}
+
+fn collection(
+    state: &SharedState,
+    headers: &HeaderMap,
+    name: &str,
+) -> Result<mongodb::Collection<Document>, (StatusCode, Json<Value>)> {
+    let service = service_name(headers)?;
+    let tenant = state.tenants.get(service).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": format!("unknown service '{service}' (not in GATEWAY_TENANTS)") })),
+        )
+    })?;
+    let db = tenant.db.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({ "error": format!("service '{service}' has no db_uri configured") })),
+        )
+    })?;
+    Ok(db.collection::<Document>(name))
 }
 
 pub async fn find_one(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<FilterBody>,
 ) -> ApiResult {
-    let doc = collection(&state, &name)
+    let doc = collection(&state, &headers, &name)?
         .find_one(json_to_document(&body.filter))
         .await
         .map_err(map_error)?;
@@ -109,9 +144,10 @@ pub async fn find_one(
 pub async fn find(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<FilterBody>,
 ) -> ApiResult {
-    let coll = collection(&state, &name);
+    let coll = collection(&state, &headers, &name)?;
     let mut query = coll.find(json_to_document(&body.filter));
     if let Some(skip) = body.skip.filter(|s| *s > 0) {
         query = query.skip(skip as u64);
@@ -138,9 +174,10 @@ pub async fn find(
 pub async fn count(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<FilterBody>,
 ) -> ApiResult {
-    let count = collection(&state, &name)
+    let count = collection(&state, &headers, &name)?
         .count_documents(json_to_document(&body.filter))
         .await
         .map_err(map_error)?;
@@ -150,9 +187,10 @@ pub async fn count(
 pub async fn insert_one(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<InsertBody>,
 ) -> ApiResult {
-    let result = collection(&state, &name)
+    let result = collection(&state, &headers, &name)?
         .insert_one(json_to_document(&body.document))
         .await
         .map_err(map_error)?;
@@ -162,9 +200,10 @@ pub async fn insert_one(
 pub async fn update_one(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<UpdateBody>,
 ) -> ApiResult {
-    let result = collection(&state, &name)
+    let result = collection(&state, &headers, &name)?
         .update_one(json_to_document(&body.filter), json_to_document(&body.update))
         .await
         .map_err(map_error)?;
@@ -177,9 +216,10 @@ pub async fn update_one(
 pub async fn delete_one(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<FilterBody>,
 ) -> ApiResult {
-    let result = collection(&state, &name)
+    let result = collection(&state, &headers, &name)?
         .delete_one(json_to_document(&body.filter))
         .await
         .map_err(map_error)?;
@@ -189,13 +229,14 @@ pub async fn delete_one(
 pub async fn insert_many(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<InsertManyBody>,
 ) -> ApiResult {
     if body.documents.is_empty() {
         return Ok(Json(json!({ "inserted_ids": [], "inserted_count": 0 })));
     }
     let docs: Vec<Document> = body.documents.iter().map(json_to_document).collect();
-    let result = collection(&state, &name)
+    let result = collection(&state, &headers, &name)?
         .insert_many(docs)
         .ordered(body.ordered.unwrap_or(true))
         .await
@@ -213,9 +254,10 @@ pub async fn insert_many(
 pub async fn update_many(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<UpdateBody>,
 ) -> ApiResult {
-    let result = collection(&state, &name)
+    let result = collection(&state, &headers, &name)?
         .update_many(json_to_document(&body.filter), json_to_document(&body.update))
         .await
         .map_err(map_error)?;
@@ -230,9 +272,10 @@ pub async fn update_many(
 pub async fn delete_many(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<FilterBody>,
 ) -> ApiResult {
-    let result = collection(&state, &name)
+    let result = collection(&state, &headers, &name)?
         .delete_many(json_to_document(&body.filter))
         .await
         .map_err(map_error)?;
@@ -245,10 +288,11 @@ pub async fn delete_many(
 pub async fn aggregate(
     State(state): State<SharedState>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<AggregateBody>,
 ) -> ApiResult {
     let pipeline: Vec<Document> = body.pipeline.iter().map(json_to_document).collect();
-    let docs: Vec<Document> = collection(&state, &name)
+    let docs: Vec<Document> = collection(&state, &headers, &name)?
         .aggregate(pipeline)
         .await
         .map_err(map_error)?

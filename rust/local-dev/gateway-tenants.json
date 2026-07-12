@@ -1,0 +1,89 @@
+[
+  {
+    "service": "account",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["account.configs.cmd.update", "algo.configs.cmd.update", "churn.info.cmd.update"],
+    "forward_url": "http://account-service/internal/amqp/consume"
+  },
+  {
+    "service": "billing",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["account.billing.cmd.capture"],
+    "forward_url": "http://billing-service/internal/amqp/consume"
+  },
+  {
+    "service": "churn_prediction",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy"
+  },
+  {
+    "service": "configurations"
+  },
+  {
+    "service": "events",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["events.cmd.delete", "events.cmd.update"],
+    "forward_url": "http://events-service/internal/amqp/consume"
+  },
+  {
+    "service": "items",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy"
+  },
+  {
+    "service": "messaging",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy"
+  },
+  {
+    "service": "octy_job",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["octy.job.cmd.create", "octy.job.cmd.delete"],
+    "forward_url": "http://octy-jobs-service/internal/amqp/consume"
+  },
+  {
+    "service": "profiles",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["profiles.cmd.update", "segment.tags.cmd.update.delete", "grouped.segmentation.operations.cmd"],
+    "forward_url": "http://profiles-service/internal/amqp/consume"
+  },
+  {
+    "service": "recommendation",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["reccache.cmd.delete"],
+    "forward_url": "http://recommendation-service/internal/amqp/consume"
+  },
+  {
+    "service": "segmentation",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["segment.profiles.cmd.update"],
+    "forward_url": "http://segmentation-service/internal/amqp/consume"
+  },
+  {
+    "service": "churn_prediction_worker",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["churn.training.cmd.run", "churn.training.complete.cmd.run"],
+    "forward_url": "http://churn-prediction-worker-service/internal/amqp/consume"
+  },
+  {
+    "service": "profile_identification_worker",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["profile.identification.cmd.run"],
+    "forward_url": "http://profile-identification-worker-service/internal/amqp/consume"
+  },
+  {
+    "service": "recommendation_worker",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["rec.training.cmd.run", "rec.training.complete.cmd.run"],
+    "forward_url": "http://recommendation-worker-service/internal/amqp/consume"
+  },
+  {
+    "service": "rfm_worker",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["rfm.training.cmd.run", "rfm.training.complete.cmd.run"],
+    "forward_url": "http://rfm-worker-service/internal/amqp/consume"
+  },
+  {
+    "service": "segmentation_worker",
+    "db_uri": "mongodb://mongo.octy-local:27017/octy",
+    "routing_keys": ["past.segmentation.cmd.run", "live.segmentation.cmd.run"],
+    "forward_url": "http://segmentation-worker-service/internal/amqp/consume"
+  }
+]

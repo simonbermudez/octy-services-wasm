@@ -20,7 +20,7 @@ spec:
   replicas: 2
   variables:
     - name: gateway_url
-      value: "http://recommendation-data-gateway:8090"
+      value: "http://octy-gateway:8090"
     # Same base64-encoded JSON blobs the Python deployment consumed via the
     # RECOMMENDATION_CONFIG / RECOMMENDATION_SECRETS env vars.
     - name: recommendation_config

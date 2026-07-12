@@ -39,6 +39,7 @@ impl Ctx {
         let gateway = GatewayClient::new(
             variable("gateway_url", "GATEWAY_URL")
                 .unwrap_or_else(|_| "http://127.0.0.1:8090".to_string()),
+            prefix.to_string(),
         );
         Ok(Self {
             config,

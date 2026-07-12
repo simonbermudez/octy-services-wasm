@@ -1,5 +1,5 @@
 //! Route handlers — ports of `api/routers/account_configurations.py`,
-//! `api/routers/algorithm_configurations.py`, `api/routers/healthz.py`.
+//! `api/routers/algorithm_configurations.py`.
 //!
 //! Rate limits: the FastAPI service used slowapi (`120/minute` on every
 //! route). Spin components are stateless per request, so enforce those
@@ -15,9 +15,9 @@ use spin_sdk::http::{Params, Request, Response};
 use octy_spin::auth::{decode_account_jwt, AuthAccount};
 use octy_spin::ctx::Ctx;
 
-use crate::http_util::*;
-use crate::models;
-use crate::repos;
+use super::http_util::*;
+use super::models;
+use super::repos;
 
 fn ctx_or_response() -> Result<Ctx, Response> {
     Ctx::load("configurations").map_err(|e| error_response(&e))
@@ -43,11 +43,6 @@ fn account_id_or_response(account: &AuthAccount) -> Result<String, Response> {
                 "could not determine account id from auth token claims",
             ))
         })
-}
-
-/// GET /healthz
-pub async fn healthz(_req: Request, _params: Params) -> Response {
-    json_response(200, &json!("OK"))
 }
 
 /// POST /v1/configurations/account/set
@@ -212,10 +207,6 @@ pub async fn get_algorithm_configs(req: Request, _params: Params) -> Response {
         Ok(resp) => resp,
         Err(err) => error_response(&err),
     }
-}
-
-pub async fn fallback(_req: Request, _params: Params) -> Response {
-    not_found()
 }
 
 /// Python truthiness (`if i:`) for JSON values.

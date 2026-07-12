@@ -1,4 +1,4 @@
-//! Configurations-service DTOs (port of `api/routers/dto/configurations.py`)
+//! Configurations DTOs (port of `api/routers/dto/configurations.py`)
 //! plus the service's 422 envelope (port of the `RequestValidationError`
 //! handler in `api/routers/error_handlers.py`). Generic envelopes live in
 //! `octy_spin::http_util` and are re-exported so handlers keep one import.
@@ -9,7 +9,7 @@ use octy_shared::errors::OctyError;
 use serde_json::{json, Value};
 use spin_sdk::http::Response;
 
-use crate::models::SetAccountConfigs;
+use super::models::SetAccountConfigs;
 
 /// The FastAPI `RequestValidationError` handler: each pydantic error dict is
 /// embedded verbatim as `error_message`, with `Config['CONFIG_EXTENDED_HELP']`

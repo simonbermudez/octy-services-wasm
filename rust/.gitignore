@@ -6,3 +6,4 @@ services/*/.spin/
 # credentials — out of git). These are synthetic, placeholder-only local-dev
 # values (see local-dev/README.md), not real secrets, so re-include them.
 !local-dev/config/*.json
+!local-dev/*.json

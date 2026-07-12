@@ -3,15 +3,25 @@ spin_manifest_version = 2
 [application]
 name = "octy-admin"
 version = "0.1.0"
-description = "Octy admin (Rust/WASM port of admin/)"
+description = "Octy admin service (Rust/WASM port of admin/ and configurations/, merged)"
 
 [variables]
-# Same base64-encoded JSON blobs the Python service consumed via the
-# ADMIN_CONFIG / ADMIN_SECRETS env vars.
+# Same base64-encoded JSON blobs the Python services consumed via their own
+# env vars. Kept as two separate pairs (rather than unifying into one blob)
+# since the two folded-in services still have independent config schemas —
+# see src/lib.rs for why they were merged into one deployable regardless.
 admin_config = { required = true }
 admin_secrets = { required = true, secret = true }
-# Base URL of the octy-data-gateway sidecar. The admin service itself never
-# calls it (Redis-only service) — kept for Ctx parity with the other services.
+configurations_config = { required = true }
+# The Python configurations service had no secrets blob, so this defaults to
+# an empty JSON object (Ctx::load still expects the variable to resolve).
+configurations_secrets = { default = "{}", secret = true }
+# base64-encoded RSA public key PEM (falls back to raw PEM) — used by
+# configurations' JWT verification; falls back to the packaged
+# keys/octy-public-key.pub if left blank (see octy_spin::auth).
+octy_public_key = { default = "" }
+# Base URL of the octy-data-gateway sidecar. Only configurations' routes use
+# it (AMQP publish); admin's routes never do.
 gateway_url = { default = "http://127.0.0.1:8090" }
 
 [[trigger.http]]
@@ -20,11 +30,16 @@ component = "admin"
 
 [component.admin]
 source = "../../target/wasm32-wasip1/release/admin_service.wasm"
-# The static resource-format examples the Python service shipped in its image
-# (`Config['RESOURCE_FORMAT_EXAMPLES_DIR']` points here at runtime).
-files = [{ source = "content/resource_formats", destination = "/data/repositories/content/resource_formats" }]
+files = [
+    # admin: the static resource-format examples the Python service shipped
+    # in its image (`Config['RESOURCE_FORMAT_EXAMPLES_DIR']` points here).
+    { source = "content/resource_formats", destination = "/data/repositories/content/resource_formats" },
+    # configurations: the packaged JWT verification key fallback.
+    { source = "keys", destination = "/keys" },
+]
 allowed_outbound_hosts = [
     "http://*:*",
+    "https://*:*",
     "redis://*:*",
     "rediss://*:*",
 ]
@@ -32,9 +47,12 @@ allowed_outbound_hosts = [
 [component.admin.variables]
 admin_config = "{{ admin_config }}"
 admin_secrets = "{{ admin_secrets }}"
+configurations_config = "{{ configurations_config }}"
+configurations_secrets = "{{ configurations_secrets }}"
+octy_public_key = "{{ octy_public_key }}"
 gateway_url = "{{ gateway_url }}"
 
 [component.admin.build]
 command = "cargo build -p admin-service --target wasm32-wasip1 --release"
 workdir = "../.."
-watch = ["src/**/*.rs", "Cargo.toml", "../../crates/octy-shared/src/**/*.rs"]
+watch = ["src/**/*.rs", "Cargo.toml", "../../crates/octy-shared/src/**/*.rs", "../../crates/octy-spin/src/**/*.rs"]

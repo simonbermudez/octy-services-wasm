@@ -5,10 +5,15 @@ workers, ~33k lines of Python), compiled to WebAssembly and run as **WASM
 containers** on Kubernetes ([SpinKube](https://www.spinkube.dev) /
 `containerd-shim-spin`).
 
-Status: **all 17 services/workers ported**, workspace builds clean to
-`wasm32-wasip1` (zero errors, one harmless dead-code warning), 51 native unit
-tests pass, and `account`/`billing`/`admin` have been smoke-tested end-to-end
-under `spin up`.
+Status: **all 17 original services/workers ported**, since consolidated to
+**16 deployables** (`admin` and `configurations` were merged — see
+[below](#admin--configurations-were-merged)) behind **one shared,
+multi-tenant gateway** (previously one gateway deployment per service — see
+[below](#one-gateway-a-shared-multi-tenant-sidecar)). Workspace builds clean
+to `wasm32-wasip1` (zero errors, one harmless dead-code warning), 51 native
+unit tests pass, and `account`/`billing`/`admin` have been smoke-tested
+end-to-end under `spin up`, including a real WASM component talking to the
+shared gateway.
 
 **Setting up a local testbed?** See [`local-dev/README.md`](local-dev/README.md) —
 minikube + local MongoDB/Redis/RabbitMQ/MinIO, ready-made per-service
@@ -18,7 +23,7 @@ config/secrets files, and a fast `spin up` iteration loop.
 
 ```
 rust/
-├── Cargo.toml                    # workspace (17 wasm32 members + gateway)
+├── Cargo.toml                    # workspace (16 wasm32 members + gateway)
 ├── crates/
 │   ├── octy-shared/               # portable domain logic — native AND wasm32
 │   │   ├── config.rs               #   base64-JSON config/secrets blobs (unchanged contract)
@@ -30,20 +35,22 @@ rust/
 │   │   └── utils.rs                #   uid generation, basic-auth parsing, dt encoding …
 │   └── octy-spin/                 # shared Spin (wasm32-only) plumbing
 │       ├── ctx.rs                  #   Ctx::load(prefix) — config/secrets/gateway per service
-│       ├── gateway.rs               #   HTTP client for octy-data-gateway
+│       ├── gateway.rs               #   HTTP client for the shared octy-data-gateway (attaches X-Octy-Service)
 │       ├── http_util.rs            #   Octy response envelopes, header/pagination validation
 │       ├── auth.rs                 #   decode_account_jwt — X-AUTH-JWT verification + REQUIRED_PERMISSIONS
 │       └── aws.rs                  #   SigV4-signed outbound requests (SageMaker, S3 data-plane)
-├── services/                      # 12 Spin HTTP components (wasm32-wasip1)
-│   ├── account/  admin/  billing/  churn-prediction/  configurations/
-│   ├── events/   items/  messaging/  octy-jobs/  profiles/
-│   └── recommendation/  segmentation/
+├── services/                      # 11 Spin HTTP components (wasm32-wasip1)
+│   ├── account/  admin/ (also serves what was `configurations/`)  billing/
+│   ├── churn-prediction/  events/  items/  messaging/  octy-jobs/
+│   └── profiles/  recommendation/  segmentation/
 ├── workers/                       # 5 Spin HTTP components — AMQP-triggered ML/batch jobs
 │   ├── churn-prediction/  profile-identification/  recommendation/
 │   └── rfm/  segmentation/
 ├── gateway/
-│   └── octy-data-gateway/         # native sidecar: MongoDB + RabbitMQ + S3 bridge
-└── kubernetes/<service>/          # SpinApp + gateway manifests, one dir per service
+│   └── octy-data-gateway/         # ONE native sidecar: MongoDB + RabbitMQ + S3 bridge, multi-tenant
+└── kubernetes/
+    ├── gateway/                    # the one shared gateway Deployment + Service
+    └── <service>/                  # SpinApp + Service manifests, one dir per deployable
 ```
 
 Every service/worker crate follows the same internal shape (established by
@@ -62,8 +69,7 @@ cannot run inside them. Per service we deploy:
   HTTP routes, validation, authn/z, JWT minting, Redis (via Spin's
   outbound-Redis host support), and outbound HTTPS (Mailjet, SageMaker via
   SigV4, internal service-to-service calls).
-* **`octy-data-gateway`** (native container, one deployment per service) — a
-  thin, service-agnostic bridge exposing:
+* **`octy-data-gateway`** (native container) — a thin bridge exposing:
   * **MongoDB**: `POST /v1/mongo/{collection}/{find-one, find, count,
     insert-one, insert-many, update-one, update-many, delete-one,
     delete-many, aggregate}` — documents travel as `bson.json_util`-style
@@ -79,9 +85,55 @@ cannot run inside them. Per service we deploy:
 
 Redis, Mailjet, SageMaker (via SigV4), and service-to-service HTTP go
 **directly** from the WASM component; only Mongo/AMQP/S3 — backends that need
-a real TCP driver or the AWS SDK — go through the gateway. The gateway image
-is identical across all 17 services; only its environment (DB_URI, AMQP
-consumer list, AWS creds) differs per deployment.
+a real TCP driver or the AWS SDK — go through the gateway.
+
+### One gateway: a shared, multi-tenant sidecar
+
+The gateway originally deployed once *per service* (17 near-identical
+Deployments differing only in env). It's now **one shared Deployment**
+(`kubernetes/gateway/gateway.yml`) serving every service. Every request
+carries an `X-Octy-Service` header — attached automatically by
+`octy_spin::gateway::GatewayClient` using the same name each service passes
+to `Ctx::load(...)` — which the gateway uses to look up that service's own
+MongoDB connection (`GATEWAY_TENANTS` env, one JSON array entry per service:
+`{"service", "db_uri", "routing_keys", "forward_url"}`) and AMQP consumer
+bindings. AWS credentials and the AMQP connection/exchange are gateway-wide,
+since S3 bucket names and Mongo collection names already travel per-request
+(never tenant config to begin with) and every service already shared one
+RabbitMQ instance and topic exchange.
+
+This was a pure infrastructure change — **no service's Rust code needed to
+change** (`GatewayClient`'s public API, and thus every `ctx.gateway.find(…)`/
+`amqp_publish(…)` call site across all 16 crates, is unchanged); only
+`Ctx::load` and the gateway's internals did. See
+`crates/octy-spin/src/gateway.rs` and `gateway/octy-data-gateway/src/main.rs`
+for the implementation, and
+[`local-dev/gateway-tenants.json`](local-dev/gateway-tenants.json) for a
+fully worked example.
+
+### `admin` + `configurations` were merged
+
+Two of the smaller services (`admin`: Redis-only version tracking + a GitHub
+webhook; `configurations`: JWT-authenticated account/algorithm config
+updates published to AMQP) had zero functional overlap but were each only a
+few hundred lines. They're now one deployable (`services/admin`, with
+`configurations`'s code intact under `services/admin/src/configurations/`) —
+merged purely to cut deployable count for two services too small to justify
+independent scaling or failure isolation. Nothing about either's behavior,
+routes, or config schema changed (they still read their own
+`admin_config`/`admin_secrets` and `configurations_config`/
+`configurations_secrets` blobs); see `services/admin/src/lib.rs`'s module
+doc for the reasoning. This is the first of what could be further
+consolidation — see the note at the end of this section.
+
+Other small services (`churn_prediction`, `items`, `messaging`) were
+deliberately **not** consolidated further in this pass — WASM's per-request
+sandboxing already provides finer-grained fault isolation than a traditional
+microservice boundary would, which weakens (but doesn't eliminate) the case
+for one-service-per-domain; independent deploy/scale cadence is the real
+remaining tradeoff, worth keeping in mind if either traffic or team size
+grows. Treat further consolidation as an opportunistic follow-up, not a
+prerequisite.
 
 ### Compatibility contracts kept from the Python services
 
@@ -226,7 +278,7 @@ cd rust
 cargo build
 cargo test          # 18 tests, octy-shared
 
-# every wasm32 service + worker (17 crates)
+# every wasm32 service + worker (16 crates)
 cargo build --workspace --exclude octy-data-gateway --target wasm32-wasip1 --release
 
 # a single service
@@ -238,35 +290,41 @@ cargo test -p rfm-worker --lib
 cargo test -p churn-prediction-worker --lib
 ```
 
-Run a service locally (needs the [Spin CLI](https://spinframework.dev)):
+Run a service locally (needs the [Spin CLI](https://spinframework.dev)) — one
+shared gateway serves every service, so start it once:
 
 ```bash
+# the gateway (against real Mongo/RabbitMQ/S3) — GATEWAY_TENANTS covers every
+# service; see local-dev/gateway-tenants.json for a fully worked example
+AMQP_URL=… AMQP_EXCHANGE=octy-services \
+  GATEWAY_TENANTS="$(cat local-dev/gateway-tenants.json)" \
+  cargo run -p octy-data-gateway
+
 export SPIN_VARIABLE_ACCOUNT_CONFIG=$(base64 < account-config.json)
 export SPIN_VARIABLE_ACCOUNT_SECRETS=$(base64 < account-secrets.json)
 export SPIN_VARIABLE_OCTY_PRIVATE_KEY=$(base64 < octy-private-key.pem)
 export SPIN_VARIABLE_GATEWAY_URL=http://127.0.0.1:8090
 
-# the gateway (against real Mongo/RabbitMQ/S3):
-DB_URI=… AMQP_URL=… AMQP_EXCHANGE=octy \
-  AMQP_CONSUMERS='["account.configs.cmd.update","algo.configs.cmd.update","churn.info.cmd.update"]' \
-  AMQP_FORWARD_URL=http://127.0.0.1:3000/internal/amqp/consume \
-  cargo run -p octy-data-gateway
-
 cd services/account && spin up
 ```
+
+See [`local-dev/README.md`](local-dev/README.md) for the full walkthrough
+(minikube-hosted infra, per-service config files, and a fast iteration loop).
 
 ## Deploy (WASM containers on Kubernetes)
 
 1. Install the SpinKube operator + `wasmtime-spin-v2` runtime class on the
    cluster.
 2. `docker build -f gateway/octy-data-gateway/Dockerfile -t <registry>/octy-data-gateway:0.1.0 rust/`
+   then `kubectl apply -f kubernetes/gateway/gateway.yml` — **once**, not
+   per service (see `gateway.yml`'s comments for how to build its
+   `GATEWAY_TENANTS` secret).
 3. For each service: `cd services/<name> && spin build && spin registry push <registry>/octy-<name>:0.1.0`
-4. `kubectl apply -f kubernetes/<name>/`
+   then `kubectl apply -f kubernetes/<name>/`.
 
 Every `kubernetes/<name>/` directory has a `<name>-spinapp.yml` (SpinApp +
-Service) and `data-gateway.yml` (a dedicated gateway Deployment with that
-service's `AMQP_CONSUMERS`/`AMQP_QUEUE_PREFIX`/`AMQP_FORWARD_URL`, or no AMQP
-env at all for services with no consumers). `octy-jobs` additionally has
+Service) whose `gateway_url` variable points at the one shared
+`kubernetes/gateway/gateway.yml` deployment. `octy-jobs` additionally has
 `scheduler-cronjob.yml`.
 
 ## Extending the port

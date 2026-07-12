@@ -16,7 +16,7 @@ spec:
   replicas: 2
   variables:
     - name: gateway_url
-      value: "http://octy-data-gateway:8090"
+      value: "http://octy-gateway:8090"
     # account_config / account_secrets / octy_private_key come from the same
     # base64-encoded blobs the Python deployment used.
     - name: account_config

@@ -1,11 +1,14 @@
-//! RabbitMQ bridge.
+//! RabbitMQ bridge — gateway-wide connection and exchange, shared by every
+//! tenant service.
 //!
 //! Publish: `POST /v1/amqp/publish {"routing_key": ..., "payload": ...}` —
-//! replaces `octy_rabbitmq.amqp_publisher` for the WASM components.
+//! replaces `octy_rabbitmq.amqp_publisher` for the WASM components. Any
+//! tenant can publish any routing key; the exchange doesn't care who sent it.
 //!
-//! Consume: for each configured routing key a queue is declared and bound to
-//! the topic exchange; deliveries are forwarded to the component as
-//! `POST $AMQP_FORWARD_URL {"routing_key": ..., "payload": ...}`.
+//! Consume: each tenant's `routing_keys` (from `GATEWAY_TENANTS`) gets its own
+//! queue (`{service}.{routing_key}`) bound to the topic exchange; deliveries
+//! are forwarded to that tenant's own `forward_url` as
+//! `POST {forward_url} {"routing_key": ..., "payload": ...}`.
 //! Component response drives the acknowledgement (replaces `amqp/consumer.py`):
 //!   2xx → ack, 4xx → reject (no requeue), anything else → reject + requeue.
 
@@ -22,7 +25,7 @@ use lapin::{BasicProperties, Channel, Connection, ConnectionProperties, Exchange
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::SharedState;
+use crate::{SharedState, TenantSpec};
 
 pub struct Publisher {
     channel: Channel,
@@ -103,36 +106,44 @@ pub async fn publish(
     Ok(Json(json!({ "published": true })))
 }
 
-/// Start one consumer task per configured routing key.
-pub async fn spawn_consumers(url: &str, exchange: &str) -> anyhow::Result<()> {
-    let routing_keys: Vec<String> = match std::env::var("AMQP_CONSUMERS") {
-        Ok(raw) => serde_json::from_str(&raw)
-            .map_err(|e| anyhow::anyhow!("AMQP_CONSUMERS must be a JSON array of strings: {e}"))?,
-        Err(_) => Vec::new(),
-    };
-    if routing_keys.is_empty() {
-        tracing::info!("no AMQP consumers configured");
-        return Ok(());
-    }
+/// Start one consumer task per (tenant, routing key) pair across every
+/// service in `GATEWAY_TENANTS` that declared any `routing_keys`.
+pub async fn spawn_consumers(url: &str, exchange: &str, tenants: &[TenantSpec]) -> anyhow::Result<()> {
+    let mut total = 0usize;
+    for tenant in tenants {
+        if tenant.routing_keys.is_empty() {
+            continue;
+        }
+        let forward_url = tenant.forward_url.clone().ok_or_else(|| {
+            anyhow::anyhow!("{}: forward_url is required when routing_keys is non-empty", tenant.service)
+        })?;
 
-    let forward_url = std::env::var("AMQP_FORWARD_URL")
-        .map_err(|_| anyhow::anyhow!("AMQP_FORWARD_URL is required when AMQP_CONSUMERS is set"))?;
-    let queue_prefix = std::env::var("AMQP_QUEUE_PREFIX").unwrap_or_else(|_| "account".to_string());
-
-    for routing_key in routing_keys {
-        let url = url.to_string();
-        let exchange = exchange.to_string();
-        let forward_url = forward_url.clone();
-        let queue = format!("{queue_prefix}.{routing_key}");
-        tokio::spawn(async move {
-            loop {
-                match consume_loop(&url, &exchange, &queue, &routing_key, &forward_url).await {
-                    Ok(()) => tracing::warn!("consumer {queue} stream ended; reconnecting"),
-                    Err(e) => tracing::error!("consumer {queue} failed: {e}; reconnecting"),
+        for routing_key in &tenant.routing_keys {
+            let url = url.to_string();
+            let exchange = exchange.to_string();
+            let forward_url = forward_url.clone();
+            let routing_key = routing_key.clone();
+            // {service}.{routing_key} keeps queue names unique across every
+            // tenant sharing this one exchange, matching the old
+            // AMQP_QUEUE_PREFIX convention (previously one prefix per
+            // gateway deployment; now one per tenant in the same process).
+            let queue = format!("{}.{routing_key}", tenant.service);
+            total += 1;
+            tokio::spawn(async move {
+                loop {
+                    match consume_loop(&url, &exchange, &queue, &routing_key, &forward_url).await {
+                        Ok(()) => tracing::warn!("consumer {queue} stream ended; reconnecting"),
+                        Err(e) => tracing::error!("consumer {queue} failed: {e}; reconnecting"),
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            }
-        });
+            });
+        }
+    }
+    if total == 0 {
+        tracing::info!("no AMQP consumers configured across any tenant");
+    } else {
+        tracing::info!("spawned {total} AMQP consumers across {} tenants", tenants.len());
     }
     Ok(())
 }

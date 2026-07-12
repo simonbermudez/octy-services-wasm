@@ -29,14 +29,19 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 name = "admin-service"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "base64",
  "chrono",
  "hmac 0.12.1",
  "octy-shared",
  "octy-spin",
+ "regex-lite",
+ "serde",
  "serde_json",
  "sha1 0.10.6",
  "spin-sdk",
  "url",
+ "uuid",
 ]
 
 [[package]]
@@ -1185,22 +1190,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
 dependencies = [
  "crossbeam-utils",
-]
-
-[[package]]
-name = "configurations-service"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64",
- "chrono",
- "octy-shared",
- "octy-spin",
- "regex-lite",
- "serde",
- "serde_json",
- "spin-sdk",
- "uuid",
 ]
 
 [[package]]
