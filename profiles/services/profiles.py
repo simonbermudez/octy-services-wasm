@@ -118,8 +118,8 @@ class ProfilesService():
 
         def _val_or_none(obj, key):
             try:
-                return obj[key]
-            except TypeError:
+                return obj.get(key)
+            except AttributeError:
                 return None
 
         identifiers_meta = list()
@@ -302,19 +302,20 @@ class ProfilesService():
             raise OctyException(400, ex, failed)
 
         if not identification_job:
-            if loop:
-                loop.create_task(amqpPublisher.send_message(routing_key='events.cmd.delete',
-                    payload={
-                        'account_id' : self.account.account_id,
-                        'profile_id' : p
-                    }))
-            else:
-                await amqpPublisher.send_message(routing_key='events.cmd.delete',
-                    payload={
-                        'account_id' : self.account.account_id,
-                        'profile_id' : p
-                    })
-                    
+            for d in deleted:
+                if loop:
+                    loop.create_task(amqpPublisher.send_message(routing_key='events.cmd.delete',
+                        payload={
+                            'account_id' : self.account.account_id,
+                            'profile_id' : d['profile_id']
+                        }))
+                else:
+                    await amqpPublisher.send_message(routing_key='events.cmd.delete',
+                        payload={
+                            'account_id' : self.account.account_id,
+                            'profile_id' : d['profile_id']
+                        })
+
         return deleted, failed
 
     def _validate_profile_key_types(self,new_customer_profiles : dict) -> Union[bool, str]:
