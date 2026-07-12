@@ -1162,13 +1162,13 @@ class PendingLiveSegmentation():
             if len(self.found_past_inaction_events)>0:
                 
                 events_map, invalid_event_sequence = await self._event_sequence_analysis()
+                meets_criteria = await self._event_map_analysis(events_map)
                 if invalid_event_sequence:
                     # Update tag to 'active' as no valid inactive events occurred within the defined timeframe
                     await self._update_live_segment_tag('active')
                     await self._delete_octy_jobs()
 
-                meets_criteria = await self._event_map_analysis(events_map)
-                if meets_criteria:
+                elif meets_criteria:
                     # Update tag to 'active' as no valid inactive events occurred within the defined timeframe
                     await self._update_live_segment_tag('active')
                     await self._delete_octy_jobs()

@@ -161,13 +161,13 @@ class _SegmentationRepository(SegmentationInterface):
             payload = {
                 'event_sequence_event' : event_sequence_event,
                 'timeframe' : timeframe,
+                'profile_ids' : profile_ids,
                 'account_id' : account_id
             }
         else:
             payload = {
                 'event_sequence_event' : event_sequence_event,
                 'timeframe' : timeframe,
-                'profile_ids' : profile_ids,
                 'account_id' : account_id
             }
 
