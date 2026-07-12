@@ -87,18 +87,7 @@ class _OctyJobsRepository:
             await self.collection().bulk_write(operations)
 
     async def delete_octy_jobs(self, account_ids: list, identifiers: list):
-        operations = []
-        for iden in identifiers:
-            if 'octy-job_' in iden:
-                operations.append(UpdateOne(
-                    {"_id": iden, "account_id": {"$in": account_ids}}, {"$unset": {}}, upsert=False
-                ))
-            else:
-                operations.append(UpdateOne(
-                    {"alt_dentifier": iden, "account_id": {"$in": account_ids}}, {"$unset": {}}, upsert=False
-                ))
-
-        if operations:
+        if identifiers:
             await self.collection().delete_many({
                 "$or": [
                     {"_id": {"$in": identifiers}},
