@@ -227,7 +227,7 @@ class _TemplatesRepository(TemplatesInterface):
             bulk_operation.find({
                 '$and' : [
                     {"_id" : { "$eq" : t['_id']}},
-                    {"account_id" : { "$eq" : t['account_id']}}
+                    {"account_id" : { "$eq" : templates_batch_obj['account_id']}}
                 ]
             }).update(
                 {
