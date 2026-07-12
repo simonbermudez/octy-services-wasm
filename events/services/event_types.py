@@ -27,12 +27,12 @@ class EventTypesService():
         ----------
         account : Octy account
     """
-    def __init__(self, account : Account): 
+    def __init__(self, account : Account):
         self.account = account
 
-    def get_event_types(self,
-                    event_type_ids : list = None, 
-                    cursor : int = None) -> Union[dict, int]: 
+    async def get_event_types(self,
+                    event_type_ids : list = None,
+                    cursor : int = None) -> Union[dict, int]:
         """
         Parameters
         ----------
@@ -48,26 +48,26 @@ class EventTypesService():
         """
 
         if event_type_ids != None and cursor == 0:
-            event_types =  eventTypesRepository.get_event_type_by_ids(account_id=self.account.account_id, event_type_ids=event_type_ids)
+            event_types =  await eventTypesRepository.get_event_type_by_ids(account_id=self.account.account_id, event_type_ids=event_type_ids)
             count = len(event_types)
             if count<1:
-                raise OctyException(400, 'Invalid event type identifier provided', 
-                [{'error_message' : 'No custom event types were found with the provided event_type_id', 
+                raise OctyException(400, 'Invalid event type identifier provided',
+                [{'error_message' : 'No custom event types were found with the provided event_type_id',
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
-            
+
             return event_types, count
-            
+
 
         elif event_type_ids == None and cursor != None:
-            
-            event_types, total = eventTypesRepository.get_all_event_types(account_id=self.account.account_id, cursor=cursor)
+
+            event_types, total = await eventTypesRepository.get_all_event_types(account_id=self.account.account_id, cursor=cursor)
             if len(event_types)<1:
-                raise OctyException(400, 'No custom event types found', 
-                [{'error_message' : 'No custom event types found with the provided query parameters or pagination cursor exhausted', 
+                raise OctyException(400, 'No custom event types found',
+                [{'error_message' : 'No custom event types found with the provided query parameters or pagination cursor exhausted',
                 'extended_help': Config['CUSTOM_EVENTS_EXTENDED_HELP']}])
             return event_types, total
 
-    def create_event_types(self, event_types : CreateEventTypes) -> Union[list, list]:
+    async def create_event_types(self, event_types : CreateEventTypes) -> Union[list, list]:
         """
         Parameters
         ----------
@@ -81,10 +81,10 @@ class EventTypesService():
 
         # assess allowed limits
         res, counts = assess_resource_limit(self.account.account_configurations['li'],
-                              eventTypesRepository.get_event_types_count(self.account.account_id),
+                              await eventTypesRepository.get_event_types_count(self.account.account_id),
                               len(event_types.event_types), resource_key=2)
         if not res:
-            raise OctyException(400,'Resource limit exceeded', 
+            raise OctyException(400,'Resource limit exceeded',
             [{'error_message' : f'This request could not be completed as the number of event types sent with this request exceeds the allowed limit of : {counts["limit"]}. This account can create another {counts["remainder"]} event types.', 'extended_help': Config['RATE_LIMIT_EXTENDED_HELP']}])
 
         event_type_batch = []
@@ -98,38 +98,38 @@ class EventTypesService():
                 }
             )
 
-        created, failed = eventTypesRepository.create_event_types(event_type_batch)
+        created, failed = await eventTypesRepository.create_event_types(event_type_batch)
 
         if len(created) < 1:
             raise OctyException(400, 'No event types created!', failed)
 
         return created, failed
 
-    def delete_all_event_types(self) -> Union[list, list]:
+    async def delete_all_event_types(self) -> Union[list, list]:
         """
         Parameters
         ----------
         event_type_ids : DeleteEventTypes
             DeleteEventTypes request model instance
-    
+
         Returns
         ----------
         Deleted and failed to delete event type ids : Union[list, list]
         """
 
-        deleted , failed = eventTypesRepository.delete_all_event_types_by_account(self.account.account_id)
+        deleted , failed = await eventTypesRepository.delete_all_event_types_by_account(self.account.account_id)
 
         if len(deleted) < 1:
             raise OctyException(400, 'No event types deleted!', failed)
         return deleted, failed
-    
-    def delete_event_types(self, event_type_ids : DeleteEventTypes) -> Union[list, list]:
+
+    async def delete_event_types(self, event_type_ids : DeleteEventTypes) -> Union[list, list]:
         """
         Parameters
         ----------
         event_type_ids : DeleteEventTypes
             DeleteEventTypes request model instance
-    
+
         Returns
         ----------
         Deleted and failed to delete event type ids : Union[list, list]
@@ -141,14 +141,14 @@ class EventTypesService():
                 "account_id" : self.account.account_id
             })
 
-        deleted , failed = eventTypesRepository.delete_event_types(event_type_id_batch)
+        deleted , failed = await eventTypesRepository.delete_event_types(event_type_id_batch)
 
         if len(deleted) < 1:
             raise OctyException(400, 'No event types deleted!', failed)
         return deleted, failed
-    
 
-    def get_event_types_internal(self, account_id : str, event_type_names : list) -> Union[list, list]: 
+
+    async def get_event_types_internal(self, account_id : str, event_type_names : list) -> Union[list, list]:
         """
         Parameters
         ----------
@@ -163,11 +163,11 @@ class EventTypesService():
         not found event types : list
         """
 
-        found_event_types, not_found =  eventTypesRepository.get_event_types_by_name(account_id=account_id, 
+        found_event_types, not_found =  await eventTypesRepository.get_event_types_by_name(account_id=account_id,
                                                                                   event_type_names=event_type_names)
         if len(found_event_types)<1:
-            raise OctyException(400, 'None found!', 
-            [{'error_message' : 'No custom event types were found with the provided event type names', 
+            raise OctyException(400, 'None found!',
+            [{'error_message' : 'No custom event types were found with the provided event type names',
             'extended_help': ''}])
-        
+
         return found_event_types, not_found
