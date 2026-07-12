@@ -22,7 +22,7 @@ spec:
   replicas: 1
   variables:
     - name: gateway_url
-      value: "http://segmentation-worker-gateway:8090"
+      value: "http://octy-gateway:8090"
     # segmentation_worker_config / segmentation_worker_secrets carry the same
     # base64-encoded blobs the Python deployment used
     # (SEGMENTATION_WORKER_CONFIG / SEGMENTATION_WORKER_SECRETS env vars).

@@ -19,7 +19,7 @@ spec:
   replicas: 1
   variables:
     - name: gateway_url
-      value: "http://octy-jobs-data-gateway:8090"
+      value: "http://octy-gateway:8090"
     # Stands in for the Python POD_ID (fieldRef env is not available through
     # SpinApp variables); used only as the Redis job-claim owner value.
     - name: pod_id

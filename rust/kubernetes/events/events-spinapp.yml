@@ -16,7 +16,7 @@ spec:
   replicas: 2
   variables:
     - name: gateway_url
-      value: "http://octy-data-gateway-events:8090"
+      value: "http://octy-gateway:8090"
     # events_config / events_secrets come from the same base64-encoded blobs
     # the Python deployment used (EVENTS_CONFIG / EVENTS_SECRETS). The
     # PROFILE_SERVICE_CLUSTER_IP / SEGMENTATION_SERVICE_CLUSTER_IP the

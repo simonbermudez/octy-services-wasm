@@ -19,7 +19,7 @@ spec:
   replicas: 1
   variables:
     - name: gateway_url
-      value: "http://recommendation-worker-gateway:8090"
+      value: "http://octy-gateway:8090"
     # recommendation_worker_config / recommendation_worker_secrets come from
     # the same base64-encoded blobs the Python deployment used
     # (RECOMMENDATION_WORKER_CONFIG / RECOMMENDATION_WORKER_SECRETS).

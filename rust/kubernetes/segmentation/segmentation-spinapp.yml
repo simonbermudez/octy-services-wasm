@@ -16,7 +16,7 @@ spec:
   replicas: 2
   variables:
     - name: gateway_url
-      value: "http://octy-data-gateway-segmentation:8090"
+      value: "http://octy-gateway:8090"
     # segmentation_config / segmentation_secrets come from the same
     # base64-encoded blobs the Python deployment used (SEGMENTATION_CONFIG /
     # SEGMENTATION_SECRETS env vars).

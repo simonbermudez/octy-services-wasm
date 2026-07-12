@@ -109,18 +109,19 @@ kubectl -n octy-local port-forward svc/rabbitmq 5672:5672 &
 kubectl -n octy-local port-forward svc/minio 9000:9000 &   # only if using MinIO
 ```
 
-Run the gateway natively (one instance is enough for local testing — point
-every service's `gateway_url` at it):
+Run the gateway natively — **one shared instance serves every service**
+(previously one per service; see `rust/README.md`'s architecture notes for
+why). `gateway-tenants.json` in this directory already has every service's
+`db_uri` pointed at the local Mongo above and its `forward_url` pointed at
+`http://127.0.0.1:3000` — adjust the port per service if you're running more
+than one at once (see the note at the end of this section):
 
 ```bash
 cd rust
 export PATH="$HOME/.cargo/bin:$PATH"
-DB_URI="mongodb://localhost:27017/octy" \
-  AMQP_URL="amqp://octy:octy@localhost:5672/%2f" \
+AMQP_URL="amqp://octy:octy@localhost:5672/%2f" \
   AMQP_EXCHANGE="octy-services" \
-  AMQP_QUEUE_PREFIX="account" \
-  AMQP_CONSUMERS='["account.configs.cmd.update","algo.configs.cmd.update","churn.info.cmd.update"]' \
-  AMQP_FORWARD_URL="http://127.0.0.1:3000/internal/amqp/consume" \
+  GATEWAY_TENANTS="$(cat local-dev/gateway-tenants.json)" \
   AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
   AWS_ENDPOINT_URL=http://localhost:9000 S3_FORCE_PATH_STYLE=true \
   cargo run -p octy-data-gateway
@@ -176,10 +177,15 @@ copy `/tmp/octy-local-keys/public.pem` into that service's `keys/` directory
 override, or set its `octy_public_key` variable directly (see the
 per-service table).
 
-To run a second service alongside `account`, repeat the `spin up` step in a
-new terminal with a different `--listen` port, and start the gateway again
-with that service's own `AMQP_*` env (or skip AMQP env entirely for services
-with no consumers — see the table).
+To run a second service alongside `account`, just repeat the `spin up` step
+in a new terminal with a different `--listen` port — the same gateway
+instance already has every service's tenant entry loaded, no need to restart
+it. The one thing to watch: `gateway-tenants.json`'s `forward_url`s assume
+`account` is on port 3000; if you're running the service whose AMQP
+consumers you actually want to exercise, update its `forward_url` in that
+file to match the port you chose (see the [per-service reference](#per-service-reference)
+table for which services have consumers at all — most don't, and can be
+run on any port with no changes).
 
 ## Path B: full cluster (SpinKube in minikube)
 
@@ -228,17 +234,31 @@ want running in-cluster, substituting its crate name and image tag.
 
 ### Deploy
 
-Apply the local infra (§1 above) if you haven't, then for each service:
+Apply the local infra (§1 above) if you haven't, then the **one shared
+gateway** (not per service):
 
 ```bash
-kubectl apply -f rust/kubernetes/account/data-gateway.yml -n octy-local
+kubectl apply -f rust/kubernetes/gateway/gateway.yml -n octy-local
+```
+
+Before applying, edit `gateway.yml`'s `octy-gateway-secrets`:
+- Replace `<registry>/octy-data-gateway:0.1.0` with `localhost:5000/octy-data-gateway:dev`.
+- Point `AMQP_URL` and every tenant's `db_uri` in `GATEWAY_TENANTS` at the
+  `octy-local` namespace hostnames from the table in §1 — or just paste in
+  [`gateway-tenants.json`](gateway-tenants.json) verbatim, it's already
+  built for this local cluster.
+- Point AWS env at MinIO if you're using it (see §1's MinIO note).
+
+Then for each service:
+
+```bash
 kubectl apply -f rust/kubernetes/account/account-spinapp.yml -n octy-local
 ```
 
-Before applying, edit each `*-spinapp.yml` and `data-gateway.yml`:
+Before applying, edit each `*-spinapp.yml`:
 - Replace `<registry>/octy-<name>:0.1.0` with `localhost:5000/octy-<name>:dev`.
-- Point `DB_URI`/`AMQP_URL`/AWS env at the `octy-local` namespace hostnames
-  from the table in §1 instead of the production secret references.
+- `gateway_url` already points at `http://octy-gateway:8090` (the shared
+  gateway's Service name) — no change needed.
 - Add `redis_insecure_tls: "true"` to the SpinApp's `variables` list for any
   service that uses Redis (see §1).
 
@@ -270,19 +290,19 @@ curl http://localhost:8080/healthz
 ## Per-service reference
 
 Every service's exact ConfigMap/Secret object name and data key — these are
-**not uniform** across services (a byproduct of 17 crates being ported
+**not uniform** across services (a byproduct of 16 crates being ported
 independently), so don't assume a pattern; use this table. `redis?` marks
 services that need `redis_insecure_tls: "true"` in Path B. `amqp consumers`
-lists the routing keys each service's gateway deployment must declare in
-`AMQP_CONSUMERS` (omit the whole `AMQP_*` block for services with none).
+lists the routing keys each service consumes — these live in the shared
+gateway's `GATEWAY_TENANTS` now (see [`gateway-tenants.json`](gateway-tenants.json)),
+not in per-service env.
 
 | Service | Config object / key | Secrets object / key | redis? | amqp consumers |
 |---|---|---|---|---|
 | account | `account-config` / `ACCOUNT_CONFIG` | `account-secrets` / `ACCOUNT_SECRETS` (+`OCTY_PRIVATE_KEY`) | yes | `account.configs.cmd.update`, `algo.configs.cmd.update`, `churn.info.cmd.update` |
-| admin | `admin-config` / `admin_config` | `admin-secrets` / `admin_secrets` | yes | — (no gateway) |
+| admin *(also serves what was `configurations`)* | `admin-config` / `admin_config` **and** `configurations-config` / `CONFIGURATIONS_CONFIG` (+`OCTY_PUBLIC_KEY` in the same ConfigMap) | `admin-secrets` / `admin_secrets` **and** `configurations-secrets` / `CONFIGURATIONS_SECRETS` | yes (admin's own routes only) | — (configurations' routes only publish, never consume) |
 | billing | `billing-config` / `billing_config` | `billing-secrets` / `billing_secrets` | no | `account.billing.cmd.capture` |
 | churn-prediction | `churn-prediction-config` / `CHURN_PREDICTION_CONFIG` | `churn-prediction-secrets` / `CHURN_PREDICTION_SECRETS` (+`OCTY_PUBLIC_KEY`) | no | — |
-| configurations | `configurations-config` / `CONFIGURATIONS_CONFIG` (+`OCTY_PUBLIC_KEY` in the same ConfigMap) | none required | no | — (no gateway) |
 | events | `events-config` / `EVENTS_CONFIG` | `events-secrets` / `EVENTS_SECRETS` (+`OCTY_PUBLIC_KEY`) | no | `events.cmd.delete`, `events.cmd.update` |
 | items | `items-config` / `ITEMS_CONFIG` | `items-secrets` / `ITEMS_SECRETS` (+`OCTY_PUBLIC_KEY`) | no | — |
 | messaging | `messaging-config` / `MESSAGING_CONFIG` | `messaging-secrets` / `MESSAGING_SECRETS` (+`OCTY_PUBLIC_KEY`) | no | — |
@@ -295,6 +315,14 @@ lists the routing keys each service's gateway deployment must declare in
 | recommendation-worker | `recommendation-worker-config` / `recommendation_worker_config` | `recommendation-worker-secrets` / `recommendation_worker_secrets` | no | `rec.training.cmd.run`, `rec.training.complete.cmd.run` |
 | segmentation-worker | `segmentation-worker-config` / `segmentation_worker_config` | `segmentation-worker-secrets` / `segmentation_worker_secrets` | no | `past.segmentation.cmd.run`, `live.segmentation.cmd.run` |
 | profile-identification-worker | `profile-identification-worker-config` / `profile_identification_worker_config` | `profile-identification-worker-secrets` / `profile_identification_worker_secrets` | yes | `profile.identification.cmd.run` |
+
+Note the `service` names above (used as the table's row labels, matching
+directory/crate names) mostly match what each crate passes to `Ctx::load(…)` —
+**except `octy-jobs`, whose code calls `Ctx::load("octy_job")` (singular)**.
+That singular form is what must appear as the `"service"` field in
+`gateway-tenants.json`/`GATEWAY_TENANTS` (it's the literal `X-Octy-Service`
+header value the gateway matches on) — grep `Ctx::load(` in a crate if
+you're ever unsure which string to use.
 
 Every service also has a filled-in `config/<name>.config.json` and, where
 applicable, `<name>.secrets.json` in this directory — they use the local

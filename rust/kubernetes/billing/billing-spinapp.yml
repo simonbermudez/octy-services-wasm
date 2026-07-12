@@ -16,7 +16,7 @@ spec:
   replicas: 2
   variables:
     - name: gateway_url
-      value: "http://octy-data-gateway-billing:8090"
+      value: "http://octy-gateway:8090"
     # billing_config / billing_secrets are the same base64-encoded blobs the
     # Python deployment consumed via BILLING_CONFIG / BILLING_SECRETS.
     - name: billing_config

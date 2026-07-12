@@ -16,7 +16,7 @@ spec:
   replicas: 2
   variables:
     - name: gateway_url
-      value: "http://octy-data-gateway-messaging:8090"
+      value: "http://octy-gateway:8090"
     # messaging_config / messaging_secrets come from the same base64-encoded
     # blobs the Python deployment used (MESSAGING_CONFIG / MESSAGING_SECRETS).
     # The Python service never actually read any key out of Secrets — the

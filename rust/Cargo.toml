@@ -7,7 +7,6 @@ members = [
     "services/admin",
     "services/billing",
     "services/churn-prediction",
-    "services/configurations",
     "services/events",
     "services/items",
     "services/messaging",

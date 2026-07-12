@@ -11,7 +11,7 @@ use octy_spin::gateway::http_send;
 use serde_json::{json, Value};
 use spin_sdk::http::Method;
 
-use crate::models::SetAccountConfigs;
+use super::models::SetAccountConfigs;
 
 /// `_AccountConfigRepository.set_account_configs` — publish
 /// `account.configs.cmd.update`.

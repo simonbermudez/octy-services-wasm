@@ -15,7 +15,7 @@ spec:
   replicas: 1
   variables:
     - name: gateway_url
-      value: "http://octy-data-gateway-rfm-worker:8090"
+      value: "http://octy-gateway:8090"
     # rfm_worker_config / rfm_worker_secrets come from the same
     # base64-encoded blobs the Python deployment used
     # (workers/rfm/kubernetes/production/configMaps/configMap.yaml).
